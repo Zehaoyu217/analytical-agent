@@ -1,44 +1,63 @@
-import { useEffect, useState } from 'react';
-import { fetchPromptAssembly, PromptAssembly } from './api';
+import { useEffect, useState } from 'react'
+import { useDevtoolsStore } from '../../stores/devtools'
+import { fetchPromptAssembly, fetchTraceSummary, type PromptAssembly, type TraceSummary } from './api'
 
 interface Props {
-  traceId: string;
-  stepId: string;
+  traceId: string
+  stepId: string
 }
 
 export function PromptInspector({ traceId, stepId }: Props) {
-  const [data, setData] = useState<PromptAssembly | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<TraceSummary | null>(null)
+  const [assembly, setAssembly] = useState<PromptAssembly | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const setSelectedStep = useDevtoolsStore((s) => s.setSelectedStep)
+
+  useEffect(() => {
+    fetchTraceSummary(traceId)
+      .then(setSummary)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'error'))
+  }, [traceId])
 
   useEffect(() => {
     fetchPromptAssembly(traceId, stepId)
-      .then(setData)
-      .catch((e: Error) => setError(e.message));
-  }, [traceId, stepId]);
+      .then(setAssembly)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'error'))
+  }, [traceId, stepId])
 
-  if (error) return <div className="sop-error">Error: {error}</div>;
-  if (data === null) return <div className="sop-loading">Loading…</div>;
-  if (data.sections.length === 0) {
-    return <div className="sop-empty">No prompt sections for this step.</div>;
-  }
+  if (error) return <div className="sop-empty">{error}</div>
+  if (!summary || !assembly) return <div className="sop-empty">Loading…</div>
 
   return (
-    <div className="sop-prompt-inspector">
-      <h3>Prompt Assembly — {traceId} / {stepId}</h3>
-      {data.conflicts.length > 0 && (
-        <div className="sop-conflicts">
-          <strong>Conflicts:</strong>
-          <ul>{data.conflicts.map((c, i) => <li key={i}>{c}</li>)}</ul>
-        </div>
-      )}
-      {data.sections.map((s, i) => (
-        <div key={i} className="sop-prompt-section">
-          <div className="sop-prompt-source">
-            {s.source} (lines {s.lines})
-          </div>
-          <pre className="sop-prompt-text">{s.text}</pre>
+    <div style={{ padding: 12, color: '#e0e0e8', fontFamily: 'monospace', fontSize: 11 }}>
+      <div style={{ marginBottom: 12 }}>
+        <label>Step: </label>
+        <select
+          value={stepId}
+          onChange={(e) => setSelectedStep(e.target.value)}
+          style={{ fontFamily: 'monospace', fontSize: 11 }}
+        >
+          {summary.step_ids.map((id) => (
+            <option key={id} value={id}>{id}</option>
+          ))}
+        </select>
+      </div>
+      {assembly.sections.map((section, i) => (
+        <div key={i} style={{ marginBottom: 8 }}>
+          <div style={{ color: '#818cf8' }}>{section.source} ({section.lines})</div>
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{section.text}</pre>
         </div>
       ))}
+      {assembly.conflicts.length > 0 && (
+        <div style={{ marginTop: 16, color: '#f87171' }}>
+          <strong>Conflicts:</strong>
+          <ul>
+            {assembly.conflicts.map((c, i) => (
+              <li key={i}>{c.source_a} ↔ {c.source_b} at {c.overlap}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
-  );
+  )
 }
