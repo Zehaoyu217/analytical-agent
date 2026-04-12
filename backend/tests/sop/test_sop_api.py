@@ -87,3 +87,23 @@ def test_judge_variance_endpoint_returns_dimension_variance(
     data = resp.json()
     assert data["variance"] == fake_variance
     assert data["threshold_exceeded"] == ["false_positive_handling"]
+
+
+def test_prompt_assembly_endpoint_returns_sections(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.api.sop_api.load_prompt_assembly",
+        lambda trace_id, step_id: {
+            "sections": [
+                {"source": "backend/app/prompts/system.md", "lines": "1-10", "text": "A"},
+                {"source": "backend/app/skills/sql/SKILL.md", "lines": "1-5", "text": "B"},
+            ],
+            "conflicts": [],
+        },
+    )
+    resp = client.get("/api/sop/prompt-assembly/eval-x/step-3")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["sections"]) == 2
+    assert data["sections"][0]["source"].endswith("system.md")

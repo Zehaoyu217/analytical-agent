@@ -43,3 +43,23 @@ export async function fetchJudgeVariance(
   if (!resp.ok) throw new Error(`judge-variance failed: ${resp.status}`);
   return (await resp.json()) as JudgeVarianceResponse;
 }
+
+export interface PromptSection {
+  source: string;
+  lines: string;
+  text: string;
+}
+
+export interface PromptAssembly {
+  sections: PromptSection[];
+  conflicts: string[];
+}
+
+export async function fetchPromptAssembly(
+  traceId: string,
+  stepId: string,
+): Promise<PromptAssembly> {
+  const resp = await fetch(`/api/sop/prompt-assembly/${traceId}/${stepId}`);
+  if (!resp.ok) throw new Error(`prompt-assembly failed: ${resp.status}`);
+  return (await resp.json()) as PromptAssembly;
+}

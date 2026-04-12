@@ -52,3 +52,18 @@ def judge_variance(trace_id: str, n: int = 5) -> dict[str, object]:
     variance = compute_judge_variance(trace_id, n)
     exceeded = [dim for dim, v in variance.items() if v > JUDGE_VARIANCE_THRESHOLD]
     return {"variance": variance, "threshold_exceeded": exceeded}
+
+
+def load_prompt_assembly(trace_id: str, step_id: str) -> dict[str, object]:
+    """Placeholder stub — returns empty sections.
+
+    Real implementation reads the trace JSON and reconstructs the assembled
+    prompt with per-section file attribution. Deferred to v2.
+    """
+    _ = (trace_id, step_id)
+    return {"sections": [], "conflicts": []}
+
+
+@router.get("/prompt-assembly/{trace_id}/{step_id}")
+def prompt_assembly(trace_id: str, step_id: str) -> dict[str, object]:
+    return load_prompt_assembly(trace_id, step_id)
