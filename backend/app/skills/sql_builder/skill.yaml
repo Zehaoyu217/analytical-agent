@@ -1,0 +1,9 @@
+dependencies:
+  requires: []
+  used_by: [data_profiler]
+  packages: []
+errors:
+  NOT_IDENTIFIER:
+    message: "Identifier '{ident}' is not a safe SQL identifier."
+    guidance: "Use only letters, digits, and underscore; must not start with a digit."
+    recovery: "Rename the column or pass it through quote()."
