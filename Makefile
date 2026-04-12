@@ -46,10 +46,13 @@ skill-new:
 ifndef name
 	$(error Usage: make skill-new name=<skill_name>)
 endif
-	@mkdir -p backend/app/skills/$(name)/{pkg,references,tests,evals/fixtures}
+	@mkdir -p backend/app/skills/$(name)/pkg
+	@mkdir -p backend/app/skills/$(name)/references
+	@mkdir -p backend/app/skills/$(name)/tests
+	@mkdir -p backend/app/skills/$(name)/evals/fixtures
 	@touch backend/app/skills/$(name)/pkg/__init__.py
-	@echo "---\nname: $(name)\n---\n# $(name)\n" > backend/app/skills/$(name)/SKILL.md
-	@echo "name: $(name)\nversion: '0.1'\ndescription: ''\nlevel: 1\nerrors: {}\ndependencies:\n  requires: []\n  used_by: []\n  packages: []" > backend/app/skills/$(name)/skill.yaml
+	@printf -- "---\nname: $(name)\ndescription: ''\nlevel: 1\nversion: '0.1'\n---\n# $(name)\n\nOne-paragraph overview.\n\n## When to use\n\n...\n\n## Contract\n\n...\n" > backend/app/skills/$(name)/SKILL.md
+	@printf "dependencies:\n  requires: []\n  used_by: []\n  packages: []\nerrors: {}\n" > backend/app/skills/$(name)/skill.yaml
 	@echo "Skill scaffolded at backend/app/skills/$(name)/"
 
 # Knowledge
