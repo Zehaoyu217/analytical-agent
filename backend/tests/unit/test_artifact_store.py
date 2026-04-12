@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -86,3 +87,56 @@ def test_accepts_profile_type(store: ArtifactStore) -> None:
         Artifact(type="profile", title="customers_v1 profile", content="{}", format="profile-json"),
     )
     assert saved.type == "profile"
+
+
+def test_load_session_failure_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    store = ArtifactStore(db_path=tmp_path / "a.db", disk_root=tmp_path / "blobs")
+    store.add_artifact("s1", Artifact(type="table", title="A", content="<t/>"))
+    # Simulate transient DB failure on the first load of a fresh instance
+    s2 = ArtifactStore(db_path=tmp_path / "a.db", disk_root=tmp_path / "blobs")
+    calls = {"n": 0}
+    real_connect = s2._connect
+    def flaky_connect():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise sqlite3.OperationalError("simulated transient failure")
+        return real_connect()
+    monkeypatch.setattr(s2, "_connect", flaky_connect)
+    with pytest.raises(sqlite3.OperationalError):
+        s2.get_artifacts("s1")
+    # After failure, retry must not silently return [].
+    monkeypatch.setattr(s2, "_connect", real_connect)
+    reloaded = s2.get_artifacts("s1")
+    assert len(reloaded) == 1
+    assert reloaded[0].title == "A"
+
+
+def test_update_shrinks_below_threshold_cleans_old_disk(tmp_path: Path) -> None:
+    store = ArtifactStore(db_path=tmp_path / "a.db", disk_root=tmp_path / "blobs", inline_threshold=100)
+    big = "x" * 500
+    saved = store.add_artifact("s1", Artifact(type="file", title="Big", content=big, format="txt"))
+    old_disk = tmp_path / "blobs" / "s1" / f"{saved.id}.txt"
+    assert old_disk.exists()
+    store.update_artifact("s1", saved.id, content="small")
+    assert not old_disk.exists(), "old disk blob must be cleaned up on update below threshold"
+    again = store.get_artifact("s1", saved.id)
+    assert again is not None and again.content == "small"
+
+
+def test_update_format_change_cleans_old_disk(tmp_path: Path) -> None:
+    store = ArtifactStore(db_path=tmp_path / "a.db", disk_root=tmp_path / "blobs", inline_threshold=100)
+    saved = store.add_artifact("s1", Artifact(type="file", title="Big", content="x" * 500, format="txt"))
+    old_disk = tmp_path / "blobs" / "s1" / f"{saved.id}.txt"
+    assert old_disk.exists()
+    store.update_artifact("s1", saved.id, content="y" * 500, format="html")
+    new_disk = tmp_path / "blobs" / "s1" / f"{saved.id}.html"
+    assert not old_disk.exists()
+    assert new_disk.exists()
+
+
+def test_update_does_not_mutate_previously_returned_instance(tmp_path: Path) -> None:
+    store = ArtifactStore(db_path=tmp_path / "a.db", disk_root=tmp_path / "blobs")
+    saved = store.add_artifact("s1", Artifact(type="table", title="Live", content="<t/>"))
+    store.update_artifact("s1", saved.id, content="<t2/>")
+    # Caller's reference to the original object must not be mutated.
+    assert saved.content == "<t/>"

@@ -124,7 +124,6 @@ class ArtifactStore:
         if session_id in self._loaded or not self._db_path:
             self._loaded.add(session_id)
             return
-        self._loaded.add(session_id)
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, session_id, name, type, title, description, content, disk_path, "
@@ -133,16 +132,39 @@ class ArtifactStore:
                 (session_id,),
             ).fetchall()
         self._cache[session_id] = [self._from_row(r) for r in rows]
+        self._loaded.add(session_id)
 
     def _persist(self, a: Artifact) -> None:
         if not self._db_path:
             return
+        # Read existing disk_path (if any) before overwriting, so we can clean up orphans.
+        old_disk_path: str | None = None
         with self._connect() as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO artifacts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                self._to_row(a),
+            cur = conn.execute(
+                "SELECT disk_path FROM artifacts WHERE session_id = ? AND id = ?",
+                (a.session_id, a.id),
             )
-            conn.commit()
+            row = cur.fetchone()
+            if row:
+                old_disk_path = row[0]
+
+        new_row = self._to_row(a)
+        new_disk_path = new_row[7]  # index 7 = disk_path (see column order)
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO artifacts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    new_row,
+                )
+                conn.commit()
+        except Exception:
+            # Commit failed — orphan any freshly-written blob before re-raising.
+            if new_disk_path and new_disk_path != old_disk_path:
+                Path(new_disk_path).unlink(missing_ok=True)
+            raise
+        # Commit succeeded — clean up the old blob if we replaced or removed it.
+        if old_disk_path and old_disk_path != new_disk_path:
+            Path(old_disk_path).unlink(missing_ok=True)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -164,13 +186,14 @@ class ArtifactStore:
 
     def update_artifact(self, session_id: str, artifact_id: str, **kwargs: Any) -> Artifact | None:
         self._load_session(session_id)
-        for a in self._cache.get(session_id, []):
+        items = self._cache.get(session_id, [])
+        for idx, a in enumerate(items):
             if a.id == artifact_id:
-                for k, v in kwargs.items():
-                    setattr(a, k, v)
-                self._persist(a)
-                self._events.emit("artifact.updated", {"session_id": session_id, "artifact_id": a.id})
-                return a
+                updated = a.model_copy(update=kwargs)
+                items[idx] = updated
+                self._persist(updated)
+                self._events.emit("artifact.updated", {"session_id": session_id, "artifact_id": updated.id})
+                return updated
         return None
 
     def get_artifacts(self, session_id: str) -> list[Artifact]:

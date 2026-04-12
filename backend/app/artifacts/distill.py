@@ -4,6 +4,8 @@ from html.parser import HTMLParser
 
 from app.artifacts.models import Artifact
 
+MAX_TABLE_HTML_BYTES_FOR_DISTILL = 500_000  # cap to prevent pathological HTMLParser slowdowns
+
 
 def _round(v: str) -> str:
     try:
@@ -77,7 +79,7 @@ def _distill_table(a: Artifact, max_rows: int = 50) -> str:
     if a.content:
         p = _TableParser()
         try:
-            p.feed(a.content[:500_000])
+            p.feed(a.content[:MAX_TABLE_HTML_BYTES_FOR_DISTILL])
             if p.rows:
                 header = p.rows[0]
                 body = p.rows[1 : max_rows + 1]
