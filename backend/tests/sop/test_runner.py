@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from app.sop.runner import run_sop
 from app.sop.types import FailureReport, Signals
 
@@ -72,3 +74,36 @@ def test_sop_result_is_json_serializable() -> None:
     )
     dumped = result.model_dump()
     assert "preflight" in dumped and "triage" in dumped and "proposal" in dumped
+
+
+def test_empty_ladder_returns_advisory(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.sop import runner
+    from app.sop.types import LadderDefinition
+
+    def fake(bucket: str) -> LadderDefinition:
+        return LadderDefinition(bucket=bucket, description="x", triage_signals=[], ladder=[])
+
+    monkeypatch.setattr(runner, "load_ladder", fake)
+    result = runner.run_sop(
+        report=_report(), judge_variance={},
+        seed_fingerprint_matches=True, rerun_grades=["B", "B"],
+    )
+    assert result.triage is not None
+    assert result.proposal is None
+    assert "empty" in result.advisory.lower()
+
+
+def test_unknown_bucket_returns_advisory(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.sop import runner
+
+    def fake(bucket: str) -> object:
+        raise FileNotFoundError(f"no ladder for {bucket}")
+
+    monkeypatch.setattr(runner, "load_ladder", fake)
+    result = runner.run_sop(
+        report=_report(), judge_variance={},
+        seed_fingerprint_matches=True, rerun_grades=["B", "B"],
+    )
+    assert result.triage is not None
+    assert result.proposal is None
+    assert "no ladder" in result.advisory.lower()

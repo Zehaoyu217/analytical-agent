@@ -62,7 +62,24 @@ def run_sop(
             advisory="No triage signal fired. Inspect trace manually.",
         )
 
-    ladder = load_ladder(decision.bucket)
+    try:
+        ladder = load_ladder(decision.bucket)
+    except FileNotFoundError:
+        return SOPResult(
+            preflight=pf,
+            triage=decision,
+            proposal=None,
+            advisory=f"No ladder file found for bucket '{decision.bucket}'.",
+        )
+
+    if not ladder.ladder:
+        return SOPResult(
+            preflight=pf,
+            triage=decision,
+            proposal=None,
+            advisory=f"Ladder '{decision.bucket}' is empty — check YAML.",
+        )
+
     top_rung = ladder.ladder[0]
     return SOPResult(
         preflight=pf,
