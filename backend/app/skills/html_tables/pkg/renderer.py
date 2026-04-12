@@ -11,6 +11,13 @@ def _is_numeric(series: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(series)
 
 
+def _is_missing(val: object) -> bool:
+    # pd.isna raises on array-like cells ("truth value is ambiguous"); guard first.
+    if not pd.api.types.is_scalar(val):
+        return False
+    return bool(pd.isna(val))
+
+
 def render(
     df: pd.DataFrame,
     title: str | None = None,
@@ -36,9 +43,11 @@ def render(
             if col in numeric_cols:
                 classes.append("cell-num")
             classes.extend(cell_classes.get((row_i, col), []))
-            cls_attr = f' class="{" ".join(classes)}"' if classes else ""
+            cls_attr = (
+                f' class="{escape(" ".join(classes), quote=True)}"' if classes else ""
+            )
             val = row[col]
-            shown = "" if pd.isna(val) else escape(str(val))
+            shown = "" if _is_missing(val) else escape(str(val))
             cells.append(f"<td{cls_attr}>{shown}</td>")
         rows_html.append("<tr>" + "".join(cells) + "</tr>")
     if truncated > 0:

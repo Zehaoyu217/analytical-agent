@@ -31,3 +31,25 @@ def test_custom_cell_classes_applied() -> None:
     out = render(df, cell_classes=classes)
     assert "cell-positive" in out
     assert "cell-negative" in out
+
+
+def test_escapes_unsafe_content_in_headers_and_cells() -> None:
+    df = pd.DataFrame({"<script>": ["a & b", "<img src=x>"]})
+    out = render(df)
+    assert "<script>" not in out
+    assert "&lt;script&gt;" in out
+    assert "a &amp; b" in out
+    assert "<img src=x>" not in out
+
+
+def test_escapes_quote_in_custom_class_tokens() -> None:
+    df = pd.DataFrame({"x": [1]})
+    classes = {(0, "x"): ['foo" onmouseover="alert(1)']}
+    out = render(df, cell_classes=classes)
+    assert 'onmouseover="alert(1)"' not in out
+
+
+def test_renders_list_valued_cell_without_crashing() -> None:
+    df = pd.DataFrame({"items": [["a", "b"], None]})
+    out = render(df)
+    assert "ga-table" in out

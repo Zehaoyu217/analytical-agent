@@ -15,7 +15,7 @@ _ERRORS = {
 
 
 def quote(ident: str) -> str:
-    if not _IDENT.match(ident or ""):
+    if not isinstance(ident, str) or not _IDENT.match(ident):
         raise SkillError("NOT_IDENTIFIER", {"ident": ident}, _ERRORS)
     return f'"{ident}"'
 
@@ -26,6 +26,8 @@ def select(
     where: str | None = None,
     limit: int | None = None,
 ) -> str:
+    # `where` is interpolated raw — callers must pass a trusted SQL fragment
+    # (not user input). Quote identifiers inside the fragment via quote().
     cols = ", ".join(quote(c) for c in columns)
     tbl = quote(table)
     sql = f"SELECT {cols} FROM {tbl}"

@@ -25,6 +25,13 @@ def test_quote_rejects_leading_digit() -> None:
         quote("1st_col")
 
 
+def test_quote_rejects_empty_and_non_string() -> None:
+    with pytest.raises(SkillError):
+        quote("")
+    with pytest.raises(SkillError):
+        quote(None)  # type: ignore[arg-type]
+
+
 def test_select_renders_columns_and_limit() -> None:
     sql = select("df", ["a", "b"], limit=10)
     assert sql == 'SELECT "a", "b" FROM "df" LIMIT 10'
