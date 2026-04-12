@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -31,6 +31,7 @@ class ContextManager:
         self._compaction_threshold = compaction_threshold
         self._layers: list[ContextLayer] = []
         self._compaction_history: list[dict[str, Any]] = []
+        self._turn: int = 0
 
     @property
     def total_tokens(self) -> int:
@@ -51,14 +52,14 @@ class ContextManager:
         return list(self._compaction_history)
 
     def add_layer(self, layer: ContextLayer) -> None:
-        existing = [i for i, l in enumerate(self._layers) if l.name == layer.name]
+        existing = [i for i, lyr in enumerate(self._layers) if lyr.name == layer.name]
         if existing:
             self._layers[existing[0]] = layer
         else:
             self._layers.append(layer)
 
     def remove_layer(self, name: str) -> None:
-        self._layers = [l for l in self._layers if l.name != name]
+        self._layers = [lyr for lyr in self._layers if lyr.name != name]
 
     def snapshot(self) -> dict[str, Any]:
         """Return current context state for the devtools inspector."""
@@ -88,7 +89,7 @@ class ContextManager:
     ) -> None:
         self._compaction_history.append({
             "id": len(self._compaction_history) + 1,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "tokens_before": tokens_before,
             "tokens_after": tokens_after,
             "tokens_freed": tokens_before - tokens_after,
@@ -96,3 +97,18 @@ class ContextManager:
             "removed": removed,
             "survived": survived,
         })
+        from app.trace.publishers import publish_compaction
+        dropped_names = [r.get("name", "") for r in removed if isinstance(r, dict)]
+        publish_compaction(
+            turn=self._current_turn(),
+            before_token_count=tokens_before,
+            after_token_count=tokens_after,
+            dropped_layers=[str(n) for n in dropped_names],
+            kept_layers=survived,
+        )
+
+    def set_turn(self, turn: int) -> None:
+        self._turn = turn
+
+    def _current_turn(self) -> int:
+        return self._turn
