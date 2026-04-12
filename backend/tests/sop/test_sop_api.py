@@ -72,3 +72,18 @@ def test_list_ladders_returns_nine(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["ladders"]) == 9
+
+
+def test_judge_variance_endpoint_returns_dimension_variance(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_variance = {"detection_recall": 0.2, "false_positive_handling": 0.6}
+    monkeypatch.setattr(
+        "app.api.sop_api.compute_judge_variance",
+        lambda trace_id, n: fake_variance,
+    )
+    resp = client.get("/api/sop/judge-variance/eval-x?n=5")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["variance"] == fake_variance
+    assert data["threshold_exceeded"] == ["false_positive_handling"]

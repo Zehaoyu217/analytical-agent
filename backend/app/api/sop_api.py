@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.sop.ladder_loader import load_all_ladders
 from app.sop.log import list_entries, read_entry
+from app.sop.preflight import JUDGE_VARIANCE_THRESHOLD
 
 router = APIRouter(prefix="/api/sop", tags=["sop"])
 
@@ -34,3 +35,20 @@ def get_session(session_id: str) -> dict[str, Any]:
 @router.get("/ladders")
 def list_ladders() -> dict[str, Any]:
     return {"ladders": [ld.model_dump() for ld in load_all_ladders()]}
+
+
+def compute_judge_variance(trace_id: str, n: int) -> dict[str, float]:
+    """Placeholder stub — returns empty variance.
+
+    Real implementation re-runs the judge N times and computes per-dimension
+    variance. Deferred to v2 (see app/sop/judge_replay.py in the plan).
+    """
+    _ = (trace_id, n)
+    return {}
+
+
+@router.get("/judge-variance/{trace_id}")
+def judge_variance(trace_id: str, n: int = 5) -> dict[str, object]:
+    variance = compute_judge_variance(trace_id, n)
+    exceeded = [dim for dim, v in variance.items() if v > JUDGE_VARIANCE_THRESHOLD]
+    return {"variance": variance, "threshold_exceeded": exceeded}

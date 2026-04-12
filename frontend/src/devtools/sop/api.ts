@@ -29,3 +29,17 @@ export async function listSessions(): Promise<SOPSession[]> {
   const data = (await resp.json()) as { sessions: SOPSession[] };
   return data.sessions;
 }
+
+export interface JudgeVarianceResponse {
+  variance: Record<string, number>;
+  threshold_exceeded: string[];
+}
+
+export async function fetchJudgeVariance(
+  traceId: string,
+  n = 5,
+): Promise<JudgeVarianceResponse> {
+  const resp = await fetch(`/api/sop/judge-variance/${traceId}?n=${n}`);
+  if (!resp.ok) throw new Error(`judge-variance failed: ${resp.status}`);
+  return (await resp.json()) as JudgeVarianceResponse;
+}
