@@ -1,0 +1,306 @@
+# config/themes/tokens.yaml
+# GIR-inspired institutional aesthetic. Single source of truth for all themes.
+# Series blues are named by role; each variant resolves role → shade.
+
+default_variant: light
+
+typography:
+  sans: "Inter, system-ui, sans-serif"
+  mono: "JetBrains Mono, ui-monospace, monospace"
+  serif: "Source Serif Pro, Georgia, serif"
+  scale:
+    xs: 11
+    sm: 12
+    base: 14
+    md: 16
+    lg: 18
+    xl: 22
+    title: 28
+  weight:
+    regular: 400
+    medium: 500
+    semibold: 600
+    bold: 700
+
+# Eight series blues (role -> shade) and categorical palette, colorblind-safe.
+# Strokes: actual solid 2.5, reference dotted 1.5, forecast dashed 1.5.
+series_strokes:
+  actual:     {width: 2.5, dash: null}
+  primary:    {width: 2.0, dash: null}
+  secondary:  {width: 2.0, dash: null}
+  reference:  {width: 1.5, dash: [2, 3]}
+  projection: {width: 1.5, dash: [5, 3]}
+  forecast:   {width: 1.5, dash: [6, 3]}
+  scenario:   {width: 1.2, dash: [3, 3]}
+  ghost:      {width: 1.0, dash: [1, 3]}
+
+variants:
+
+  light:
+    surface:
+      base:       "#FFFFFF"
+      panel:      "#F7F8FA"
+      border:     "#E2E6EC"
+      text:       "#111827"
+      text_muted: "#4B5563"
+      grid:       "#E5E7EB"
+    series_blues:
+      actual:     "#0B2545"
+      primary:    "#13315C"
+      secondary:  "#1E40AF"
+      reference:  "#3A6EA5"
+      projection: "#5B8AC7"
+      forecast:   "#8CB0D9"
+      scenario:   "#B3CFE6"
+      ghost:      "#DCE7F2"
+    semantic:
+      primary:   "#13315C"
+      positive:  "#4E7A3C"
+      negative:  "#8F3031"
+      warning:   "#B67B1E"
+      info:      "#3A6EA5"
+      neutral:   "#6B7280"
+      highlight: "#B5892A"
+    categorical:
+      - "#13315C"
+      - "#8F3031"
+      - "#4E7A3C"
+      - "#B67B1E"
+      - "#3A6EA5"
+      - "#1E40AF"
+      - "#5B8AC7"
+      - "#B5892A"
+      - "#6B3E91"
+      - "#8CB0D9"
+      - "#0B2545"
+      - "#2F4858"
+      - "#B3CFE6"
+      - "#D97757"
+      - "#4A6670"
+      - "#7A7A7A"
+      - "#A43E2A"
+      - "#45788F"
+    diverging:
+      negative: "#8F3031"
+      neutral:  "#F5EFE6"
+      positive: "#13315C"
+    chart:
+      default_width: 680
+      default_height: 320
+      title_anchor: "start"
+
+  dark:
+    surface:
+      base:       "#0F172A"
+      panel:      "#1E293B"
+      border:     "#334155"
+      text:       "#E5E7EB"
+      text_muted: "#94A3B8"
+      grid:       "#1E293B"
+    series_blues:
+      actual:     "#BCD3F2"
+      primary:    "#9DB9E0"
+      secondary:  "#7EA0CE"
+      reference:  "#6186BB"
+      projection: "#476DA4"
+      forecast:   "#335589"
+      scenario:   "#25406B"
+      ghost:      "#1A2D4F"
+    semantic:
+      primary:   "#9DB9E0"
+      positive:  "#7FB069"
+      negative:  "#D97757"
+      warning:   "#E3B23C"
+      info:      "#6186BB"
+      neutral:   "#94A3B8"
+      highlight: "#E3B23C"
+    categorical:
+      - "#9DB9E0"
+      - "#D97757"
+      - "#7FB069"
+      - "#E3B23C"
+      - "#6186BB"
+      - "#7EA0CE"
+      - "#476DA4"
+      - "#E3B23C"
+      - "#A892C7"
+      - "#BCD3F2"
+      - "#476DA4"
+      - "#5F7480"
+      - "#335589"
+      - "#F5A886"
+      - "#8AA3AE"
+      - "#9CA3AF"
+      - "#C87660"
+      - "#7C9CAE"
+    diverging:
+      negative: "#D97757"
+      neutral:  "#1E293B"
+      positive: "#9DB9E0"
+    chart:
+      default_width: 680
+      default_height: 320
+      title_anchor: "start"
+
+  editorial:
+    surface:
+      base:       "#FBF7EE"
+      panel:      "#F3ECDB"
+      border:     "#D6CAB1"
+      text:       "#1F1B17"
+      text_muted: "#5C5242"
+      grid:       "#E7DFC9"
+    series_blues:
+      actual:     "#0B2545"
+      primary:    "#13315C"
+      secondary:  "#1E40AF"
+      reference:  "#3A6EA5"
+      projection: "#5B8AC7"
+      forecast:   "#8CB0D9"
+      scenario:   "#B3CFE6"
+      ghost:      "#D2DEEC"
+    semantic:
+      primary:   "#13315C"
+      positive:  "#4E7A3C"
+      negative:  "#8F3031"
+      warning:   "#B67B1E"
+      info:      "#3A6EA5"
+      neutral:   "#5C5242"
+      highlight: "#B5892A"
+    categorical:
+      - "#13315C"
+      - "#8F3031"
+      - "#4E7A3C"
+      - "#B67B1E"
+      - "#3A6EA5"
+      - "#6B3E91"
+      - "#0B2545"
+      - "#B5892A"
+      - "#2F4858"
+      - "#8CB0D9"
+      - "#A43E2A"
+      - "#45788F"
+      - "#4A6670"
+      - "#5B8AC7"
+      - "#1E40AF"
+      - "#7A7A7A"
+      - "#5C5242"
+      - "#B3CFE6"
+    diverging:
+      negative: "#8F3031"
+      neutral:  "#F5EFE6"
+      positive: "#13315C"
+    chart:
+      default_width: 720
+      default_height: 360
+      title_anchor: "start"
+    typography_override:
+      headings: serif
+
+  presentation:
+    surface:
+      base:       "#FFFFFF"
+      panel:      "#F1F4F8"
+      border:     "#C8D0DA"
+      text:       "#0B1220"
+      text_muted: "#3B4252"
+      grid:       "#D4DBE4"
+    series_blues:
+      actual:     "#081C34"
+      primary:    "#0F2A4A"
+      secondary:  "#17397C"
+      reference:  "#2E5F95"
+      projection: "#4F7CB5"
+      forecast:   "#7A9FCB"
+      scenario:   "#A7C3E0"
+      ghost:      "#D0DDEB"
+    semantic:
+      primary:   "#0F2A4A"
+      positive:  "#426B32"
+      negative:  "#7A2929"
+      warning:   "#A26A14"
+      info:      "#2E5F95"
+      neutral:   "#3B4252"
+      highlight: "#A47B1E"
+    categorical:
+      - "#0F2A4A"
+      - "#7A2929"
+      - "#426B32"
+      - "#A26A14"
+      - "#2E5F95"
+      - "#17397C"
+      - "#4F7CB5"
+      - "#A47B1E"
+      - "#5F3682"
+      - "#081C34"
+      - "#7A9FCB"
+      - "#244052"
+      - "#A7C3E0"
+      - "#C25C36"
+      - "#3F5B67"
+      - "#666666"
+      - "#963626"
+      - "#3D6A80"
+    diverging:
+      negative: "#7A2929"
+      neutral:  "#E8E8E8"
+      positive: "#0F2A4A"
+    chart:
+      default_width: 900
+      default_height: 540
+      title_anchor: "start"
+    typography_override:
+      base_size: 18
+
+  print:
+    surface:
+      base:       "#FFFFFF"
+      panel:      "#F5F5F5"
+      border:     "#888888"
+      text:       "#000000"
+      text_muted: "#3F3F3F"
+      grid:       "#BDBDBD"
+    series_blues:
+      actual:     "#1A1A1A"
+      primary:    "#333333"
+      secondary:  "#4D4D4D"
+      reference:  "#666666"
+      projection: "#808080"
+      forecast:   "#999999"
+      scenario:   "#BFBFBF"
+      ghost:      "#D9D9D9"
+    semantic:
+      primary:   "#1A1A1A"
+      positive:  "#1A1A1A"
+      negative:  "#4D4D4D"
+      warning:   "#666666"
+      info:      "#333333"
+      neutral:   "#808080"
+      highlight: "#1A1A1A"
+    categorical:
+      - "#000000"
+      - "#333333"
+      - "#4D4D4D"
+      - "#666666"
+      - "#808080"
+      - "#999999"
+      - "#1A1A1A"
+      - "#2B2B2B"
+      - "#3F3F3F"
+      - "#555555"
+      - "#6B6B6B"
+      - "#7F7F7F"
+      - "#939393"
+      - "#ABABAB"
+      - "#BFBFBF"
+      - "#D3D3D3"
+      - "#575757"
+      - "#8B8B8B"
+    diverging:
+      negative: "#4D4D4D"
+      neutral:  "#F5F5F5"
+      positive: "#000000"
+    chart:
+      default_width: 680
+      default_height: 320
+      title_anchor: "start"
