@@ -1,0 +1,9 @@
+# backend/app/skills/analysis_plan/skill.yaml
+dependencies:
+  packages: []
+errors:
+  EMPTY_QUESTION:
+    message: "plan() requires a non-empty question."
+    remedy: "Pass the user's question or hypothesis as the `question` argument."
+  INVALID_DEPTH:
+    message: "Unknown depth '{depth}'. Use quick | standard | deep."
