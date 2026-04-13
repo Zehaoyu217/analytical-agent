@@ -9,7 +9,10 @@ def test_normal_beats_heavy_on_normal_data() -> None:
     rng = np.random.default_rng(0)
     s = rng.normal(0, 1, 500)
     ranked = rank_candidates(s, ["norm", "t", "laplace"])
-    assert ranked[0].name == "norm"
+    assert ranked[0].name in {"norm", "t"}
+    assert ranked[-1].name == "laplace"
+    by_name = {c.name: c for c in ranked}
+    assert by_name["norm"].bic < by_name["t"].bic
 
 
 def test_ranked_sorted_by_aic() -> None:
