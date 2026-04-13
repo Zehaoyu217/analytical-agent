@@ -1,0 +1,11 @@
+dependencies:
+  python:
+    - numpy
+    - pandas
+    - scipy
+    - statsmodels
+error_templates:
+  missing_column: "correlation: column '{column}' not in DataFrame. Available: {available}"
+  insufficient_rows: "correlation: n_effective={n} < 10 after NA handling. Increase data or set handle_na='fail' to error explicitly."
+  non_stationary: "correlation: both inputs are non-stationary (ADF p > 0.05). Set detrend='difference' or detrend='stl_residual'."
+  invalid_method: "correlation: method '{method}' unknown. Use 'auto'|'pearson'|'spearman'|'kendall'|'distance'."
