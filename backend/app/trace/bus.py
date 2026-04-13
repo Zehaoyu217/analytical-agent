@@ -27,6 +27,14 @@ def subscribe(fn: Subscriber) -> None:
     _subscribers.append(fn)
 
 
+def unsubscribe(fn: Subscriber) -> None:
+    """Remove a previously-subscribed callback. No-op if not registered."""
+    try:
+        _subscribers.remove(fn)
+    except ValueError:
+        pass
+
+
 def reset() -> None:
     """Clear subscribers and reset seq counter (test-only)."""
     global _seq_counter

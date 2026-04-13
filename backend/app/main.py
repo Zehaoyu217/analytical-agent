@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.chat_api import router as chat_router
 from app.api.context_api import router as context_router
 from app.api.health import router as health_router
 from app.api.sop_api import router as sop_router
@@ -26,5 +27,6 @@ def create_app() -> FastAPI:
     app.include_router(context_router)
     app.include_router(sop_router)
     app.include_router(trace_router)
+    app.include_router(chat_router)
 
     return app

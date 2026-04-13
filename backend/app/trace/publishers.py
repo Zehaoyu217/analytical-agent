@@ -165,4 +165,5 @@ class TraceSession:
             ended_at=ended_at, duration_ms=0, outcome=outcome, error=error,
         )
         if self._recorder is not None:
+            bus.unsubscribe(self._recorder.on_event)
             self._recorder.finalize(self._final_grade)
