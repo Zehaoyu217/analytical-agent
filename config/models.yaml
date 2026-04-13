@@ -1,0 +1,55 @@
+mode: config   # config | auto
+
+models:
+  claude_opus:
+    provider: anthropic
+    model_id: claude-opus-4-6
+    thinking_budget: 16000
+    tier: observatory
+  claude_sonnet:
+    provider: anthropic
+    model_id: claude-sonnet-4-6
+    thinking_budget: 8000
+    tier: observatory
+  claude_haiku:
+    provider: anthropic
+    model_id: claude-haiku-4-5-20251001
+    tier: advisory
+  gemma_thinking:
+    provider: ollama
+    model_id: gemma4:26b
+    host: http://localhost:11434
+    keep_alive: 30m
+    num_ctx: 32768
+    options: {temperature: 0.3, num_predict: 4096}
+    tier: strict
+  gemma_fast:
+    provider: ollama
+    model_id: bjoernb/gemma4-26b-fast
+    host: http://localhost:11434
+    keep_alive: 30m
+    num_ctx: 16384
+    options: {temperature: 0.3}
+    tier: strict
+  qwen_small:
+    provider: ollama
+    model_id: qwen2.5:7b-instruct
+    host: http://localhost:11434
+    num_ctx: 8192
+    tier: strict
+
+roles:
+  think: gemma_thinking
+  execute: gemma_fast
+  summarize: gemma_fast
+  evaluate: claude_sonnet
+  skill_pick: qwen_small
+  embed: qwen_small
+
+warmup:
+  - gemma_thinking
+  - gemma_fast
+
+guardrails:
+  mode: per_tier
+  retry_on_gate_block: null
