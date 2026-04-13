@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "app/skills"]
 asyncio_mode = "auto"
 pythonpath = [".", ".."]
 
