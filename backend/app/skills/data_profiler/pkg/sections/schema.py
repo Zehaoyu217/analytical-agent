@@ -23,7 +23,7 @@ def run(df: pd.DataFrame) -> dict[str, Any]:
                 "non_null_count": int(len(series) - null_count),
             }
         )
-        if dtype == "object":
+        if pd.api.types.is_object_dtype(series):
             non_null = series.dropna()
             types = {type(v).__name__ for v in non_null}
             if len(types) > 1:

@@ -16,8 +16,10 @@ def run(df: pd.DataFrame) -> dict[str, Any]:
     risks: list[Risk] = []
     now = datetime.now(timezone.utc)
     for col in df.columns:
+        if not _is_date(df[col]):
+            continue
         s = df[col].dropna()
-        if not _is_date(s) or s.empty:
+        if s.empty:
             continue
         if s.dt.tz is None:
             risks.append(

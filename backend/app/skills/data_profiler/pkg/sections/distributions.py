@@ -41,8 +41,8 @@ def run(df: pd.DataFrame) -> dict[str, Any]:
                 )
             )
         if pd.api.types.is_numeric_dtype(s):
-            skew = float(pd.Series(s).skew())
-            stats[col] = {"skew": skew, "kurtosis": float(pd.Series(s).kurt())}
+            skew = float(s.skew())
+            stats[col] = {"skew": skew, "kurtosis": float(s.kurt())}
             if abs(skew) >= SKEW_THRESHOLD:
                 risks.append(
                     Risk(

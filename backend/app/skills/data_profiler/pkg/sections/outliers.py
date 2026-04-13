@@ -19,10 +19,11 @@ def run(df: pd.DataFrame) -> dict[str, Any]:
             continue
         low = s.quantile(TAIL_P)
         high = s.quantile(1 - TAIL_P)
-        extreme_hi = (
-            int((s > high * 10).sum()) if high > 0 else int((s > high + abs(high) * 9).sum())
-        )
-        extreme_lo = int((s < low * 10).sum()) if low < 0 else 0
+        median = s.median()
+        dist_hi = max(float(high - median), 0.0)
+        dist_lo = max(float(median - low), 0.0)
+        extreme_hi = int((s > median + 10 * dist_hi).sum()) if dist_hi > 0 else 0
+        extreme_lo = int((s < median - 10 * dist_lo).sum()) if dist_lo > 0 else 0
         details[col] = {"p001": float(low), "p999": float(high)}
         if extreme_hi + extreme_lo > 0:
             risks.append(
