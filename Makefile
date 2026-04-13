@@ -33,7 +33,7 @@ test-frontend:
 
 # Skills
 skill-check:
-	cd backend && python -m app.skills.manifest
+	cd backend && .venv/bin/python3 -m app.skills.manifest
 
 skill-eval:
 ifdef skill

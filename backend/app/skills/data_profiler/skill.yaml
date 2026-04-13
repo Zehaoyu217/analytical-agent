@@ -1,5 +1,5 @@
 dependencies:
-  requires: [theme_config, sql_builder, html_tables, altair_charts]
+  requires: [sql_builder, html_tables, altair_charts]
   used_by: [report_builder]
   packages: [pandas, numpy, duckdb]
 errors:
