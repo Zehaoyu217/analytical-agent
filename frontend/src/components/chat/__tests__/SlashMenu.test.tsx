@@ -172,7 +172,10 @@ describe('<ChatInput> slash menu', () => {
     const execAfter = calls.filter((c) => c.url === '/api/slash/execute').length
     expect(execAfter).toBe(execBefore)
 
-    const chatCall = calls.find((c) => c.url === '/api/chat')
+    // ChatInput now uses the streaming endpoint /api/chat/stream
+    const chatCall = calls.find(
+      (c) => c.url === '/api/chat/stream' || c.url === '/api/chat',
+    )
     expect(chatCall).toBeDefined()
     expect((chatCall?.body as { message: string }).message).toBe('/help')
   })
