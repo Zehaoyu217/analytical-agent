@@ -1,0 +1,19 @@
+# backend/app/skills/dashboard_builder/skill.yaml
+dependencies:
+  packages: [jinja2]
+errors:
+  TOO_MANY_SECTIONS:
+    message: "Dashboard has {n} sections; maximum is 12."
+    remedy: "Split into multiple dashboards or drop low-value sections."
+  UNKNOWN_LAYOUT:
+    message: "Unknown layout '{layout}'. Use bento | grid | single_column."
+  UNKNOWN_MODE:
+    message: "Unknown mode '{mode}'. Use standalone_html | a2ui."
+  KPI_NO_DELTA:
+    message: "KPI '{label}' has no delta; cards must show delta or be dropped."
+    remedy: "Compute a delta (vs comparison_period) or remove the card."
+  UNKNOWN_DIRECTION:
+    message: "KPI '{label}' has direction='{direction}'. Use up_is_good | down_is_good."
+  EMPTY_DASHBOARD:
+    message: "Dashboard has no sections."
+    remedy: "Add at least one KPI or chart section."

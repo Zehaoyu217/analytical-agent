@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ spec.title }}</title>
+  <link rel="stylesheet" href="{{ dashboard_css_uri }}">
+</head>
+<body class="dash dash--{{ spec.layout }} theme--{{ spec.theme_variant }}">
+  <header class="dash__head">
+    <h1 class="dash__title">{{ spec.title }}</h1>
+    {% if spec.subtitle %}<p class="dash__subtitle">{{ spec.subtitle }}</p>{% endif %}
+    <p class="dash__meta">{{ spec.author }} · {{ today }}</p>
+  </header>
+
+  <main class="dash__grid">
+    {% for tile in rendered_tiles %}
+    <section class="dash__tile dash__tile--{{ tile.kind }}" data-span="{{ tile.span }}">
+      {% if tile.kind == "kpi" %}
+        <header class="kpi__label">{{ tile.label }}</header>
+        <div class="kpi__value">{{ tile.value }}</div>
+        <div class="kpi__delta kpi__delta--{{ tile.delta_class }}">{{ tile.delta_str }}</div>
+        <footer class="kpi__period">vs {{ tile.comparison_period }}</footer>
+        {% if tile.sparkline_svg %}<figure class="kpi__spark">{{ tile.sparkline_svg | safe }}</figure>{% endif %}
+      {% elif tile.kind == "chart" %}
+        {% if tile.title %}<header class="tile__title">{{ tile.title }}</header>{% endif %}
+        <figure class="tile__chart">{{ tile.chart_svg | safe }}</figure>
+      {% elif tile.kind == "table" %}
+        {% if tile.title %}<header class="tile__title">{{ tile.title }}</header>{% endif %}
+        <div class="tile__table">{{ tile.table_html | safe }}</div>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </main>
+</body>
+</html>
