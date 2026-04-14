@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 
@@ -143,3 +144,33 @@ def test_turn_rejects_unknown_role(client: TestClient) -> None:
         json={"role": "root", "content": "hello"},
     )
     assert r.status_code == 422
+
+
+def test_concurrent_turn_appends_do_not_lose_writes(client: TestClient) -> None:
+    """Per-conversation lock serializes read-modify-write on /turns."""
+    conv = client.post("/api/conversations", json={"title": "race"}).json()
+    conv_id = conv["id"]
+    n = 20
+    errors: list[BaseException] = []
+
+    def append_one(i: int) -> None:
+        try:
+            r = client.post(
+                f"/api/conversations/{conv_id}/turns",
+                json={"role": "user", "content": f"msg-{i}"},
+            )
+            assert r.status_code == 200
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=append_one, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    final = client.get(f"/api/conversations/{conv_id}").json()
+    contents = sorted(t["content"] for t in final["turns"])
+    assert len(final["turns"]) == n
+    assert contents == sorted(f"msg-{i}" for i in range(n))

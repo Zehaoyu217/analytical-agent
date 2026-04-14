@@ -52,6 +52,11 @@ Goal: ship a data-scientist-grade agent with a skills runtime, composition skill
 
 ### Fixed
 
+- Append-turn lost-update race — per-conversation `threading.Lock` serializes read-modify-write on `/api/conversations/{id}/turns`. (`backend/app/api/conversations_api.py`)
+- Cold-start conversation now persists to the backend so the happy-path first message isn't dropped by the 404 guard on `/turns`. (`frontend/src/components/chat/ChatLayout.tsx`)
+
+### Fixed
+
 - Harness composition tool lambdas now accept a positional dict (dispatcher calls `handler(dict(call.arguments))`); previously raised `TypeError` at runtime on `report.build`, `analysis_plan.plan`, and `dashboard.build`. Regression test added. (`harness/skill_tools.py`, `harness/tests/test_composition_tools.py`) — `ea0b227`
 - Sandbox bootstrap now imports composition callables from their submodules directly — `from pkg import build` was binding the submodule, not the function. (`harness/sandbox_bootstrap.py`) — `ea0b227`
 - `report_builder/pkg/__init__.py` imports `build` submodule so the name in `__all__` actually resolves. (`skills/report_builder/`) — `ea0b227`

@@ -9,16 +9,21 @@ export function ChatLayout() {
   const conversations = useChatStore((s) => s.conversations)
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const createConversation = useChatStore((s) => s.createConversation)
+  const createConversationRemote = useChatStore((s) => s.createConversationRemote)
 
   // Ensure we always have at least one conversation so the input area is usable.
+  // Try remote-first so server id is source of truth — future appendTurn() calls
+  // depend on the conversation existing on the backend. Fall back to a local-only
+  // conversation if the backend is unreachable (offline dev).
   useEffect(() => {
     if (conversations.length === 0) {
-      createConversation()
+      createConversationRemote('New Conversation').catch(() => {
+        createConversation()
+      })
     } else if (
       !activeConversationId ||
       !conversations.some((c) => c.id === activeConversationId)
     ) {
-      // Fall back to the most recent conversation if the active id is stale.
       useChatStore.getState().setActiveConversation(conversations[0].id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
