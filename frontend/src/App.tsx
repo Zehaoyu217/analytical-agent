@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnnouncerProvider } from '@/components/a11y/Announcer'
 import { SkipToContent } from '@/components/a11y/SkipToContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
@@ -12,6 +12,17 @@ import {
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { CMD } from '@/lib/shortcuts'
 import { useChatStore } from '@/lib/store'
+import { MonitorPage } from '@/pages/MonitorPage'
+
+function useHashRoute(): string {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const handler = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
+  return hash
+}
 
 /**
  * Registers the default command set and wires up the global keyboard listener.
@@ -79,6 +90,13 @@ function ShortcutWiring() {
 }
 
 export default function App() {
+  const hash = useHashRoute()
+  const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
+
+  if (monitorMatch) {
+    return <MonitorPage sessionId={monitorMatch[1]} />
+  }
+
   return (
     <ThemeProvider>
       <AnnouncerProvider>

@@ -24,7 +24,8 @@ export interface Conversation {
   sessionId?: string
 }
 
-export type SidebarTab = 'chats' | 'history' | 'files' | 'devtools' | 'settings'
+export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
+export type RightPanelTab = 'artifacts' | 'scratchpad' | 'tools'
 
 export interface Settings {
   model: string
@@ -42,6 +43,8 @@ interface ChatState {
   sidebarTab: SidebarTab
   settings: Settings
   draftInput: string
+  rightPanelOpen: boolean
+  rightPanelTab: RightPanelTab
 
   createConversation: () => string
   setActiveConversation: (id: string) => void
@@ -54,6 +57,8 @@ interface ChatState {
   setSidebarWidth: (w: number) => void
   setSidebarTab: (t: SidebarTab) => void
   focusDevTools: () => void
+  toggleRightPanel: () => void
+  setRightPanelTab: (t: RightPanelTab) => void
   setDraftInput: (s: string) => void
   updateSettings: (patch: Partial<Settings>) => void
   openSettings: () => void
@@ -72,6 +77,8 @@ export const useChatStore = create<ChatState>()(
       sidebarTab: 'chats',
       settings: { model: DEFAULT_MODEL },
       draftInput: '',
+      rightPanelOpen: false,
+      rightPanelTab: 'tools' as RightPanelTab,
 
       createConversation: () => {
         const id = nanoid()
@@ -196,6 +203,10 @@ export const useChatStore = create<ChatState>()(
             sidebarWidth: widen,
           }
         }),
+
+      toggleRightPanel: () => set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
+
+      setRightPanelTab: (t) => set({ rightPanelTab: t, rightPanelOpen: true }),
 
       setDraftInput: (s) => set({ draftInput: s }),
 

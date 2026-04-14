@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useChatStore } from '@/lib/store'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
+import { RightPanel } from '@/components/right-panel/RightPanel'
 import { ChatWindow } from './ChatWindow'
 import { ChatInput } from './ChatInput'
 
@@ -71,6 +72,7 @@ export function ChatLayout() {
           )}
         </main>
       </div>
+      <RightPanel />
     </div>
   )
 }

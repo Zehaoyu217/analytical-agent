@@ -8,6 +8,8 @@ import {
   Clock,
   Plus,
   Wrench,
+  Bot,
+  Layers,
 } from 'lucide-react'
 import { useCallback } from 'react'
 import { useChatStore, type SidebarTab } from '@/lib/store'
@@ -16,6 +18,8 @@ import { DevToolsTab } from './DevToolsTab'
 import { HistoryTab } from '@/components/sidebar/HistoryTab'
 import { SettingsTab } from '@/components/sidebar/SettingsTab'
 import { FilesTab } from '@/components/sidebar/FilesTab'
+import { AgentsTab } from '@/components/sidebar/AgentsTab'
+import { SkillsTab } from '@/components/sidebar/SkillsTab'
 
 const COLLAPSED_WIDTH = 60
 
@@ -23,6 +27,8 @@ type TabDef = { id: SidebarTab; icon: React.ElementType; label: string }
 
 const TABS: TabDef[] = [
   { id: 'chats', icon: MessageSquare, label: 'Chats' },
+  { id: 'agents', icon: Bot, label: 'Agents' },
+  { id: 'skills', icon: Layers, label: 'Skills' },
   { id: 'history', icon: Clock, label: 'History' },
   { id: 'files', icon: FolderOpen, label: 'Files' },
   { id: 'devtools', icon: Wrench, label: 'DevTools' },
@@ -156,6 +162,8 @@ export function Sidebar() {
                 onCreate={handleCreate}
               />
             )}
+            {sidebarTab === 'agents' && <AgentsTab />}
+            {sidebarTab === 'skills' && <SkillsTab />}
             {sidebarTab === 'history' && <HistoryTab />}
             {sidebarTab === 'files' && <FilesTab />}
             {sidebarTab === 'devtools' && <DevToolsTab />}
