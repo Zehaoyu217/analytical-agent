@@ -78,7 +78,7 @@ class LLMJudge:
                     "stream": False,
                     "options": {"temperature": self._config.temperature},
                 },
-                timeout=60.0,
+                timeout=600.0,
             )
             resp.raise_for_status()
             return resp.json()["response"]
