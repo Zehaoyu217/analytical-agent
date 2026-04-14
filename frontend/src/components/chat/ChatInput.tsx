@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
 import { useChatStore } from '@/lib/store'
 import { useDevtoolsStore } from '@/stores/devtools'
 import { sendChatMessage } from '@/lib/api-chat'
+import { backend, type SlashCommand } from '@/lib/api-backend'
 import { cn } from '@/lib/utils'
 import { MAX_MESSAGE_LENGTH } from '@/lib/constants'
 
@@ -14,6 +15,9 @@ export function ChatInput({ conversationId }: ChatInputProps) {
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [slashCommands, setSlashCommands] = useState<SlashCommand[] | null>(null)
+  const [slashHighlight, setSlashHighlight] = useState(0)
+  const slashFetchRef = useRef<Promise<SlashCommand[]> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const conversation = useChatStore((s) =>
@@ -29,6 +33,68 @@ export function ChatInput({ conversationId }: ChatInputProps) {
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
   }, [])
+
+  // Slash menu visibility — only when value starts with "/" and nothing else
+  // the server has already turned into an attachment or bound command.
+  const showSlashMenu = input.startsWith('/')
+  const slashQuery = showSlashMenu ? input.slice(1).toLowerCase() : ''
+
+  const filteredCommands = useMemo(() => {
+    if (!showSlashMenu || !slashCommands) return []
+    if (!slashQuery) return slashCommands
+    return slashCommands.filter(
+      (c) =>
+        c.id.toLowerCase().includes(slashQuery) ||
+        c.label.toLowerCase().includes(slashQuery),
+    )
+  }, [slashCommands, slashQuery, showSlashMenu])
+
+  // Reset highlight whenever the filtered list shrinks.
+  useEffect(() => {
+    if (slashHighlight >= filteredCommands.length) {
+      setSlashHighlight(0)
+    }
+  }, [filteredCommands.length, slashHighlight])
+
+  // Lazy-fetch the slash command list on the first time the user types "/".
+  useEffect(() => {
+    if (!showSlashMenu) return
+    if (slashCommands !== null) return
+    if (slashFetchRef.current) return
+    slashFetchRef.current = backend.slash
+      .list()
+      .then((list) => {
+        setSlashCommands(list)
+        return list
+      })
+      .catch((err: unknown) => {
+        // Keep the chat usable even if slash endpoint is unreachable.
+        if (typeof window !== 'undefined') {
+          window.console?.warn?.('slash list failed', err)
+        }
+        setSlashCommands([])
+        return []
+      })
+  }, [showSlashMenu, slashCommands])
+
+  const pickSlashCommand = useCallback(
+    (cmd: SlashCommand) => {
+      setInput(cmd.label)
+      // Fire-and-forget; we don't want execute failures to block the UX.
+      backend.slash
+        .execute(cmd.id, {}, conversationId)
+        .catch((err: unknown) => {
+          if (typeof window !== 'undefined') {
+            window.console?.warn?.('slash execute failed', err)
+          }
+        })
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus()
+        adjustHeight()
+      })
+    },
+    [conversationId, adjustHeight],
+  )
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value.slice(0, MAX_MESSAGE_LENGTH)
@@ -54,6 +120,18 @@ export function ChatInput({ conversationId }: ChatInputProps) {
       status: 'complete',
     })
 
+    // Persist the user turn to the backend — fire-and-forget so the streaming
+    // path is never blocked. The active conversation id may or may not be a
+    // valid backend id; the backend validates ^[A-Za-z0-9_-]{1,64}$ which
+    // nanoid() satisfies.
+    backend.conversations
+      .appendTurn(conversationId, 'user', text)
+      .catch((err: unknown) => {
+        if (typeof window !== 'undefined') {
+          window.console?.warn?.('persist user turn failed', err)
+        }
+      })
+
     // Placeholder assistant message so the user sees something while waiting
     const assistantId = addMessage(conversationId, {
       role: 'assistant',
@@ -69,6 +147,14 @@ export function ChatInput({ conversationId }: ChatInputProps) {
         traceId: result.session_id,
       })
       setConversationSessionId(conversationId, result.session_id)
+      // Persist the assistant response too (fire-and-forget).
+      backend.conversations
+        .appendTurn(conversationId, 'assistant', result.response)
+        .catch((err: unknown) => {
+          if (typeof window !== 'undefined') {
+            window.console?.warn?.('persist assistant turn failed', err)
+          }
+        })
       // Pre-select the trace in DevTools so it's ready if the user opens the
       // DevTools sidebar. Does NOT auto-open the sidebar.
       const devtools = useDevtoolsStore.getState()
@@ -96,6 +182,32 @@ export function ChatInput({ conversationId }: ChatInputProps) {
   ])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showSlashMenu && filteredCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashHighlight((h) => (h + 1) % filteredCommands.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashHighlight(
+          (h) => (h - 1 + filteredCommands.length) % filteredCommands.length,
+        )
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        const cmd = filteredCommands[slashHighlight] ?? filteredCommands[0]
+        if (cmd) pickSlashCommand(cmd)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setInput('')
+        requestAnimationFrame(() => adjustHeight())
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
@@ -106,7 +218,7 @@ export function ChatInput({ conversationId }: ChatInputProps) {
 
   return (
     <div className="border-t border-surface-800 bg-surface-900/50 backdrop-blur-sm px-4 py-3">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto relative">
         {error && (
           <div
             role="alert"
@@ -114,6 +226,48 @@ export function ChatInput({ conversationId }: ChatInputProps) {
           >
             {error}
           </div>
+        )}
+
+        {showSlashMenu && filteredCommands.length > 0 && (
+          <ul
+            role="listbox"
+            aria-label="Slash commands"
+            className={cn(
+              'absolute bottom-full left-0 right-0 mb-2 z-30',
+              'rounded-lg border border-surface-700 bg-surface-900 shadow-lg',
+              'max-h-64 overflow-y-auto py-1',
+            )}
+          >
+            {filteredCommands.map((cmd, index) => {
+              const isActive = index === slashHighlight
+              return (
+                <li
+                  key={cmd.id}
+                  role="option"
+                  aria-selected={isActive}
+                  onMouseEnter={() => setSlashHighlight(index)}
+                  onMouseDown={(e) => {
+                    // Use mousedown so the textarea keeps focus.
+                    e.preventDefault()
+                    pickSlashCommand(cmd)
+                  }}
+                  className={cn(
+                    'flex items-baseline gap-3 px-3 py-2 cursor-pointer text-sm',
+                    isActive
+                      ? 'bg-surface-800 text-surface-100'
+                      : 'text-surface-300 hover:bg-surface-800/70',
+                  )}
+                >
+                  <span className="font-mono text-brand-400 flex-shrink-0">
+                    {cmd.label}
+                  </span>
+                  <span className="text-xs text-surface-500 truncate">
+                    {cmd.description}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
         )}
 
         <div

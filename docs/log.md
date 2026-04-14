@@ -48,6 +48,7 @@ Goal: ship a data-scientist-grade agent with a skills runtime, composition skill
 - BE1 API routers: conversations, settings, files, slash commands. (`backend/app/api/`) — `a8ff766`
 - Frontend 3-panel shell with DevTools-in-sidebar and message rendering. (`frontend/`) — `85b856f`
 - Frontend P3 command palette, keyboard shortcuts, and a11y pass. (`frontend/`) — `1e56bdb`
+- Frontend P4-P7: typed `api-backend` client; sidebar History / Settings / Files tabs wired to BE1; chat input slash menu with `/api/slash` commands; chat turns persisted to `/api/conversations` fire-and-forget. (`frontend/`)
 
 ### Fixed
 

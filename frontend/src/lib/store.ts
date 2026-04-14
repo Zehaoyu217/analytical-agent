@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { DEFAULT_MODEL } from './constants'
 import { extractTextContent } from './utils'
 import type { ContentBlock } from './types'
+import { backend, type Conversation as BackendConversation } from './api-backend'
 
 export interface Message {
   id: string
@@ -47,6 +48,8 @@ interface ChatState {
   addMessage: (conversationId: string, msg: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (conversationId: string, messageId: string, patch: Partial<Message>) => void
   setConversationSessionId: (conversationId: string, sessionId: string) => void
+  loadConversation: (id: string) => Promise<void>
+  createConversationRemote: (title: string) => Promise<string>
   toggleSidebar: () => void
   setSidebarWidth: (w: number) => void
   setSidebarTab: (t: SidebarTab) => void
@@ -138,6 +141,33 @@ export const useChatStore = create<ChatState>()(
         }))
       },
 
+      loadConversation: async (id: string) => {
+        const conv = await backend.conversations.get(id)
+        const hydrated = backendConversationToStore(conv)
+        set((state) => {
+          const existing = state.conversations.find((c) => c.id === hydrated.id)
+          const nextConversations = existing
+            ? state.conversations.map((c) =>
+                c.id === hydrated.id ? { ...c, ...hydrated } : c,
+              )
+            : [hydrated, ...state.conversations]
+          return {
+            conversations: nextConversations,
+            activeConversationId: hydrated.id,
+          }
+        })
+      },
+
+      createConversationRemote: async (title: string) => {
+        const conv = await backend.conversations.create(title)
+        const hydrated = backendConversationToStore(conv)
+        set((state) => ({
+          conversations: [hydrated, ...state.conversations],
+          activeConversationId: hydrated.id,
+        }))
+        return hydrated.id
+      },
+
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
       setSidebarWidth: (w) => set({ sidebarWidth: w }),
@@ -206,3 +236,28 @@ export const useChatStore = create<ChatState>()(
     },
   ),
 )
+
+/**
+ * Convert a backend Conversation (unix seconds, `turns` as {role, content,
+ * timestamp}) into the store's Conversation shape (millisecond `Date.now()`
+ * timestamps, `messages` with nanoid ids + status). Backend turns are always
+ * complete by definition, so status is 'complete'.
+ */
+function backendConversationToStore(conv: BackendConversation): Conversation {
+  const messages: Message[] = conv.turns
+    .filter((t) => t.role !== 'system')
+    .map((t) => ({
+      id: nanoid(),
+      role: t.role as 'user' | 'assistant',
+      content: t.content,
+      timestamp: Math.round(t.timestamp * 1000),
+      status: 'complete' as const,
+    }))
+  return {
+    id: conv.id,
+    title: conv.title,
+    messages,
+    createdAt: Math.round(conv.created_at * 1000),
+    updatedAt: Math.round(conv.updated_at * 1000),
+  }
+}

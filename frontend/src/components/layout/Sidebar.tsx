@@ -9,9 +9,13 @@ import {
   Plus,
   Wrench,
 } from 'lucide-react'
+import { useCallback } from 'react'
 import { useChatStore, type SidebarTab } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { DevToolsTab } from './DevToolsTab'
+import { HistoryTab } from '@/components/sidebar/HistoryTab'
+import { SettingsTab } from '@/components/sidebar/SettingsTab'
+import { FilesTab } from '@/components/sidebar/FilesTab'
 
 const COLLAPSED_WIDTH = 60
 
@@ -35,6 +39,28 @@ export function Sidebar() {
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const setActiveConversation = useChatStore((s) => s.setActiveConversation)
   const createConversation = useChatStore((s) => s.createConversation)
+  const createConversationRemote = useChatStore((s) => s.createConversationRemote)
+
+  // Try remote-first so the server id is the source of truth (which keeps
+  // future appendTurn calls valid). If the remote call fails, fall back to
+  // the existing in-memory-only flow so the chat UI never breaks.
+  const handleCreate = useCallback((): string => {
+    // Kick off remote creation; when it resolves the store will contain the
+    // new conversation at the head of the list and activeConversationId will
+    // point at it.
+    createConversationRemote('New Conversation').catch((err: unknown) => {
+      if (typeof window !== 'undefined') {
+        window.console?.warn?.('create conversation on backend failed', err)
+      }
+      // Remote failed — fall back to the original in-memory-only path.
+      createConversation()
+    })
+    // Return a usable id immediately. If the store has no active conversation
+    // yet (first-ever "New" click before the remote promise resolves), create
+    // an optimistic local one so callers never receive an empty string.
+    const existing = useChatStore.getState().activeConversationId
+    return existing ?? createConversation()
+  }, [createConversation, createConversationRemote])
 
   // Global Cmd/Ctrl+B is now owned by the command registry in App.tsx.
 
@@ -127,13 +153,13 @@ export function Sidebar() {
                 conversations={conversations}
                 activeConversationId={activeConversationId}
                 onSelect={setActiveConversation}
-                onCreate={createConversation}
+                onCreate={handleCreate}
               />
             )}
-            {sidebarTab === 'history' && <EmptyTab label="History not connected yet" />}
-            {sidebarTab === 'files' && <EmptyTab label="Files not connected yet" />}
+            {sidebarTab === 'history' && <HistoryTab />}
+            {sidebarTab === 'files' && <FilesTab />}
             {sidebarTab === 'devtools' && <DevToolsTab />}
-            {sidebarTab === 'settings' && <EmptyTab label="Settings not connected yet" />}
+            {sidebarTab === 'settings' && <SettingsTab />}
           </motion.div>
         )}
       </AnimatePresence>
@@ -204,10 +230,3 @@ function ChatsTab({
   )
 }
 
-function EmptyTab({ label }: { label: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center px-6 py-10 text-center">
-      <p className="text-xs text-surface-500">{label}</p>
-    </div>
-  )
-}
