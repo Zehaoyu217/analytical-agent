@@ -53,7 +53,10 @@ export interface ToolCallEntry {
   inputPreview: string
   status: ToolCallStatus
   preview?: string
+  stdout?: string
   artifactIds?: string[]
+  startedAt?: number
+  finishedAt?: number
 }
 
 // DevTools content is dense — widen sidebar on first switch if it's too narrow.

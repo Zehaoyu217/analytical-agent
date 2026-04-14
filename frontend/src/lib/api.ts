@@ -108,6 +108,7 @@ export interface ChatStreamEvent {
   status?: 'ok' | 'error' | 'blocked'
   artifact_ids?: string[]
   preview?: string
+  stdout?: string
   // turn_end
   final_text?: string
   stop_reason?: string

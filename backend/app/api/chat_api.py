@@ -302,11 +302,13 @@ def _agent_loop(
 def _build_dispatcher(
     session_bootstrap: str,
     charts_out: list[dict[str, Any]],
+    outputs_out: dict[str, str],
 ) -> ToolDispatcher:
     """Build a ToolDispatcher with execute_python and write_working handlers.
 
     Charts produced by execute_python are appended to ``charts_out`` so the
-    caller can include them in the turn_end SSE payload.
+    caller can include them in the turn_end SSE payload.  stdout text is stored
+    in ``outputs_out`` under key "latest" for injection into tool_result events.
     """
     dispatcher = ToolDispatcher()
 
@@ -314,6 +316,7 @@ def _build_dispatcher(
         code = str(args.get("code", ""))
         output, charts = _run_python(code, session_bootstrap)
         charts_out.extend(charts)
+        outputs_out["latest"] = output
         return {"output": output, "charts_rendered": len(charts)}
 
     def _write_working(args: dict[str, Any]) -> dict[str, Any]:
@@ -342,7 +345,8 @@ def _stream_agent_loop(
         a2a_start, a2a_end, turn_end, error
     """
     all_charts: list[dict[str, Any]] = []
-    dispatcher = _build_dispatcher(session_bootstrap, all_charts)
+    all_outputs: dict[str, str] = {}
+    dispatcher = _build_dispatcher(session_bootstrap, all_charts, all_outputs)
 
     # Track charts already emitted as artifact events so we don't duplicate them.
     emitted_chart_count = 0
@@ -381,6 +385,11 @@ def _stream_agent_loop(
                 if event.type == "turn_end":
                     # Inject accumulated charts for backward compat (and any not yet emitted).
                     yield sse_line("turn_end", {**event.payload, "charts": all_charts})
+                elif event.type == "tool_result" and event.payload.get("name") == "execute_python":
+                    # Augment execute_python results with captured stdout so the
+                    # terminal panel can display Python output directly.
+                    augmented = {**event.payload, "stdout": all_outputs.get("latest", "")}
+                    yield sse_line("tool_result", augmented)
                 else:
                     yield event.to_sse()
     except Exception as exc:

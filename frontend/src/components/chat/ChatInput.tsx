@@ -182,6 +182,7 @@ export function ChatInput({ conversationId }: ChatInputProps) {
             name: event.name ?? '',
             inputPreview: event.input_preview ?? '',
             status: 'pending',
+            startedAt: Date.now(),
           })
           pendingToolCallIds.set(entryKey, storeId)
         } else if (event.type === 'tool_result') {
@@ -191,7 +192,9 @@ export function ChatInput({ conversationId }: ChatInputProps) {
             updateToolCallById(storeId, {
               status: event.status ?? 'ok',
               preview: event.preview,
+              stdout: event.stdout ?? event.preview ?? '',
               artifactIds: event.artifact_ids,
+              finishedAt: Date.now(),
             })
           }
         } else if (event.type === 'a2a_start') {

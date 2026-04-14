@@ -5,7 +5,7 @@ import { useChatStore, type RightPanelTab } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { ArtifactsPanel } from './ArtifactsPanel'
 import { ScratchpadPanel } from './ScratchpadPanel'
-import { ToolCallsPanel } from './ToolCallsPanel'
+import { TerminalPanel } from './TerminalPanel'
 
 const ICON_RAIL_WIDTH = 44
 const PANEL_OPEN_WIDTH = 280
@@ -55,7 +55,7 @@ export function RightPanel(): React.ReactElement {
           >
             {rightPanelTab === 'artifacts' && <ArtifactsPanel />}
             {rightPanelTab === 'scratchpad' && <ScratchpadPanel />}
-            {rightPanelTab === 'tools' && <ToolCallsPanel />}
+            {rightPanelTab === 'tools' && <TerminalPanel />}
           </motion.div>
         )}
       </AnimatePresence>
