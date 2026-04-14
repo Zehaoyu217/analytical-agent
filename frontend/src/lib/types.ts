@@ -32,4 +32,9 @@ export interface ToolResultContent {
   is_error?: boolean
 }
 
-export type ContentBlock = TextContent | ToolUseContent | ToolResultContent
+export interface ChartContent {
+  type: 'chart'
+  spec: Record<string, unknown>  // Vega-Lite JSON spec
+}
+
+export type ContentBlock = TextContent | ToolUseContent | ToolResultContent | ChartContent

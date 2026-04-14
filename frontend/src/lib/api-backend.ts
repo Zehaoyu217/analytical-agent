@@ -81,6 +81,24 @@ export interface SlashExecuteResponse {
   message: string
 }
 
+export interface ModelEntry {
+  id: string
+  label: string
+  description: string
+}
+
+export interface ModelGroup {
+  provider: string
+  label: string
+  models: ModelEntry[]
+  available: boolean
+  note: string
+}
+
+export interface ModelsResponse {
+  groups: ModelGroup[]
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
@@ -149,6 +167,9 @@ export const backend = {
       request<FileTreeResponse>('GET', `/api/files/tree${qs({ path })}`),
     read: (path: string): Promise<FileReadResponse> =>
       request<FileReadResponse>('GET', `/api/files/read${qs({ path })}`),
+  },
+  models: {
+    list: (): Promise<ModelsResponse> => request<ModelsResponse>('GET', '/api/models'),
   },
   slash: {
     list: (): Promise<SlashCommand[]> =>

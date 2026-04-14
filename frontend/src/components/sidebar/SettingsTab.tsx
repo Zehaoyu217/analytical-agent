@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { backend, type UserSettings, type ThemePreference } from '@/lib/api-backend'
+import { backend, type UserSettings, type ThemePreference, type ModelGroup } from '@/lib/api-backend'
 import { useTheme } from '@/components/layout/ThemeProvider'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ export function SettingsTab() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [modelGroups, setModelGroups] = useState<ModelGroup[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -31,6 +32,14 @@ export function SettingsTab() {
         if (cancelled) return
         const message = err instanceof Error ? err.message : 'Failed to load settings'
         setLoadError(message)
+      })
+    backend.models
+      .list()
+      .then((r) => {
+        if (!cancelled) setModelGroups(r.groups)
+      })
+      .catch(() => {
+        // model list is best-effort; silently ignore
       })
     return () => {
       cancelled = true
@@ -132,17 +141,57 @@ export function SettingsTab() {
               >
                 Model
               </label>
-              <input
-                id="settings-model"
-                type="text"
-                value={settings.model}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className={cn(
-                  'w-full rounded-md border border-surface-700 bg-surface-800 px-2.5 py-1.5',
-                  'text-sm text-surface-100 placeholder:text-surface-500',
-                  'focus:border-brand-500 focus:outline-none',
-                )}
-              />
+              {modelGroups.length > 0 ? (
+                <>
+                  <select
+                    id="settings-model"
+                    value={settings.model}
+                    onChange={(e) => handleModelChange(e.target.value)}
+                    className={cn(
+                      'w-full rounded-md border border-surface-700 bg-surface-800 px-2.5 py-1.5',
+                      'text-sm text-surface-100',
+                      'focus:border-brand-500 focus:outline-none',
+                    )}
+                  >
+                    {modelGroups.map((group) => (
+                      <optgroup
+                        key={group.provider}
+                        label={group.available ? group.label : `${group.label} — pending`}
+                      >
+                        {group.models.map((m) => (
+                          <option key={m.id} value={m.id} disabled={!group.available}>
+                            {m.label} — {m.description}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {modelGroups.some((g) => !g.available && g.note) && (
+                    <div className="mt-1.5 space-y-0.5">
+                      {modelGroups
+                        .filter((g) => !g.available && g.note)
+                        .map((g) => (
+                          <p key={g.provider} className="text-xs text-amber-500/80">
+                            {g.label}: {g.note}
+                          </p>
+                        ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <input
+                  id="settings-model"
+                  type="text"
+                  value={settings.model}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className={cn(
+                    'w-full rounded-md border border-surface-700 bg-surface-800 px-2.5 py-1.5',
+                    'text-sm text-surface-100 placeholder:text-surface-500',
+                    'focus:border-brand-500 focus:outline-none',
+                  )}
+                />
+              )}
+              <p className="mt-1 text-xs text-surface-500">{settings.model}</p>
             </div>
 
             <div>

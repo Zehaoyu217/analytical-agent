@@ -36,6 +36,7 @@ export async function fetchContext(): Promise<ContextSnapshot> {
 export interface ChatResponse {
   session_id: string
   response: string
+  charts?: Array<Record<string, unknown>>  // Vega-Lite JSON specs
 }
 
 export async function sendChatMessage(

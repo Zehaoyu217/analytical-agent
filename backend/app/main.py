@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.chat_api import router as chat_router
+from app.api.datasets_api import router as datasets_router
 from app.api.context_api import router as context_router
 from app.api.conversations_api import router as conversations_router
 from app.api.files_api import router as files_router
@@ -40,5 +41,6 @@ def create_app() -> FastAPI:
     app.include_router(files_router)
     app.include_router(skills_router)
     app.include_router(slash_router)
+    app.include_router(datasets_router)
 
     return app

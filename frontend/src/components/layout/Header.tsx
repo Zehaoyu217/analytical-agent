@@ -1,13 +1,19 @@
+import { useEffect, useState } from 'react'
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { useChatStore } from '@/lib/store'
-import { MODELS } from '@/lib/constants'
+import { backend, type ModelGroup } from '@/lib/api-backend'
 import { cn } from '@/lib/utils'
 
 export function Header() {
   const { theme, setTheme } = useTheme()
   const settings = useChatStore((s) => s.settings)
   const updateSettings = useChatStore((s) => s.updateSettings)
+  const [modelGroups, setModelGroups] = useState<ModelGroup[]>([])
+
+  useEffect(() => {
+    backend.models.list().then((r) => setModelGroups(r.groups)).catch(() => {})
+  }, [])
 
   const themeIcons = {
     light: Sun,
@@ -38,11 +44,22 @@ export function Header() {
             'text-surface-300 focus:outline-none focus:ring-1 focus:ring-brand-500',
           )}
         >
-          {MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
+          {modelGroups.length > 0 ? (
+            modelGroups.map((group) => (
+              <optgroup
+                key={group.provider}
+                label={group.available ? group.label : `${group.label} — pending`}
+              >
+                {group.models.map((m) => (
+                  <option key={m.id} value={m.id} disabled={!group.available}>
+                    {m.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))
+          ) : (
+            <option value={settings.model}>{settings.model}</option>
+          )}
         </select>
 
         <button

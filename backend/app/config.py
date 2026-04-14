@@ -15,6 +15,7 @@ class AppConfig(BaseSettings):
     default_model: str = "qwen3.5:9b"
     ollama_base_url: str = "http://localhost:11434"
     litellm_base_url: str = "http://localhost:4000"
+    openrouter_api_key: str = ""
 
     # Sandbox
     sandbox_timeout_seconds: int = 30

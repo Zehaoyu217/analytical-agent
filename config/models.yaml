@@ -38,6 +38,15 @@ models:
     num_ctx: 8192
     tier: strict
 
+  llama4_scout:
+    provider: openrouter
+    model_id: meta-llama/llama-4-scout:free
+    tier: advisory
+  llama4_maverick:
+    provider: openrouter
+    model_id: meta-llama/llama-4-maverick:free
+    tier: observatory
+
 roles:
   think: gemma_thinking
   execute: gemma_fast

@@ -13,6 +13,7 @@ import type { Message } from '@/lib/store'
 import type { ContentBlock, ToolUseContent } from '@/lib/types'
 import { cn, extractTextContent, formatDate } from '@/lib/utils'
 import { MarkdownContent } from './MarkdownContent'
+import { VegaChart } from './VegaChart'
 
 interface MessageBubbleProps {
   message: Message
@@ -97,7 +98,11 @@ function AssistantContent({
           return <ToolUsePlaceholder key={block.id || i} block={block} />
         }
 
-        // tool_result blocks: no standalone rendering for P2 (would pair with tool_use).
+        if (block.type === 'chart') {
+          return <VegaChart key={i} spec={block.spec} />
+        }
+
+        // tool_result blocks: no standalone rendering (pairs with tool_use).
         return null
       })}
 

@@ -7,7 +7,7 @@ from typing import Any
 import yaml
 
 VALID_TIERS = frozenset({"strict", "advisory", "observatory"})
-VALID_PROVIDERS = frozenset({"anthropic", "ollama"})
+VALID_PROVIDERS = frozenset({"anthropic", "ollama", "openrouter"})
 VALID_MODES = frozenset({"config", "auto"})
 
 

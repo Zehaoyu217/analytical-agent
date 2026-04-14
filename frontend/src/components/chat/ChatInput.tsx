@@ -146,8 +146,17 @@ export function ChatInput({ conversationId }: ChatInputProps) {
 
     try {
       const result = await sendChatMessage(text, conversation?.sessionId ?? null)
+      // Build ContentBlock array: text first, then one block per chart
+      const charts = result.charts ?? []
+      const content =
+        charts.length > 0
+          ? [
+              { type: 'text' as const, text: result.response },
+              ...charts.map((spec) => ({ type: 'chart' as const, spec })),
+            ]
+          : result.response
       updateMessage(conversationId, assistantId, {
-        content: result.response,
+        content,
         status: 'complete',
         traceId: result.session_id,
       })
