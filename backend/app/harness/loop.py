@@ -50,7 +50,8 @@ class AgentLoop:
         steps = 0
         stop_reason = "end_turn"
 
-        for steps in range(1, max_steps + 1):
+        for step in range(1, max_steps + 1):
+            steps = step
             resp = client.complete(CompletionRequest(
                 system=system, messages=tuple(messages),
                 tools=tools, max_tokens=2048,

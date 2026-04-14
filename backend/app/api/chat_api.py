@@ -9,6 +9,7 @@ POST /api/chat/stream — streaming SSE response (text/event-stream)
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -106,10 +107,8 @@ def _run_python(
 
     charts: list[dict[str, Any]] = []
     for match in _VEGA_MARKER_RE.finditer(result.stdout):
-        try:
+        with contextlib.suppress(Exception):
             charts.append(json.loads(match.group(1).strip()))
-        except Exception:
-            pass
 
     clean_out = _VEGA_MARKER_RE.sub("", result.stdout).strip()
 
