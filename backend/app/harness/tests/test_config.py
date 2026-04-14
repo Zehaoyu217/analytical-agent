@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from app.harness.config import HarnessConfig, ModelProfile, load_config

@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 from app.harness.clients.base import (
     CompletionResponse,
-    Message,
     ToolCall,
 )
 from app.harness.dispatcher import ToolDispatcher

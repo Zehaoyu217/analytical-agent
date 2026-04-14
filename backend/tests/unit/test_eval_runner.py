@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.evals.judge import LLMJudge
 from app.evals.rubric import DimensionRubric, RubricConfig
 from app.evals.runner import (
     evaluate_level,

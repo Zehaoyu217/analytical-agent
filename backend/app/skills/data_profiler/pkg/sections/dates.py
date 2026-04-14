@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -14,7 +14,7 @@ def _is_date(series: pd.Series) -> bool:
 
 def run(df: pd.DataFrame) -> dict[str, Any]:
     risks: list[Risk] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for col in df.columns:
         if not _is_date(df[col]):
             continue

@@ -18,6 +18,7 @@ def test_scatter_trend_layers_points_and_regression_line() -> None:
 
 def test_scatter_trend_raises_on_non_numeric_axes() -> None:
     import pytest
+
     from app.skills.altair_charts.pkg.scatter_trend import scatter_trend
 
     df = pd.DataFrame({"x": ["a", "b"], "y": [1, 2]})

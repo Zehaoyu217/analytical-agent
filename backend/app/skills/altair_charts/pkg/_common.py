@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Any
 
 import altair as alt
-
 from config.themes.altair_theme import active_tokens, register_all
 
 

@@ -1,8 +1,6 @@
 # backend/app/harness/tests/test_composition_tools.py
 from __future__ import annotations
 
-from pathlib import Path
-
 
 def test_analysis_plan_and_dashboard_tools_registered() -> None:
     from app.harness.dispatcher import ToolDispatcher

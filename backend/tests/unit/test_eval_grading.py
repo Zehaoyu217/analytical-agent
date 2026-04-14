@@ -7,7 +7,7 @@ from app.evals.grading import (
     grade_to_score,
     score_to_grade,
 )
-from app.evals.types import DimensionGrade, EvalResult, LevelResult
+from app.evals.types import DimensionGrade, LevelResult
 
 
 def test_grade_to_score_all_grades() -> None:

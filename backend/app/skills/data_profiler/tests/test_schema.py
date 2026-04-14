@@ -1,9 +1,7 @@
 # backend/app/skills/data_profiler/tests/test_schema.py
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import pytest
 
 pytest_plugins = ["app.skills.data_profiler.tests.fixtures.conftest"]
 

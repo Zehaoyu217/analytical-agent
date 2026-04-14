@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.evals.rubric import DimensionRubric, RubricConfig, load_rubric
-
+from app.evals.rubric import load_rubric
 
 SAMPLE_RUBRIC_YAML = """\
 level: 1

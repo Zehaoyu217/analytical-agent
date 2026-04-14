@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.skills.correlation import correlate
 from app.artifacts.store import ArtifactStore
+from app.skills.correlation import correlate
 
 
 def _store(tmp_path) -> ArtifactStore:

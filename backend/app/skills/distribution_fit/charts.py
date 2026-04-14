@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import altair as alt
 import numpy as np
 import pandas as pd
-import altair as alt
 
 from app.skills.distribution_fit.fit_one import SUPPORTED, FitCandidate
 

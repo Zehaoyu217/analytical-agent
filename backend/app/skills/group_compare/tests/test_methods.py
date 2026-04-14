@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
-
 from app.skills.group_compare.assumptions import AssumptionReport
 from app.skills.group_compare.methods import pick_method
 

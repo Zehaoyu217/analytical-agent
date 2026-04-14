@@ -62,7 +62,7 @@ def test_kpi_without_delta_raises() -> None:
 
 
 def test_unknown_direction_raises() -> None:
-    from app.skills.dashboard_builder.pkg.build import KPICard, validate_spec
+    from app.skills.dashboard_builder.pkg.build import validate_spec
 
     with pytest.raises(ValueError, match="UNKNOWN_DIRECTION"):
         validate_spec(

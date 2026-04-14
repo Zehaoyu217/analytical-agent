@@ -4,7 +4,6 @@ from pathlib import Path
 
 import altair as alt
 import pytest
-
 from config.themes.altair_theme import active_tokens, register_all, use_variant
 
 TOKENS_PATH = Path(__file__).resolve().parents[3] / "config" / "themes" / "tokens.yaml"

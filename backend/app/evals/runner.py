@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from app.evals.grading import grade_level, grade_to_score
+from app.evals.grading import grade_level
 from app.evals.types import AgentTrace, DimensionGrade, EvalResult, LevelResult
 
 if TYPE_CHECKING:

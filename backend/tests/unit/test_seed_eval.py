@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
-import pytest
 
 
 def test_seed_creates_all_tables(tmp_path: Path) -> None:

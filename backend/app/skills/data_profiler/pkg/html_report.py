@@ -4,12 +4,12 @@ from html import escape
 from typing import Any
 
 import pandas as pd
+from config.themes.altair_theme import active_tokens, register_all, use_variant
+from config.themes.table_css import render_table_css
 
 from app.skills.altair_charts.pkg.histogram import histogram
 from app.skills.data_profiler.pkg.risks import Risk
 from app.skills.html_tables.pkg.renderer import render as render_table
-from config.themes.altair_theme import active_tokens, register_all, use_variant
-from config.themes.table_css import render_table_css
 
 VARIANT = "editorial"
 

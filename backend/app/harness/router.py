@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from app.harness.clients.base import ModelClient
 from app.harness.config import HarnessConfig, ModelProfile

@@ -1,4 +1,4 @@
-from app.config import AppConfig, get_config
+from app.config import get_config
 
 
 def test_config_loads_defaults() -> None:

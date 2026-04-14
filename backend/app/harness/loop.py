@@ -7,7 +7,6 @@ from app.harness.clients.base import (
     CompletionRequest,
     Message,
     ModelClient,
-    ToolCall,
 )
 from app.harness.dispatcher import ToolDispatcher, ToolResult
 from app.harness.guardrails.end_of_turn import end_of_turn

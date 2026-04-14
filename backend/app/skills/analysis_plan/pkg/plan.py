@@ -21,7 +21,7 @@ class PlanStep:
     artifact_hint: str
 
     @classmethod
-    def from_template(cls, idx: int, tpl: StepTemplate) -> "PlanStep":
+    def from_template(cls, idx: int, tpl: StepTemplate) -> PlanStep:
         return cls(idx=idx, slug=tpl.slug, label=tpl.label, skill=tpl.skill, artifact_hint=tpl.artifact_hint)
 
 
