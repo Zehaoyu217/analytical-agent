@@ -30,6 +30,9 @@ class ToolDispatcher:
     def has(self, name: str) -> bool:
         return name in self._handlers
 
+    def get_handler(self, name: str) -> ToolHandler | None:
+        return self._handlers.get(name)
+
     def dispatch(self, call: ToolCall) -> ToolResult:
         handler = self._handlers.get(call.name)
         if handler is None:

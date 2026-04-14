@@ -203,6 +203,20 @@ class AgentLoop:
                     )
                     continue
 
+                # Emit a2a_start before sub-agent delegation so the parent
+                # client can show a nested progress indicator.
+                is_a2a = call.name == "delegate_subagent"
+                if is_a2a:
+                    task_preview = str(call.arguments.get("task", ""))[:200]
+                    yield StreamEvent(
+                        type="a2a_start",
+                        payload={
+                            "step": steps,
+                            "task_preview": task_preview,
+                            "tools_allowed": call.arguments.get("tools_allowed", []),
+                        },
+                    )
+
                 result: ToolResult = self._dispatcher.dispatch(call)
                 report = post_tool(result)
                 for aid in report.new_artifact_ids:
@@ -223,6 +237,19 @@ class AgentLoop:
                 messages.append(Message(
                     role="tool", tool_use_id=call.id, name=call.name, content=content,
                 ))
+
+                if is_a2a:
+                    payload_dict = result.payload if isinstance(result.payload, dict) else {}
+                    yield StreamEvent(
+                        type="a2a_end",
+                        payload={
+                            "step": steps,
+                            "artifact_id": payload_dict.get("artifact_id", ""),
+                            "summary": payload_dict.get("summary", "")[:200],
+                            "ok": result.ok,
+                        },
+                    )
+
                 yield StreamEvent(
                     type="tool_result",
                     payload={
