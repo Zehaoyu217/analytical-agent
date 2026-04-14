@@ -256,3 +256,7 @@ def register_core_tools(
     dispatcher.register("time_series.lag_correlate", _lag_correlate)
     dispatcher.register("distribution_fit.fit", _fit)
     dispatcher.register("data_profiler.profile", _profile)
+
+    from app.skills.report_builder.pkg import build as _report_build  # local import to keep harness import graph flat
+
+    dispatcher.register("report.build", lambda **kw: _report_build(**kw))
