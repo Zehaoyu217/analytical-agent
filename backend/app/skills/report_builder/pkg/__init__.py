@@ -5,7 +5,6 @@ from app.skills.report_builder.pkg.build import (
     Methodology,
     ReportResult,
     ReportSpec,
-    build,
 )
 
 __all__ = [
@@ -14,5 +13,4 @@ __all__ = [
     "Methodology",
     "ReportResult",
     "ReportSpec",
-    "build",
 ]
