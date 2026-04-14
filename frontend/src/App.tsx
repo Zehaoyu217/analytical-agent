@@ -3,7 +3,7 @@ import { AnnouncerProvider } from '@/components/a11y/Announcer'
 import { SkipToContent } from '@/components/a11y/SkipToContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { ShortcutsHelp } from '@/components/shortcuts/ShortcutsHelp'
-import { ChatLayout } from '@/components/chat/ChatLayout'
+import { IconRail } from '@/components/layout/IconRail'
 import { ThemeProvider, useTheme } from '@/components/layout/ThemeProvider'
 import {
   CommandRegistryProvider,
@@ -13,6 +13,13 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { CMD } from '@/lib/shortcuts'
 import { useChatStore } from '@/lib/store'
 import { MonitorPage } from '@/pages/MonitorPage'
+import { ChatSection } from '@/sections/ChatSection'
+import { AgentsSection } from '@/sections/AgentsSection'
+import { SkillsSection } from '@/sections/SkillsSection'
+import { PromptsSection } from '@/sections/PromptsSection'
+import { ContextSection } from '@/sections/ContextSection'
+import { DevtoolsSection } from '@/sections/DevtoolsSection'
+import { SettingsSection } from '@/sections/SettingsSection'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(window.location.hash)
@@ -89,6 +96,29 @@ function ShortcutWiring() {
   return null
 }
 
+function ActiveSection() {
+  const activeSection = useChatStore((s) => s.activeSection)
+
+  switch (activeSection) {
+    case 'chat':
+      return <ChatSection />
+    case 'agents':
+      return <AgentsSection />
+    case 'skills':
+      return <SkillsSection />
+    case 'prompts':
+      return <PromptsSection />
+    case 'context':
+      return <ContextSection />
+    case 'devtools':
+      return <DevtoolsSection />
+    case 'settings':
+      return <SettingsSection />
+    default:
+      return <ChatSection />
+  }
+}
+
 export default function App() {
   const hash = useHashRoute()
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
@@ -103,7 +133,12 @@ export default function App() {
         <CommandRegistryProvider>
           <SkipToContent />
           <ShortcutWiring />
-          <ChatLayout />
+          <div className="flex h-dvh bg-surface-950 text-surface-100 overflow-hidden">
+            <IconRail />
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <ActiveSection />
+            </div>
+          </div>
           <CommandPalette />
           <ShortcutsHelp />
         </CommandRegistryProvider>

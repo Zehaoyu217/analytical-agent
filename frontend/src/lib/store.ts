@@ -6,6 +6,17 @@ import { extractTextContent } from './utils'
 import type { ContentBlock } from './types'
 import { backend, type Conversation as BackendConversation } from './api-backend'
 
+export interface Artifact {
+  id: string
+  type: 'chart' | 'table' | 'diagram' | 'profile' | 'analysis' | 'file'
+  title: string
+  content: string  // JSON string for vega-lite/table-json, raw HTML for html, mermaid code for mermaid
+  format: 'vega-lite' | 'mermaid' | 'table-json' | 'html'
+  session_id: string
+  created_at: number
+  metadata: Record<string, unknown>
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -13,6 +24,7 @@ export interface Message {
   timestamp: number
   status: 'complete' | 'sending' | 'streaming' | 'error'
   traceId?: string
+  artifactIds?: string[]
 }
 
 export interface Conversation {
@@ -26,6 +38,7 @@ export interface Conversation {
 
 export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
 export type RightPanelTab = 'artifacts' | 'scratchpad' | 'tools'
+export type SectionId = 'chat' | 'agents' | 'skills' | 'prompts' | 'context' | 'devtools' | 'settings'
 
 export interface Settings {
   model: string
@@ -59,6 +72,8 @@ interface ChatState {
   rightPanelTab: RightPanelTab
   toolCallLog: ToolCallEntry[]
   scratchpad: string
+  artifacts: Artifact[]
+  activeSection: SectionId
 
   createConversation: () => string
   setActiveConversation: (id: string) => void
@@ -82,6 +97,9 @@ interface ChatState {
   updateSettings: (patch: Partial<Settings>) => void
   openSettings: () => void
   openSearch: () => void
+  setActiveSection: (section: SectionId) => void
+  addArtifact: (artifact: Artifact) => void
+  clearArtifacts: () => void
 }
 
 const DEFAULT_CONVERSATION_TITLE = 'New Conversation'
@@ -100,6 +118,8 @@ export const useChatStore = create<ChatState>()(
       rightPanelTab: 'tools' as RightPanelTab,
       toolCallLog: [] as ToolCallEntry[],
       scratchpad: '',
+      artifacts: [] as Artifact[],
+      activeSection: 'chat' as SectionId,
 
       createConversation: () => {
         const id = nanoid()
@@ -258,6 +278,22 @@ export const useChatStore = create<ChatState>()(
       openSearch: () => {
         // Stub — Global search lands in a later phase
       },
+
+      setActiveSection: (section) => set({ activeSection: section }),
+
+      addArtifact: (artifact) =>
+        set((state) => {
+          // Upsert: update if already exists
+          const existingIdx = state.artifacts.findIndex((a) => a.id === artifact.id)
+          if (existingIdx >= 0) {
+            const updated = [...state.artifacts]
+            updated[existingIdx] = artifact
+            return { artifacts: updated }
+          }
+          return { artifacts: [...state.artifacts, artifact] }
+        }),
+
+      clearArtifacts: () => set({ artifacts: [] }),
     }),
     {
       name: 'chat-store-v2',
