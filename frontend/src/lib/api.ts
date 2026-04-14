@@ -84,3 +84,71 @@ export async function listTraces(): Promise<TraceListItem[]> {
   const body = (await res.json()) as { traces: TraceListItem[] }
   return body.traces
 }
+
+// ── SSE streaming chat ────────────────────────────────────────────────────────
+
+export interface ChatStreamEvent {
+  type: 'turn_start' | 'tool_call' | 'tool_result' | 'scratchpad_delta' | 'turn_end' | 'error'
+  // turn_start
+  session_id?: string
+  step?: number
+  // tool_call
+  name?: string
+  input_preview?: string
+  // tool_result
+  status?: 'ok' | 'error' | 'blocked'
+  artifact_ids?: string[]
+  preview?: string
+  // turn_end
+  final_text?: string
+  stop_reason?: string
+  steps?: number
+  charts?: Array<Record<string, unknown>>
+  // error
+  message?: string
+}
+
+/**
+ * Stream chat events from POST /api/chat/stream.
+ * Yields one ChatStreamEvent per SSE frame; ends when the stream closes.
+ */
+export async function* streamChatMessage(
+  message: string,
+  sessionId: string | null,
+  datasetPath?: string | null,
+): AsyncGenerator<ChatStreamEvent> {
+  const res = await fetch(`${BASE_URL}/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      dataset_path: datasetPath ?? null,
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`chat stream failed (${res.status}): ${body}`)
+  }
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          yield JSON.parse(line.slice(6)) as ChatStreamEvent
+        } catch {
+          // skip malformed frames
+        }
+      }
+    }
+  }
+}

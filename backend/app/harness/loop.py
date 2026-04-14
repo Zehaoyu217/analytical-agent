@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 from dataclasses import dataclass, field
 
 from app.harness.clients.base import (
@@ -14,6 +15,7 @@ from app.harness.guardrails.post_tool import post_tool
 from app.harness.guardrails.pre_tool import pre_tool_gate
 from app.harness.guardrails.tiers import apply_tier
 from app.harness.guardrails.types import GuardrailOutcome
+from app.harness.stream_events import StreamEvent
 from app.harness.turn_state import TurnState
 
 
@@ -118,8 +120,136 @@ class AgentLoop:
             guardrail_outcomes=outcomes,
         )
 
+    def run_stream(
+        self,
+        client: ModelClient,
+        system: str,
+        user_message: str,
+        dataset_loaded: bool,
+        session_id: str = "",
+        max_steps: int = 12,
+        scratchpad: str = "",
+    ) -> Generator[StreamEvent, None, None]:
+        """Run the agent loop, yielding a StreamEvent for each notable moment.
 
-def _serializable(value):
+        Yields turn_start before each LLM call, tool_call / tool_result around
+        each dispatch, and turn_end when the loop exits.  Callers can serialise
+        each event to SSE via ``event.to_sse()``.
+        """
+        state = TurnState(dataset_loaded=dataset_loaded, scratchpad=scratchpad)
+        messages: list[Message] = [Message(role="user", content=user_message)]
+        outcomes: list[GuardrailOutcome] = []
+        final_text = ""
+        steps = 0
+        stop_reason = "end_turn"
+
+        for steps in range(1, max_steps + 1):
+            yield StreamEvent(
+                type="turn_start",
+                payload={"session_id": session_id, "step": steps},
+            )
+
+            resp = client.complete(CompletionRequest(
+                system=system, messages=tuple(messages),
+                tools=(), max_tokens=2048,
+            ))
+            final_text = resp.text
+
+            if not resp.tool_calls:
+                stop_reason = resp.stop_reason or "end_turn"
+                break
+
+            messages.append(Message(role="assistant", content=resp.text or ""))
+            for call in resp.tool_calls:
+                yield StreamEvent(
+                    type="tool_call",
+                    payload={
+                        "step": steps,
+                        "name": call.name,
+                        "input_preview": _arg_preview(call.arguments),
+                    },
+                )
+
+                pre_findings = pre_tool_gate(
+                    call, turn_trace=state.as_trace(),
+                    dataset_loaded=state.dataset_loaded,
+                )
+                pre_outcome = apply_tier(client.tier, pre_findings)
+                outcomes.append(pre_outcome)
+
+                if pre_outcome is GuardrailOutcome.BLOCK:
+                    state.record_tool(
+                        name=call.name,
+                        result_payload={
+                            "error": "blocked_by_pre_tool_gate",
+                            "findings": [f.code for f in pre_findings],
+                        },
+                        status="blocked",
+                    )
+                    messages.append(Message(
+                        role="tool", tool_use_id=call.id, name=call.name,
+                        content=json.dumps({
+                            "blocked": True,
+                            "reasons": [f.message for f in pre_findings],
+                        }),
+                    ))
+                    yield StreamEvent(
+                        type="tool_result",
+                        payload={
+                            "step": steps, "name": call.name, "status": "blocked",
+                            "artifact_ids": [],
+                            "preview": str([f.code for f in pre_findings]),
+                        },
+                    )
+                    continue
+
+                result: ToolResult = self._dispatcher.dispatch(call)
+                report = post_tool(result)
+                for aid in report.new_artifact_ids:
+                    state.record_artifact(aid)
+                state.record_tool(
+                    name=call.name,
+                    result_payload=(result.payload
+                                    if isinstance(result.payload, dict) else
+                                    {"value": result.payload}),
+                    status="ok" if result.ok else "error",
+                )
+                content = json.dumps(_serializable(result.payload))
+                if report.trimmed_stdout:
+                    content = json.dumps({
+                        "artifact_refs": list(report.new_artifact_ids),
+                        "trimmed_preview": report.trimmed_stdout,
+                    })
+                messages.append(Message(
+                    role="tool", tool_use_id=call.id, name=call.name, content=content,
+                ))
+                yield StreamEvent(
+                    type="tool_result",
+                    payload={
+                        "step": steps,
+                        "name": call.name,
+                        "status": "ok" if result.ok else "error",
+                        "artifact_ids": list(report.new_artifact_ids),
+                        "preview": str(result.payload)[:200],
+                    },
+                )
+        else:
+            stop_reason = "max_steps"
+
+        end_findings = end_of_turn(scratchpad=state.scratchpad, claims=[])
+        outcomes.append(apply_tier(client.tier, end_findings))
+
+        yield StreamEvent(
+            type="turn_end",
+            payload={
+                "final_text": final_text,
+                "stop_reason": stop_reason,
+                "steps": steps,
+            },
+        )
+
+
+def _serializable(value: object) -> object:
     if isinstance(value, dict):
         return {k: _serializable(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -127,3 +257,9 @@ def _serializable(value):
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
+
+
+def _arg_preview(arguments: dict[str, object], max_len: int = 120) -> str:
+    """Return a short human-readable preview of tool arguments."""
+    text = json.dumps(arguments)
+    return text[:max_len] + ("…" if len(text) > max_len else "")

@@ -3,6 +3,9 @@
 Supports a single tool: execute_python. The sandbox runs the code, captures
 stdout, and extracts any Altair/Vega-Lite charts via a marker protocol.
 Charts are returned as Vega-Lite JSON specs in the response.
+
+POST /api/chat        — synchronous JSON response (backward-compatible)
+POST /api/chat/stream — streaming SSE response (text/event-stream)
 """
 from __future__ import annotations
 
@@ -13,12 +16,14 @@ import re
 import secrets
 import sys
 import time
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
 import anthropic
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_config
@@ -34,6 +39,7 @@ from app.harness.clients.openrouter_client import OpenRouterClient
 from app.harness.config import ModelProfile
 from app.harness.sandbox import SandboxExecutor
 from app.harness.sandbox_bootstrap import build_duckdb_globals
+from app.harness.stream_events import sse_line
 from app.trace.events import PromptSection
 from app.trace.publishers import (
     TraceSession,
@@ -266,6 +272,123 @@ def _agent_loop(
     return final_text, all_charts, usage
 
 
+# ── streaming agent loop ──────────────────────────────────────────────────────
+
+
+def _stream_agent_loop(
+    model_id: str,
+    message: str,
+    session_id: str,
+    max_steps: int = 3,
+    session_bootstrap: str = "",
+) -> Generator[str, None, None]:
+    """Yield SSE-formatted strings as the agent runs.
+
+    Mirrors ``_agent_loop`` but emits one SSE frame per event instead of
+    collecting results and returning a single payload.
+
+    Events yielded (JSON payload embedded in each frame):
+        turn_start      — before each LLM call
+        tool_call       — when a tool invocation is about to run
+        tool_result     — after the tool returns
+        turn_end        — final assistant text + all charts
+        error           — if an unrecoverable exception occurs
+    """
+    all_charts: list[dict[str, Any]] = []
+    messages: list[Message] = [Message(role="user", content=message)]
+
+    with httpx.Client(timeout=120) as http:
+        client = _make_client(model_id, http)
+
+        for step in range(1, max_steps + 1):
+            yield sse_line("turn_start", {"session_id": session_id, "step": step})
+
+            try:
+                req = CompletionRequest(
+                    system=_SYSTEM_PROMPT,
+                    messages=tuple(messages),
+                    tools=(_EXECUTE_PYTHON,),
+                    max_tokens=2048,
+                )
+                resp = client.complete(req)
+            except Exception as exc:
+                yield sse_line("error", {"message": str(exc)})
+                return
+
+            if not resp.tool_calls:
+                yield sse_line("turn_end", {
+                    "final_text": resp.text,
+                    "stop_reason": resp.stop_reason or "end_turn",
+                    "steps": step,
+                    "charts": all_charts,
+                })
+                return
+
+            messages.append(Message(role="assistant", content=resp.text or ""))
+            got_charts_this_step = False
+
+            for call in resp.tool_calls:
+                code_preview = str(call.arguments.get("code", ""))[:120]
+                yield sse_line("tool_call", {
+                    "step": step,
+                    "name": call.name,
+                    "input_preview": code_preview,
+                })
+
+                if call.name == "execute_python":
+                    code = str(call.arguments.get("code", ""))
+                    output, charts = _run_python(code, session_bootstrap)
+                    all_charts.extend(charts)
+                    if charts:
+                        got_charts_this_step = True
+                    result_json = json.dumps({"output": output, "charts_rendered": len(charts)})
+                    status = "error" if output.startswith("Error:") else "ok"
+                    yield sse_line("tool_result", {
+                        "step": step, "name": call.name,
+                        "status": status, "artifact_ids": [],
+                        "preview": output[:200],
+                    })
+                else:
+                    result_json = json.dumps({"error": f"unknown tool: {call.name}"})
+                    yield sse_line("tool_result", {
+                        "step": step, "name": call.name,
+                        "status": "error", "artifact_ids": [],
+                        "preview": f"unknown tool: {call.name}",
+                    })
+
+                messages.append(Message(
+                    role="tool", tool_use_id=call.id,
+                    name=call.name, content=result_json,
+                ))
+
+            if got_charts_this_step:
+                try:
+                    req = CompletionRequest(
+                        system=_SYSTEM_PROMPT,
+                        messages=tuple(messages),
+                        tools=(),
+                        max_tokens=256,
+                    )
+                    resp = client.complete(req)
+                except Exception as exc:
+                    yield sse_line("error", {"message": str(exc)})
+                    return
+                yield sse_line("turn_end", {
+                    "final_text": resp.text,
+                    "stop_reason": "end_turn",
+                    "steps": step,
+                    "charts": all_charts,
+                })
+                return
+
+    yield sse_line("turn_end", {
+        "final_text": "",
+        "stop_reason": "max_steps",
+        "steps": max_steps,
+        "charts": all_charts,
+    })
+
+
 # ── API ───────────────────────────────────────────────────────────────────────
 
 
@@ -373,3 +496,46 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
         )
 
     return ChatResponse(session_id=trace_id, response=response_text, charts=charts)
+
+
+@router.post("/stream")
+def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
+    """Stream agent events as Server-Sent Events (text/event-stream).
+
+    The client reads the stream with ``fetch()`` and parses each ``data:`` line
+    as JSON.  Events are typed via the ``type`` field; see ``stream_events.py``
+    for the full schema.
+    """
+    from app.api.settings_api import get_settings
+
+    conversation_id = payload.session_id
+    if conversation_id is not None and not _CONVERSATION_ID_RE.match(conversation_id):
+        raise HTTPException(status_code=400, detail="invalid session_id")
+
+    settings = get_settings()
+    model_id = settings.model
+    trace_id = _make_trace_id(conversation_id)
+
+    session_bootstrap = (
+        build_duckdb_globals(trace_id, payload.dataset_path)
+        if payload.dataset_path
+        else ""
+    )
+
+    def event_generator() -> Generator[str, None, None]:
+        yield from _stream_agent_loop(
+            model_id=model_id,
+            message=payload.message,
+            session_id=trace_id,
+            session_bootstrap=session_bootstrap,
+        )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
