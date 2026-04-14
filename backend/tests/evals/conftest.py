@@ -2,18 +2,50 @@
 
 These tests run the full grading pipeline with a mock agent.
 They require Ollama running locally for LLM-judged dimensions.
+
+The `_require_ollama` autouse fixture probes the Ollama HTTP API once
+per session and skips every test in this dir when it's unreachable —
+so `pytest tests/` is green on a laptop with no local LLM running.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+import httpx
 import pytest
 
 from app.evals.judge import LLMJudge
 from app.evals.types import AgentTrace
 
 RUBRICS_DIR = Path(__file__).parent / "rubrics"
+_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+_OLLAMA_PROBE_TIMEOUT_S = 0.5
+
+# Resolved once per session so we don't re-probe for every test.
+_ollama_available_cache: bool | None = None
+
+
+def _ollama_available() -> bool:
+    global _ollama_available_cache
+    if _ollama_available_cache is None:
+        try:
+            resp = httpx.get(
+                f"{_OLLAMA_URL}/api/tags",
+                timeout=_OLLAMA_PROBE_TIMEOUT_S,
+            )
+            _ollama_available_cache = resp.status_code == 200
+        except (httpx.HTTPError, OSError):
+            _ollama_available_cache = False
+    return _ollama_available_cache
+
+
+@pytest.fixture(autouse=True)
+def _require_ollama() -> None:
+    """Skip the eval tests if Ollama isn't reachable — the judge calls need it."""
+    if not _ollama_available():
+        pytest.skip(f"Ollama not reachable at {_OLLAMA_URL}; skipping LLM-judged eval")
 
 
 @pytest.fixture
