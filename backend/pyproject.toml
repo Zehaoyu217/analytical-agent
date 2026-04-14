@@ -40,6 +40,9 @@ testpaths = ["tests", "app/skills"]
 asyncio_mode = "auto"
 pythonpath = [".", ".."]
 addopts = "--import-mode=importlib"
+markers = [
+    "slow: marks tests as slow (multi-turn LLM evals — deselect with -m 'not slow')",
+]
 
 [tool.ruff]
 line-length = 100

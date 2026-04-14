@@ -90,6 +90,7 @@ def level5_traces() -> list[AgentTrace]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_level5_grading(
     rubrics_path: Path,
     eval_db: str,

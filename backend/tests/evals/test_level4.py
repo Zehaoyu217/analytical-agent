@@ -92,6 +92,7 @@ def level4_trace() -> AgentTrace:
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_level4_grading(
     rubrics_path: Path,
     eval_db: str,
