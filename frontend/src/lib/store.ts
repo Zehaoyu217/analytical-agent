@@ -31,6 +31,18 @@ export interface Settings {
   model: string
 }
 
+export type ToolCallStatus = 'pending' | 'ok' | 'error' | 'blocked'
+
+export interface ToolCallEntry {
+  id: string
+  step: number
+  name: string
+  inputPreview: string
+  status: ToolCallStatus
+  preview?: string
+  artifactIds?: string[]
+}
+
 // DevTools content is dense — widen sidebar on first switch if it's too narrow.
 const DEVTOOLS_MIN_WIDTH = 500
 const DEVTOOLS_TARGET_WIDTH = 520
@@ -45,6 +57,7 @@ interface ChatState {
   draftInput: string
   rightPanelOpen: boolean
   rightPanelTab: RightPanelTab
+  toolCallLog: ToolCallEntry[]
 
   createConversation: () => string
   setActiveConversation: (id: string) => void
@@ -59,6 +72,9 @@ interface ChatState {
   focusDevTools: () => void
   toggleRightPanel: () => void
   setRightPanelTab: (t: RightPanelTab) => void
+  pushToolCall: (entry: Omit<ToolCallEntry, 'id'>) => string
+  updateToolCallById: (id: string, patch: Partial<ToolCallEntry>) => void
+  clearToolCallLog: () => void
   setDraftInput: (s: string) => void
   updateSettings: (patch: Partial<Settings>) => void
   openSettings: () => void
@@ -79,6 +95,7 @@ export const useChatStore = create<ChatState>()(
       draftInput: '',
       rightPanelOpen: false,
       rightPanelTab: 'tools' as RightPanelTab,
+      toolCallLog: [] as ToolCallEntry[],
 
       createConversation: () => {
         const id = nanoid()
@@ -207,6 +224,21 @@ export const useChatStore = create<ChatState>()(
       toggleRightPanel: () => set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
 
       setRightPanelTab: (t) => set({ rightPanelTab: t, rightPanelOpen: true }),
+
+      pushToolCall: (entry) => {
+        const id = nanoid()
+        set((state) => ({ toolCallLog: [...state.toolCallLog, { ...entry, id }] }))
+        return id
+      },
+
+      updateToolCallById: (id, patch) =>
+        set((state) => ({
+          toolCallLog: state.toolCallLog.map((e) =>
+            e.id === id ? { ...e, ...patch } : e,
+          ),
+        })),
+
+      clearToolCallLog: () => set({ toolCallLog: [] }),
 
       setDraftInput: (s) => set({ draftInput: s }),
 

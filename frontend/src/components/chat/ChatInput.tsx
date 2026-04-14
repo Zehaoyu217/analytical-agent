@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
 import { useChatStore } from '@/lib/store'
 import { useDevtoolsStore } from '@/stores/devtools'
-import { sendChatMessage } from '@/lib/api-chat'
+import { streamChatMessage } from '@/lib/api-chat'
 import { backend, type SlashCommand } from '@/lib/api-backend'
 import { cn } from '@/lib/utils'
 import { MAX_MESSAGE_LENGTH } from '@/lib/constants'
@@ -27,6 +27,10 @@ export function ChatInput({ conversationId }: ChatInputProps) {
   const addMessage = useChatStore((s) => s.addMessage)
   const updateMessage = useChatStore((s) => s.updateMessage)
   const setConversationSessionId = useChatStore((s) => s.setConversationSessionId)
+  const pushToolCall = useChatStore((s) => s.pushToolCall)
+  const updateToolCallById = useChatStore((s) => s.updateToolCallById)
+  const clearToolCallLog = useChatStore((s) => s.clearToolCallLog)
+  const setRightPanelTab = useChatStore((s) => s.setRightPanelTab)
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -144,36 +148,86 @@ export function ChatInput({ conversationId }: ChatInputProps) {
       status: 'sending',
     })
 
+    // Clear tool call log from any previous turn
+    clearToolCallLog()
+
+    // Map from tool call entry ID → store entry ID so we can update on result
+    const pendingToolCallIds = new Map<string, string>()
+    let finalSessionId = conversation?.sessionId ?? null
+    let finalResponseText = ''
+
     try {
-      const result = await sendChatMessage(text, conversation?.sessionId ?? null)
-      // Build ContentBlock array: text first, then one block per chart
-      const charts = result.charts ?? []
-      const content =
-        charts.length > 0
-          ? [
-              { type: 'text' as const, text: result.response },
-              ...charts.map((spec) => ({ type: 'chart' as const, spec })),
-            ]
-          : result.response
-      updateMessage(conversationId, assistantId, {
-        content,
-        status: 'complete',
-        traceId: result.session_id,
-      })
-      setConversationSessionId(conversationId, result.session_id)
-      // Persist the assistant response too (fire-and-forget).
-      backend.conversations
-        .appendTurn(conversationId, 'assistant', result.response)
-        .catch((err: unknown) => {
-          if (typeof window !== 'undefined') {
-            window.console?.warn?.('persist assistant turn failed', err)
+      const stream = streamChatMessage(text, conversation?.sessionId ?? null)
+      for await (const event of stream) {
+        if (event.type === 'turn_start') {
+          if (event.session_id) finalSessionId = event.session_id
+          updateMessage(conversationId, assistantId, { status: 'streaming' })
+        } else if (event.type === 'tool_call') {
+          // Open the Tools tab in the right panel on first tool call
+          setRightPanelTab('tools')
+          const entryKey = `${event.step}-${event.name}`
+          const storeId = pushToolCall({
+            step: event.step ?? 0,
+            name: event.name ?? '',
+            inputPreview: event.input_preview ?? '',
+            status: 'pending',
+          })
+          pendingToolCallIds.set(entryKey, storeId)
+        } else if (event.type === 'tool_result') {
+          const entryKey = `${event.step}-${event.name}`
+          const storeId = pendingToolCallIds.get(entryKey)
+          if (storeId) {
+            updateToolCallById(storeId, {
+              status: event.status ?? 'ok',
+              preview: event.preview,
+              artifactIds: event.artifact_ids,
+            })
           }
-        })
-      // Pre-select the trace in DevTools so it's ready if the user opens the
-      // DevTools sidebar. Does NOT auto-open the sidebar.
-      const devtools = useDevtoolsStore.getState()
-      devtools.setSelectedTrace(result.session_id)
-      devtools.setActiveTab('traces')
+        } else if (event.type === 'turn_end') {
+          const responseText = event.final_text ?? ''
+          finalResponseText = responseText
+          const charts = event.charts ?? []
+          const content =
+            charts.length > 0
+              ? [
+                  { type: 'text' as const, text: responseText },
+                  ...charts.map((spec) => ({ type: 'chart' as const, spec })),
+                ]
+              : responseText
+          updateMessage(conversationId, assistantId, {
+            content,
+            status: 'complete',
+            traceId: finalSessionId ?? undefined,
+          })
+          if (finalSessionId) setConversationSessionId(conversationId, finalSessionId)
+        } else if (event.type === 'error') {
+          const msg = event.message ?? 'Agent error'
+          updateMessage(conversationId, assistantId, {
+            content: msg,
+            status: 'error',
+          })
+          setError(msg)
+          return
+        }
+      }
+
+      if (finalSessionId) {
+        setConversationSessionId(conversationId, finalSessionId)
+        const devtools = useDevtoolsStore.getState()
+        devtools.setSelectedTrace(finalSessionId)
+        devtools.setActiveTab('traces')
+      }
+
+      // Persist the assistant response (fire-and-forget).
+      if (finalResponseText) {
+        backend.conversations
+          .appendTurn(conversationId, 'assistant', finalResponseText)
+          .catch((err: unknown) => {
+            if (typeof window !== 'undefined') {
+              window.console?.warn?.('persist assistant turn failed', err)
+            }
+          })
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Request failed'
       updateMessage(conversationId, assistantId, {
@@ -192,6 +246,10 @@ export function ChatInput({ conversationId }: ChatInputProps) {
     addMessage,
     updateMessage,
     setConversationSessionId,
+    pushToolCall,
+    updateToolCallById,
+    clearToolCallLog,
+    setRightPanelTab,
     adjustHeight,
   ])
 

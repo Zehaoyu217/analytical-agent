@@ -1,9 +1,8 @@
 /**
- * api-chat.ts — thin wrapper for the chat endpoint.
+ * api-chat.ts — thin wrapper for the chat endpoints.
  *
- * Re-exports `sendChatMessage` from `./api.ts`, which already posts to
- * /api/chat with the correct shape and throws on non-2xx responses.
+ * Re-exports sendChatMessage (JSON) and streamChatMessage (SSE) from ./api.ts.
  */
 
-export { sendChatMessage } from './api'
-export type { ChatResponse } from './api'
+export { sendChatMessage, streamChatMessage } from './api'
+export type { ChatResponse, ChatStreamEvent } from './api'
