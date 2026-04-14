@@ -51,7 +51,7 @@ export function ChatLayout() {
   }, [])
 
   return (
-    <div className="flex h-dvh bg-surface-950 text-surface-100 overflow-hidden">
+    <div className="flex h-full bg-surface-950 text-surface-100 overflow-hidden">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <Header />

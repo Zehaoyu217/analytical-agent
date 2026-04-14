@@ -112,7 +112,7 @@ class OllamaClient:
             "options": {"num_predict": 1},
         }
         try:
-            self._http.post(self._endpoint("/api/chat"), json=payload, timeout=120)
+            self._http.post(self._endpoint("/api/chat"), json=payload, timeout=300)
         except Exception as exc:
             logger.warning(
                 "ollama warmup failed for model %s: %s", self.profile.model_id, exc, exc_info=True

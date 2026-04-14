@@ -236,7 +236,7 @@ def _agent_loop(
     final_text = ""
     usage: dict[str, int] = {}
 
-    with httpx.Client(timeout=120) as http:
+    with httpx.Client(timeout=300) as http:
         client = _make_client(model_id, http)
 
         for _step in range(max_steps):
@@ -385,7 +385,7 @@ def _stream_agent_loop(
     tool_result_tokens = 0
 
     try:
-        with httpx.Client(timeout=120) as http:
+        with httpx.Client(timeout=300) as http:
             client = _make_client(model_id, http)
             loop = AgentLoop(dispatcher)
             for event in loop.run_stream(

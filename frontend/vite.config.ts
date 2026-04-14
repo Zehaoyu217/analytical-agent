@@ -19,6 +19,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8001',
         changeOrigin: true,
+        // Keep SSE connections open long enough for slow LLM cold-starts
+        timeout: 300_000,
+        proxyTimeout: 300_000,
       },
     },
   },
