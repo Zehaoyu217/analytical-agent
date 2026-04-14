@@ -260,3 +260,9 @@ def register_core_tools(
     from app.skills.report_builder.pkg import build as _report_build  # local import to keep harness import graph flat
 
     dispatcher.register("report.build", lambda **kw: _report_build(**kw))
+
+    from app.skills.analysis_plan.pkg.plan import plan as _analysis_plan
+    from app.skills.dashboard_builder.pkg.build import build as _dashboard_build
+
+    dispatcher.register("analysis_plan.plan", lambda **kw: _analysis_plan(**kw))
+    dispatcher.register("dashboard.build", lambda **kw: _dashboard_build(**kw))
