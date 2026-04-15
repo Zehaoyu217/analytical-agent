@@ -65,7 +65,7 @@ class SkillMetadata:
     error_templates: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(eq=False)
 class SkillNode:
     """A node in the skill hierarchy tree.
 
