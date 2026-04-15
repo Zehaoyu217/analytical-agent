@@ -104,7 +104,11 @@ def register_core_tools(
 
         full_body = "\n\n".join(p.strip() for p in parts if p.strip())
 
-        has_package = node.package_path is not None and any(node.package_path.iterdir())
+        has_package = (
+            node.package_path is not None
+            and node.package_path.exists()
+            and any(node.package_path.iterdir())
+        )
 
         return {
             "name": meta.name,

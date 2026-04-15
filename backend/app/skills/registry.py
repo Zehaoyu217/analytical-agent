@@ -26,7 +26,13 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
     body = "".join(lines[end + 1 :]).lstrip("\n")
     try:
         parsed = yaml.safe_load(raw)
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
+        _log.warning(
+            "SKILL.md frontmatter YAML parse failed — skill will be skipped. "
+            "Check for unquoted brackets in description (e.g. use '\"[Reference] ...\"'). "
+            "Error: %s",
+            exc,
+        )
         return {}, text
     if not isinstance(parsed, dict):
         return {}, body
