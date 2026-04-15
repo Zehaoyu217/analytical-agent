@@ -77,7 +77,6 @@ class SkillRegistry:
                 name=name,
                 version=str(fm.get("version", "0.0")),
                 description=fm.get("description", ""),
-                level=int(fm.get("level", 1)),
                 dependencies_requires=deps.get("requires", []),
                 dependencies_used_by=deps.get("used_by", []),
                 dependencies_packages=deps.get("packages", []),

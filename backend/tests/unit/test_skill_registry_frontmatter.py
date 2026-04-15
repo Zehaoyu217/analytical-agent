@@ -15,7 +15,6 @@ def skills_root(tmp_path: Path) -> Path:
         "---\n"
         "name: demo\n"
         "description: Minimal demo skill.\n"
-        "level: 2\n"
         "version: '0.3'\n"
         "---\n"
         "# Demo\n\nBody text.\n"
@@ -42,7 +41,6 @@ def test_registry_reads_metadata_from_skill_md_frontmatter(skills_root: Path) ->
     assert loaded is not None
     assert loaded.metadata.name == "demo"
     assert loaded.metadata.description == "Minimal demo skill."
-    assert loaded.metadata.level == 2
     assert loaded.metadata.version == "0.3"
     assert loaded.metadata.dependencies_requires == ["theme_config"]
     assert loaded.metadata.dependencies_packages == ["pandas"]
@@ -83,7 +81,6 @@ def test_registry_skips_skill_with_invalid_yaml_frontmatter(tmp_path: Path) -> N
         "---\n"
         "name: good\n"
         "description: fine\n"
-        "level: 1\n"
         "version: '0.1'\n"
         "---\n"
         "# Good\n"

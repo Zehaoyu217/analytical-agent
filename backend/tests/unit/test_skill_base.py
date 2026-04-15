@@ -1,4 +1,5 @@
-from app.skills.base import SkillError, SkillResult
+from app.skills.base import SkillError, SkillResult, SkillMetadata, SkillNode
+from pathlib import Path
 
 
 def test_skill_error_formats_message() -> None:
@@ -51,3 +52,38 @@ def test_skill_result_with_artifacts() -> None:
     )
     assert len(result.artifacts) == 1
     assert result.artifacts[0]["type"] == "chart"
+
+
+def test_skill_metadata_has_no_level_field() -> None:
+    meta = SkillMetadata(name="foo", version="0.1", description="bar")
+    assert not hasattr(meta, "level")
+
+
+def test_skill_node_constructs_correctly() -> None:
+    meta = SkillMetadata(name="foo", version="0.1", description="bar")
+    node = SkillNode(
+        metadata=meta,
+        instructions="# Foo\n\nDo foo.",
+        package_path=Path("/skills/foo/pkg"),
+        depth=1,
+        parent=None,
+    )
+    assert node.metadata.name == "foo"
+    assert node.depth == 1
+    assert node.parent is None
+    assert node.children == []
+
+
+def test_skill_node_child_relationship() -> None:
+    parent_meta = SkillMetadata(name="hub", version="0.1", description="hub")
+    child_meta = SkillMetadata(name="leaf", version="0.1", description="leaf")
+    parent = SkillNode(
+        metadata=parent_meta, instructions="", package_path=None, depth=1, parent=None
+    )
+    child = SkillNode(
+        metadata=child_meta, instructions="", package_path=None, depth=2, parent=parent
+    )
+    parent.children.append(child)
+    assert len(parent.children) == 1
+    assert parent.children[0].metadata.name == "leaf"
+    assert child.parent is parent
