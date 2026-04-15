@@ -44,16 +44,34 @@ endif
 
 skill-new:
 ifndef name
-	$(error Usage: make skill-new name=<skill_name>)
+	$(error Usage: make skill-new name=<skill_name> [parent=<parent_skill>] [type=reference])
 endif
-	@mkdir -p backend/app/skills/$(name)/pkg
-	@mkdir -p backend/app/skills/$(name)/references
-	@mkdir -p backend/app/skills/$(name)/tests
-	@mkdir -p backend/app/skills/$(name)/evals/fixtures
-	@touch backend/app/skills/$(name)/pkg/__init__.py
-	@printf -- "---\nname: $(name)\ndescription: ''\nlevel: 1\nversion: '0.1'\n---\n# $(name)\n\nOne-paragraph overview.\n\n## When to use\n\n...\n\n## Contract\n\n...\n" > backend/app/skills/$(name)/SKILL.md
-	@printf "dependencies:\n  requires: []\n  used_by: []\n  packages: []\nerrors: {}\n" > backend/app/skills/$(name)/skill.yaml
-	@echo "Skill scaffolded at backend/app/skills/$(name)/"
+ifdef parent
+	$(eval SKILL_DIR := backend/app/skills/$(parent)/$(name))
+else
+	$(eval SKILL_DIR := backend/app/skills/$(name))
+endif
+ifdef parent
+	@# Ensure parent hub has __init__.py for Python import traversal
+	@touch backend/app/skills/$(parent)/__init__.py
+endif
+	@mkdir -p $(SKILL_DIR)
+ifdef type
+	@# Reference skill: no pkg/, description prefixed with [Reference]
+	@printf -- "---\nname: $(name)\ndescription: '[Reference] Describe what this documents and when to load it.'\nversion: '0.1'\n---\n# $(name)\n\nReference documentation.\n\n## Contents\n\n...\n" > $(SKILL_DIR)/SKILL.md
+else
+	@mkdir -p $(SKILL_DIR)/pkg
+	@mkdir -p $(SKILL_DIR)/references
+	@mkdir -p $(SKILL_DIR)/tests
+	@mkdir -p $(SKILL_DIR)/evals/fixtures
+	@touch $(SKILL_DIR)/pkg/__init__.py
+	@printf -- "---\nname: $(name)\ndescription: ''\nlevel: 1\nversion: '0.1'\n---\n# $(name)\n\nOne-paragraph overview.\n\n## When to use\n\n...\n\n## Contract\n\n...\n" > $(SKILL_DIR)/SKILL.md
+endif
+	@printf "dependencies:\n  requires: []\n  used_by: []\n  packages: []\nerrors: {}\n" > $(SKILL_DIR)/skill.yaml
+	@echo "Skill scaffolded at $(SKILL_DIR)/"
+ifdef parent
+	@echo "Hub: backend/app/skills/$(parent)/ — $(name) is now a sub-skill."
+endif
 
 # Knowledge
 wiki-lint:
