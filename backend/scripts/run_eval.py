@@ -24,9 +24,11 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.evals.analyzer import TraceAnalyzer
 from app.evals.judge import FallbackJudge, LLMJudge, OpenRouterJudge
 from app.evals.rubric import load_rubric
 from app.evals.runner import evaluate_level
+from app.evals.types import TraceAnalysis
 from tests.evals.real_agent import BackendNotReachableError, RealAgentAdapter
 
 RUBRICS_DIR = Path(__file__).parent.parent / "tests" / "evals" / "rubrics"
@@ -71,6 +73,65 @@ def _bar(score: float, width: int = 30) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
+_STATUS_ICON = {
+    "complete": "✓",
+    "exhausted": "⚠",
+    "empty": "✗",
+    "errored": "✗",
+}
+
+
+def _print_analysis(analysis: TraceAnalysis, trace_duration_s: float) -> None:
+    """Print a human-readable diagnostic report from a TraceAnalysis."""
+    status_icon = _STATUS_ICON.get(analysis.completion, "?")
+    status_label = analysis.completion.upper()
+
+    tool_summary = "  ".join(
+        f"{name} ×{count}"
+        for name, count in sorted(analysis.step_breakdown.tool_counts.items())
+    )
+    query_errors = sum(1 for qr in analysis.query_results if qr.had_error)
+    query_ok = len(analysis.query_results) - query_errors
+
+    print(f"\n  Status:   {status_icon} {status_label}  ({trace_duration_s:.1f}s)")
+    print(f"  Tools:    {tool_summary or '(none)'}")
+    if analysis.query_results:
+        print(f"  Queries:  {query_ok} succeeded, {query_errors} errored")
+
+    if analysis.error_patterns:
+        print(f"\n  Errors detected:")
+        for p in analysis.error_patterns:
+            print(f"    ✗ [{p.kind}]  {p.evidence[:80]}")
+
+    if analysis.check_results:
+        print(f"\n  Checks:")
+        for name, passed in analysis.check_results.items():
+            icon = "✓" if passed else "✗"
+            print(f"    {icon} {name}")
+
+    print(f"\n  Root cause:")
+    for line in analysis.root_cause.splitlines():
+        print(f"    {line}")
+
+    if analysis.suggestions:
+        print(f"\n  Suggestions:")
+        for i, s in enumerate(analysis.suggestions, 1):
+            # Wrap long suggestions at 80 chars
+            words, line_buf = s.split(), []
+            lines: list[str] = []
+            for word in words:
+                if sum(len(w) + 1 for w in line_buf) + len(word) > 78:
+                    lines.append(" ".join(line_buf))
+                    line_buf = [word]
+                else:
+                    line_buf.append(word)
+            if line_buf:
+                lines.append(" ".join(line_buf))
+            print(f"    {i}. {lines[0]}")
+            for continuation in lines[1:]:
+                print(f"       {continuation}")
+
+
 async def run_level(
     level: int,
     adapter: RealAgentAdapter,
@@ -111,22 +172,31 @@ async def run_level(
         for i, q in enumerate(trace.queries, 1):
             print(f"    [{i}] {q[:100]}{'…' if len(q) > 100 else ''}")
 
-    print(f"\n  Final output preview:")
-    preview = trace.final_output[:400]
-    for line in preview.splitlines():
-        print(f"    {line}")
-    if len(trace.final_output) > 400:
-        print(f"    … ({len(trace.final_output)} chars total)")
+    if trace.final_output:
+        print(f"\n  Final output preview:")
+        preview = trace.final_output[:400]
+        for line in preview.splitlines():
+            print(f"    {line}")
+        if len(trace.final_output) > 400:
+            print(f"    … ({len(trace.final_output)} chars total)")
 
+    # ── Trace analysis (always) ───────────────────────────────────────────────
+    checks = LEVEL_CHECKS.get(level, {})
+    analysis = TraceAnalyzer().analyze(trace, checks=checks)
+    print(f"\n  {'─' * 68}")
+    print(f"  TRACE ANALYSIS")
+    print(f"  {'─' * 68}")
+    _print_analysis(analysis, elapsed)
+
+    # ── LLM grading (only if --judge) ─────────────────────────────────────────
     if not use_judge or judge is None:
-        print(f"\n  [judge skipped — pass --judge to enable LLM grading]")
         return
 
-    print(f"\n  Grading…")
-    checks = LEVEL_CHECKS.get(level, {})
+    print(f"\n  {'─' * 68}")
+    print(f"  JUDGE GRADES")
+    print(f"  {'─' * 68}")
     try:
         result = await evaluate_level(rubric, trace, judge, checks)
-        print(f"\n  {'─' * 68}")
         print(f"  SCORE: {result.weighted_score:.2f}  GRADE: {result.grade}  [{_bar(result.weighted_score)}]")
         print(f"  {'─' * 68}")
         for d in result.dimensions:
@@ -147,12 +217,14 @@ async def main(levels: list[int], use_judge: bool, db_path: str) -> None:
     print(f"✓ Eval DB: {db_path}")
     print(f"✓ Levels to run: {levels}")
 
+    print("✓ Trace analysis: always enabled")
+
     judge: OpenRouterJudge | LLMJudge | FallbackJudge | None = None
     if use_judge:
         judge = OpenRouterJudge()
-        print(f"✓ Judge: OpenRouter ({judge._config.model})")
+        print(f"✓ LLM judge: OpenRouter ({judge._config.model})")
     else:
-        print("  Judge: disabled (pass --judge to enable LLM grading)")
+        print("  LLM judge: disabled (pass --judge to add letter grades)")
 
     for level in levels:
         try:
