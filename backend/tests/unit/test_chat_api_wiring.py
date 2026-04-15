@@ -134,5 +134,34 @@ def test_module_imports_cleanly():
     assert len(m._SYSTEM_PROMPT) > 10
 
 
+def test_get_context_status_in_chat_tools():
+    from app.api.chat_api import _CHAT_TOOLS
+    names = [t.name for t in _CHAT_TOOLS]
+    assert "get_context_status" in names
+
+
+def test_ctx_status_handler_returns_correct_shape():
+    from app.context.manager import ContextManager, ContextLayer
+    ctx = ContextManager()
+    ctx.add_layer(ContextLayer(name="System Prompt", tokens=1200, compactable=False, items=[]))
+    ctx.add_layer(ContextLayer(name="User Message", tokens=300, compactable=True, items=[]))
+
+    def _handler(args: dict) -> dict:
+        snap = ctx.snapshot()
+        return {
+            "total_tokens": snap["total_tokens"],
+            "max_tokens": snap["max_tokens"],
+            "utilization_pct": round(snap["utilization"] * 100),
+            "compaction_needed": snap["compaction_needed"],
+            "layers": [{"name": lyr["name"], "tokens": lyr["tokens"]} for lyr in snap["layers"]],
+        }
+
+    result = _handler({})
+    assert result["total_tokens"] == 1500
+    assert isinstance(result["utilization_pct"], int)
+    assert len(result["layers"]) == 2
+    assert result["layers"][0]["name"] == "System Prompt"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

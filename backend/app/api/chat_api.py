@@ -263,6 +263,20 @@ _TODO_WRITE = ToolSchema(
     },
 )
 
+_GET_CONTEXT_STATUS = ToolSchema(
+    name="get_context_status",
+    description=(
+        "Return the current context window utilization for this session. "
+        "Use when you need to know how much context budget remains before "
+        "deciding whether to run a long analysis or compress working memory."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+)
+
 _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _EXECUTE_PYTHON,
     _WRITE_WORKING,
@@ -271,6 +285,7 @@ _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _PROMOTE_FINDING,
     _DELEGATE_SUBAGENT,
     _TODO_WRITE,
+    _GET_CONTEXT_STATUS,
 )
 
 # Read-only / non-mutating tools. Plan Mode narrows the tool menu to this set
@@ -581,6 +596,25 @@ def _stream_agent_loop(
                 outputs_out=outputs,
                 client=client,
             )
+
+            # get_context_status closes over `ctx` so it returns live data
+            # for this specific session. Registered after _build_dispatcher
+            # because ctx is only in scope here.
+            def _ctx_status_handler(args: dict[str, Any]) -> dict[str, Any]:
+                snap = ctx.snapshot()
+                return {
+                    "total_tokens": snap["total_tokens"],
+                    "max_tokens": snap["max_tokens"],
+                    "utilization_pct": round(snap["utilization"] * 100),
+                    "compaction_needed": snap["compaction_needed"],
+                    "layers": [
+                        {"name": lyr["name"], "tokens": lyr["tokens"]}
+                        for lyr in snap["layers"]
+                    ],
+                }
+
+            dispatcher.register("get_context_status", _ctx_status_handler)
+
             loop = AgentLoop(dispatcher)
 
             # We need the TurnState that AgentLoop builds internally so we can
