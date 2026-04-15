@@ -22,13 +22,13 @@ from app.artifacts.models import Artifact
 from app.artifacts.store import ArtifactStore
 from app.harness.dispatcher import ToolDispatcher
 from app.harness.sandbox import SandboxExecutor
-from app.skills.correlation import correlate
+from app.skills.statistical_analysis.correlation import correlate
 from app.skills.data_profiler import profile
-from app.skills.distribution_fit import fit as dist_fit
-from app.skills.group_compare import compare
+from app.skills.statistical_analysis.distribution_fit import fit as dist_fit
+from app.skills.statistical_analysis.group_compare import compare
 from app.skills.registry import SkillRegistry
-from app.skills.stat_validate import validate
-from app.skills.time_series import (
+from app.skills.statistical_analysis.stat_validate import validate
+from app.skills.statistical_analysis.time_series import (
     characterize,
     decompose,
     find_anomalies,
@@ -334,14 +334,14 @@ def register_core_tools(
     dispatcher.register("distribution_fit.fit", _fit)
     dispatcher.register("data_profiler.profile", _profile)
 
-    from app.skills.report_builder.pkg.build import (
+    from app.skills.reporting.report_builder.pkg.build import (
         build as _report_build,  # local import to keep harness import graph flat
     )
 
     dispatcher.register("report.build", lambda args: _report_build(**args))
 
     from app.skills.analysis_plan.pkg.plan import plan as _analysis_plan
-    from app.skills.dashboard_builder.pkg.build import build as _dashboard_build
+    from app.skills.reporting.dashboard_builder.pkg.build import build as _dashboard_build
 
     dispatcher.register("analysis_plan.plan", lambda args: _analysis_plan(**args))
     dispatcher.register("dashboard.build", lambda args: _dashboard_build(**args))
