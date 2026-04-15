@@ -72,8 +72,6 @@ class RealAgentAdapter:
         Returns:
             AgentTrace with queries, final_output, errors, and timing.
         """
-        import secrets
-        session_id = f"eval-{secrets.token_hex(6)}"
         started = time.monotonic()
 
         errors: list[str] = []
@@ -81,7 +79,12 @@ class RealAgentAdapter:
         tool_call_previews: list[dict[str, Any]] = []
         # The backend appends a timestamp+random suffix to our session_id.
         # Capture the real id from the first turn_start so trace YAML lookup works.
-        backend_session_id = session_id
+        backend_session_id = ""
+
+        # Create a conversation record so the session appears in the frontend
+        # History tab (conversations are separate from the chat stream).
+        title = prompt[:80] + ("…" if len(prompt) > 80 else "")
+        session_id = await self._create_conversation(title)
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream(
@@ -152,6 +155,21 @@ class RealAgentAdapter:
         # Token count from trace summary (0 if trace not available)
         token_count = self._extract_token_count_from_trace(backend_session_id)
 
+        # Persist user prompt + assistant response into the conversation so the
+        # frontend History tab shows content for the eval session.
+        if session_id:
+            await self._append_turn(session_id, "user", prompt)
+            # Use final_output if the agent produced one; otherwise summarise
+            # from trace queries so the conversation isn't empty.
+            assistant_content = final_output
+            if not assistant_content and queries:
+                assistant_content = (
+                    f"[Agent ran {len(queries)} queries in {duration_ms}ms]\n\n"
+                    + "\n".join(f"- `{q[:120]}`" for q in queries[:5])
+                )
+            if assistant_content:
+                await self._append_turn(session_id, "assistant", assistant_content)
+
         return AgentTrace(
             queries=queries,
             intermediate=intermediate,
@@ -160,6 +178,29 @@ class RealAgentAdapter:
             duration_ms=duration_ms,
             errors=errors,
         )
+
+    # ── Conversation helpers ──────────────────────────────────────────────────
+
+    async def _create_conversation(self, title: str) -> str:
+        """Create a conversation record and return its id."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{self._base_url}/api/conversations",
+                json={"title": title},
+            )
+            resp.raise_for_status()
+            return resp.json()["id"]
+
+    async def _append_turn(self, conv_id: str, role: str, content: str) -> None:
+        """Append a turn to an existing conversation (best-effort)."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(
+                    f"{self._base_url}/api/conversations/{conv_id}/turns",
+                    json={"role": role, "content": content},
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
     # ── Trace YAML helpers ────────────────────────────────────────────────────
 
