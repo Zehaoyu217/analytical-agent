@@ -278,6 +278,55 @@ _GET_CONTEXT_STATUS = ToolSchema(
     },
 )
 
+_READ_FILE = ToolSchema(
+    name="read_file",
+    description=(
+        "Read the content of a file relative to the project root. "
+        "Use to inspect skill code, docs, dataset files, or config. "
+        "Returns content as a string and line count."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "File path relative to project root"},
+        },
+        "required": ["path"],
+    },
+)
+
+_GLOB_FILES = ToolSchema(
+    name="glob_files",
+    description=(
+        "List files matching a glob pattern relative to the project root. "
+        "Use to discover skill packages, find config files, or enumerate datasets. "
+        "Returns up to 200 results."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "pattern": {"type": "string", "description": "Glob pattern, e.g. 'backend/app/skills/**/*.py'"},
+        },
+        "required": ["pattern"],
+    },
+)
+
+_SEARCH_TEXT = ToolSchema(
+    name="search_text",
+    description=(
+        "Search for a regex pattern in files under a directory. "
+        "Use to find function definitions, skill names, or dataset columns. "
+        "Returns up to 50 matches with file path, line number, and matched text."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "pattern": {"type": "string", "description": "Regex pattern to search for"},
+            "path": {"type": "string", "description": "Directory to search in (relative to project root)"},
+        },
+        "required": ["pattern"],
+    },
+)
+
 _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _EXECUTE_PYTHON,
     _WRITE_WORKING,
@@ -287,6 +336,9 @@ _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _DELEGATE_SUBAGENT,
     _TODO_WRITE,
     _GET_CONTEXT_STATUS,
+    _READ_FILE,
+    _GLOB_FILES,
+    _SEARCH_TEXT,
 )
 
 # Read-only / non-mutating tools. Plan Mode narrows the tool menu to this set

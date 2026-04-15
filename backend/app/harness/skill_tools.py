@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import difflib
+from pathlib import Path
 from typing import Any
 
 
@@ -16,6 +17,7 @@ def _closest_skill_names(target: str, available: list[str], *, n: int = 5) -> li
         return []
     return difflib.get_close_matches(target, available, n=n, cutoff=0.4)
 
+from app.harness.fs_tools import FsTools
 from app.artifacts.models import Artifact
 from app.artifacts.store import ArtifactStore
 from app.harness.dispatcher import ToolDispatcher
@@ -321,3 +323,10 @@ def register_core_tools(
 
     dispatcher.register("analysis_plan.plan", lambda args: _analysis_plan(**args))
     dispatcher.register("dashboard.build", lambda args: _dashboard_build(**args))
+
+    # ── Filesystem tools (P25) ────────────────────────────────────────────────
+    _repo_root = Path(__file__).resolve().parents[3]
+    fs = FsTools(project_root=_repo_root)
+    dispatcher.register("read_file", fs.read_file)
+    dispatcher.register("glob_files", fs.glob_files)
+    dispatcher.register("search_text", fs.search_text)

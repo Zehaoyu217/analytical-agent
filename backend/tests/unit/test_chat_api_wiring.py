@@ -163,5 +163,13 @@ def test_ctx_status_handler_returns_correct_shape():
     assert result["layers"][0]["name"] == "System Prompt"
 
 
+def test_fs_tools_in_chat_tools():
+    from app.api.chat_api import _CHAT_TOOLS
+    names = [t.name for t in _CHAT_TOOLS]
+    assert "read_file" in names
+    assert "glob_files" in names
+    assert "search_text" in names
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
