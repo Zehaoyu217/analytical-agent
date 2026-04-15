@@ -26,7 +26,7 @@ typecheck:
 test: test-backend test-frontend
 
 test-backend:
-	cd backend && pytest -v --tb=short
+	cd backend && uv run python -m pytest -v --tb=short
 
 test-frontend:
 	cd frontend && npm test 2>/dev/null || echo "No frontend tests yet"
