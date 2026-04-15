@@ -318,7 +318,16 @@ def _build_system_prompt(
 
 
 # Back-compat exports for prompts_api (which imports a constant by name).
-_SYSTEM_PROMPT = _build_system_prompt()
+# Wrapped defensively: if the wiki/skills/prompt file is absent at startup,
+# the module still loads with a safe fallback instead of crashing FastAPI.
+try:
+    _SYSTEM_PROMPT = _build_system_prompt()
+except Exception as _startup_exc:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "startup prompt build failed (%s) — using fallback", _startup_exc
+    )
+    _SYSTEM_PROMPT = "You are an analytical assistant. The full system prompt failed to load."
 
 
 def _get_system_prompt(plan_mode: bool = False, session_id: str = "") -> str:

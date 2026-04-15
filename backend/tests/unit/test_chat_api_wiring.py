@@ -126,5 +126,13 @@ def test_wiring_respects_env_var_override(tmp_path, monkeypatch):
     reset_singletons_for_tests()
 
 
+def test_module_imports_cleanly():
+    """chat_api must import without error even when wiki or skills are absent."""
+    import app.api.chat_api as m
+    assert hasattr(m, "_SYSTEM_PROMPT")
+    assert isinstance(m._SYSTEM_PROMPT, str)
+    assert len(m._SYSTEM_PROMPT) > 10
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
