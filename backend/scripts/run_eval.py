@@ -24,9 +24,9 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.evals.judge import JudgeConfig, LLMJudge
+from app.evals.judge import FallbackJudge, LLMJudge, OpenRouterJudge
 from app.evals.rubric import load_rubric
-from app.evals.runner import evaluate_level, format_level_result
+from app.evals.runner import evaluate_level
 from tests.evals.real_agent import BackendNotReachableError, RealAgentAdapter
 
 RUBRICS_DIR = Path(__file__).parent.parent / "tests" / "evals" / "rubrics"
@@ -75,7 +75,7 @@ async def run_level(
     level: int,
     adapter: RealAgentAdapter,
     db_path: str,
-    judge: LLMJudge | None,
+    judge: OpenRouterJudge | LLMJudge | FallbackJudge | None,
     use_judge: bool,
 ) -> None:
     rubric_file = RUBRICS_DIR / LEVELS[level]
@@ -147,10 +147,10 @@ async def main(levels: list[int], use_judge: bool, db_path: str) -> None:
     print(f"✓ Eval DB: {db_path}")
     print(f"✓ Levels to run: {levels}")
 
-    judge: LLMJudge | None = None
+    judge: OpenRouterJudge | LLMJudge | FallbackJudge | None = None
     if use_judge:
-        judge = LLMJudge()
-        print(f"✓ Judge model: {JudgeConfig().model}")
+        judge = OpenRouterJudge()
+        print(f"✓ Judge: OpenRouter ({judge._config.model})")
     else:
         print("  Judge: disabled (pass --judge to enable LLM grading)")
 
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--judge", action="store_true", default=False,
-        help="Enable LLM grading via Ollama (requires gemma4:e2b loaded)",
+        help="Enable LLM grading via OpenRouter (set OPENROUTER_API_KEY)",
     )
     parser.add_argument(
         "--db", default=os.environ.get("EVAL_DB", "/tmp/eval_run.db"),

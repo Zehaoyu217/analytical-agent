@@ -73,7 +73,7 @@ logger = logging.getLogger(__name__)
 
 _MESSAGE_MAX_CHARS = 8000
 _CONVERSATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-_DEFAULT_MAX_STEPS = 16
+_DEFAULT_MAX_STEPS = 20
 
 # ── chart capture suffix (run after every sandbox call) ──────────────────────
 
@@ -123,13 +123,19 @@ _EXECUTE_PYTHON = ToolSchema(
     name="execute_python",
     description=(
         "Run a focused Python block in the analytical sandbox. Pre-imported: "
-        "numpy as np, pandas as pd, altair as alt, duckdb. The active dataset "
-        "is in `df`; a read-only DuckDB connection is in `conn`. All skills are "
-        "available as functions: correlate, compare, validate, profile, "
-        "characterize, decompose, find_anomalies, find_changepoints, "
-        "lag_correlate, fit, plus chart helpers (bar, multi_line, histogram, "
-        "scatter_trend, boxplot, correlation_heatmap). Assign Altair charts to "
-        "a variable — they are auto-captured. print() output is returned."
+        "numpy as np, pandas as pd, altair as alt, duckdb. "
+        "`df` is None unless the user uploaded a file — always load tables with "
+        "`conn.execute('SELECT * FROM tablename').df()`. "
+        "The read-only DuckDB `conn` has: transactions, accounts, customers, "
+        "loans, daily_rates, bank_macro_panel, bank_segment_revenue, bank_wide. "
+        "Skills available as functions — call signature examples: "
+        "`profile(conn.execute('SELECT * FROM loans').df(), name='loans_v1')`, "
+        "`find_anomalies(df_slice, method='iqr')`. "
+        "Other skill functions: correlate, compare, validate, characterize, "
+        "decompose, find_changepoints, lag_correlate, fit, plus chart helpers "
+        "(bar, multi_line, histogram, scatter_trend, boxplot, "
+        "correlation_heatmap). Assign Altair charts to a variable — they are "
+        "auto-captured. print() output is returned."
     ),
     input_schema={
         "type": "object",
