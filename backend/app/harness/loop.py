@@ -12,6 +12,7 @@ from app.harness.clients.base import (
 )
 from app.harness.compactor import MicroCompactor
 from app.harness.dispatcher import ToolDispatcher, ToolResult
+from app.harness.hooks import HookRunner
 from app.harness.guardrails.end_of_turn import end_of_turn
 from app.harness.guardrails.post_tool import post_tool
 from app.harness.guardrails.pre_tool import pre_tool_gate
@@ -35,9 +36,11 @@ class AgentLoop:
         self,
         dispatcher: ToolDispatcher,
         compactor: MicroCompactor | None = None,
+        hook_runner: HookRunner | None = None,
     ) -> None:
         self._dispatcher = dispatcher
         self._compactor = compactor or MicroCompactor()
+        self._hook_runner = hook_runner or HookRunner()
 
     def run(
         self,
@@ -100,7 +103,12 @@ class AgentLoop:
                     ))
                     continue
 
+                self._hook_runner.run_pre(call.name, call.arguments)
                 result: ToolResult = self._dispatcher.dispatch(call)
+                self._hook_runner.run_post(
+                    call.name,
+                    result.payload if isinstance(result.payload, dict) else {},
+                )
                 report = post_tool(result)
                 for aid in report.new_artifact_ids:
                     state.record_artifact(aid)
@@ -260,7 +268,13 @@ class AgentLoop:
                         },
                     )
 
+                self._hook_runner.run_pre(call.name, call.arguments, session_id=session_id)
                 result: ToolResult = self._dispatcher.dispatch(call)
+                self._hook_runner.run_post(
+                    call.name,
+                    result.payload if isinstance(result.payload, dict) else {},
+                    session_id=session_id,
+                )
                 report = post_tool(result)
                 for aid in report.new_artifact_ids:
                     state.record_artifact(aid)

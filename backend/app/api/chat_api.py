@@ -45,6 +45,7 @@ from app.harness.clients.ollama_client import OllamaClient
 from app.harness.clients.openrouter_client import OpenRouterClient
 from app.harness.config import ModelProfile
 from app.harness.dispatcher import ToolDispatcher
+from app.harness.hooks import HookRunner
 from app.harness.injector import InjectorInputs, TokenBudget
 from app.harness.loop import AgentLoop
 from app.harness.sandbox import SandboxExecutor
@@ -519,7 +520,7 @@ def _agent_loop_sync(
             outputs_out=outputs,
             client=client,
         )
-        loop = AgentLoop(dispatcher)
+        loop = AgentLoop(dispatcher, hook_runner=HookRunner())
         outcome = loop.run(
             client=client,
             system=system_prompt,
@@ -615,7 +616,7 @@ def _stream_agent_loop(
 
             dispatcher.register("get_context_status", _ctx_status_handler)
 
-            loop = AgentLoop(dispatcher)
+            loop = AgentLoop(dispatcher, hook_runner=HookRunner())
 
             # We need the TurnState that AgentLoop builds internally so we can
             # hand it to TurnWrapUp afterward. AgentLoop.run_stream() doesn't
@@ -744,6 +745,11 @@ def _run_wrap_up(
         session_id=session_id,
         turn_index=turn_index,
     )
+    # Run Stop hooks after the turn is fully wrapped up.
+    try:
+        HookRunner().run_stop(session_id)
+    except Exception:
+        pass
 
 
 # ── HTTP layer ───────────────────────────────────────────────────────────────

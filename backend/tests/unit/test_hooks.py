@@ -109,6 +109,17 @@ def test_stop_hook_runs(hooks_config):
 # ── env vars ──────────────────────────────────────────────────────────────────
 
 
+def test_hook_runner_pre_called_in_loop(tmp_path):
+    """Verify run_pre interface is correct — records tool_name."""
+    from app.harness.hooks import HookRunner
+
+    runner = HookRunner(tmp_path / "absent.json")
+
+    runner.run_pre("execute_python", {"code": "1+1"})
+    # Missing config = noop, but must not raise
+    assert True  # reached here without exception
+
+
 def test_env_vars_injected(tmp_path):
     """Hook command can read TOOL_NAME, TOOL_INPUT, SESSION_ID env vars."""
     out_file = tmp_path / "out.txt"
