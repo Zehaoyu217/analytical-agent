@@ -871,7 +871,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
         input_query=payload.message, trace_mode="always", output_dir=output_dir,
     ):
         try:
-            session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path)
+            session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
             response_text, charts, usage = _agent_loop_sync(
                 model_id=model_id,
                 message=payload.message,
@@ -888,7 +888,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
         latency_ms = int((time.monotonic() - started) * 1000)
 
         publish_llm_call(
-            step_id="s1", turn=1, model=model_id, temperature=0.0, max_tokens=2048,
+            step_id="s1", turn=1, model=model_id, temperature=0.0, max_tokens=4096,
             prompt_text=payload.message,
             sections=[
                 PromptSection(source="user_query", lines="1-1", text=payload.message),
@@ -920,7 +920,7 @@ def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
     settings = get_settings()
     model_id = settings.model
     trace_id = _make_trace_id(conversation_id)
-    session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path)
+    session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
     output_dir = _traces_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
 

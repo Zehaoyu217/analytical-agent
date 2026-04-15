@@ -63,6 +63,7 @@ def build_sandbox_bootstrap(
     session_id: str,
     dataset_path: str | Path | None,
 ) -> str:
+    """DEPRECATED: use build_duckdb_globals() with registry= for dynamic imports."""
     parts = list(_SKILL_IMPORTS) + [
         "",
         f"_SESSION_ID = {session_id!r}",

@@ -10,11 +10,11 @@ def test_bootstrap_imports_skills_and_injects_theme() -> None:
         "import numpy as np",
         "import pandas as pd",
         "import altair as alt",
-        "from app.skills.correlation import correlate",
-        "from app.skills.group_compare import compare",
-        "from app.skills.stat_validate import validate",
+        "from app.skills.statistical_analysis.correlation import correlate",
+        "from app.skills.statistical_analysis.group_compare import compare",
+        "from app.skills.statistical_analysis.stat_validate import validate",
         "from app.skills.data_profiler import profile",
-        "from app.skills.altair_charts",
+        "from app.skills.charting.altair_charts",
         "ensure_registered",
     ]:
         assert token in script

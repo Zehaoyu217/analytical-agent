@@ -16,17 +16,9 @@ def _skills_root() -> Path:
 
 
 def _compute_level(name: str, registry: SkillRegistry) -> int:
-    """Compute skill level from the dependency graph.
-
-    - No dependencies → Level 1
-    - Depends only on Level 1 skills → Level 2
-    - Depends on Level 2+ skills → Level 3
-    """
-    skill = registry.get_skill(name)
-    if skill is None:
-        return 1
-    # Use level from metadata if it was explicitly set
-    return skill.metadata.level
+    """Return the depth of the skill node in the registry tree (1 = root)."""
+    node = registry.get_skill(name)
+    return node.depth if node is not None else 1
 
 
 def _read_source_files(skill_dir: Path) -> list[dict[str, str]]:
@@ -78,7 +70,7 @@ def get_manifest() -> dict[str, object]:
             "name": s.metadata.name,
             "version": s.metadata.version,
             "description": s.metadata.description,
-            "level": s.metadata.level,
+            "level": s.depth,
             "requires": s.metadata.dependencies_requires,
             "used_by": s.metadata.dependencies_used_by,
         }
@@ -99,16 +91,17 @@ def get_skill_detail(skill_name: str) -> dict[str, object]:
     if skill is None:
         raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' not found")
 
-    # Locate the skill directory on disk
-    skill_dir = skills_root / skill_name
-    if not skill_dir.exists():
-        # Try searching by iterating discovered skills
-        for dir_candidate in skills_root.iterdir():
-            if dir_candidate.is_dir() and (dir_candidate / "SKILL.md").exists():
-                skill_md = dir_candidate / "SKILL.md"
-                text = skill_md.read_text()
-                if f"name: {skill_name}" in text:
-                    skill_dir = dir_candidate
+    # Locate the skill directory on disk.
+    # For nested skills, package_path points to the pkg/ subdirectory — its
+    # parent is the skill directory. Fall back to recursive SKILL.md search.
+    if skill.package_path is not None and skill.package_path.parent.exists():
+        skill_dir = skill.package_path.parent
+    else:
+        skill_dir = skills_root / skill_name
+        if not skill_dir.exists():
+            for skill_md_candidate in skills_root.rglob("SKILL.md"):
+                if skill_md_candidate.parent.name == skill_name:
+                    skill_dir = skill_md_candidate.parent
                     break
 
     # Build reverse dependency list (skills that require this one)
@@ -139,7 +132,7 @@ def get_skill_detail(skill_name: str) -> dict[str, object]:
 
     return {
         "name": skill_name,
-        "level": skill.metadata.level,
+        "level": skill.depth,
         "version": skill.metadata.version,
         "description": description,
         "requires": skill.metadata.dependencies_requires,
