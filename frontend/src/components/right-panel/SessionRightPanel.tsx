@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useChatStore } from '@/lib/store'
 import { ArtifactsPanel } from './ArtifactsPanel'
 import { ScratchpadPanel } from './ScratchpadPanel'
@@ -26,19 +26,44 @@ export function SessionRightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('traces')
   const scratchpad = useChatStore((s) => s.scratchpad)
   const todos = useChatStore((s) => s.todos)
-  const verticalSplit = useResizablePanel(200, 80, 480, 'vertical')
+  const verticalSplit = useResizablePanel(
+    Math.max(200, Math.floor((typeof window !== 'undefined' ? window.innerHeight : 800) / 2 - 30)),
+    80,
+    700,
+    'vertical',
+  )
+
+  const rightPanelOpen = useChatStore((s) => s.rightPanelOpen)
 
   const hasScratchpad = scratchpad.length > 0
   const hasTodos = todos.length > 0
   const hasActiveTodo = todos.some((t) => t.status === 'in_progress')
 
+  // Auto-switch to Tasks tab when the agent first writes todos,
+  // but only if the right panel is already open.
+  const [autoSwitched, setAutoSwitched] = useState(false)
+
+  useEffect(() => {
+    if (hasTodos && !autoSwitched && rightPanelOpen) {
+      setActiveTab('tasks')
+      setAutoSwitched(true)
+    }
+  }, [hasTodos, autoSwitched, rightPanelOpen])
+
+  // Reset so next agent run can auto-switch again
+  useEffect(() => {
+    if (!hasTodos) {
+      setAutoSwitched(false)
+    }
+  }, [hasTodos])
+
   return (
     <aside
-      className="flex flex-col w-full border-l border-surface-800 bg-surface-900"
+      className="flex flex-col w-full border-l border-surface-700/60 bg-surface-900"
       aria-label="Session state"
     >
       {/* ── Tab bar ────────────────────────────────────────── */}
-      <div role="tablist" aria-label="Session panel" className="flex flex-shrink-0 border-b border-surface-800">
+      <div role="tablist" aria-label="Session panel" className="flex flex-shrink-0 border-b border-surface-700/60">
         {(['traces', 'tasks', 'scratchpad'] as Tab[]).map((tab) => {
           const isActive = activeTab === tab
           const dot =
@@ -61,7 +86,7 @@ export function SessionRightPanel() {
                 'border-b transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/50',
                 isActive
                   ? 'border-brand-accent/80 text-surface-200'
-                  : 'border-transparent text-surface-700 hover:text-surface-500',
+                  : 'border-transparent text-surface-600 hover:text-surface-400',
               )}
             >
               {TAB_LABELS[tab]}
