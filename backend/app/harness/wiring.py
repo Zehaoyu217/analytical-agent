@@ -103,20 +103,13 @@ def get_gotcha_index() -> GotchaIndex:
 
 
 class _SkillMenuAdapter:
-    """Adapt SkillRegistry.list_skills() (returns list[str]) to the
-    PreTurnInjector protocol (expects list[dict] with name + description).
-    """
+    """Adapt SkillRegistry to the PreTurnInjector _SkillRegistry protocol."""
 
     def __init__(self, registry: SkillRegistry) -> None:
         self._registry = registry
 
-    def list_skills(self) -> list[dict]:
-        out: list[dict] = []
-        for name in self._registry.list_skills():
-            skill = self._registry.get_skill(name)
-            description = skill.metadata.description if skill else ""
-            out.append({"name": name, "description": description})
-        return out
+    def list_top_level(self):  # type: ignore[override]
+        return self._registry.list_top_level()
 
 
 class _WikiWrapUpAdapter:

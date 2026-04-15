@@ -31,7 +31,7 @@ class _StubWiki:
 
 
 class _StubSkills:
-    def list_skills(self) -> list[dict]:
+    def list_top_level(self) -> list:
         return []
 
 

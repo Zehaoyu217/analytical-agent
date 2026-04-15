@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from app.skills.base import SkillNode
+
 
 @dataclass(frozen=True, slots=True)
 class TokenBudget:
@@ -29,7 +31,7 @@ class InjectorInputs:
 
 
 class _SkillRegistry(Protocol):
-    def list_skills(self) -> list[dict]: ...
+    def list_top_level(self) -> list[SkillNode]: ...
 
 
 class _Wiki(Protocol):
@@ -71,14 +73,21 @@ class PreTurnInjector:
         return "\n\n## Operational State\n\n" + "\n\n".join(body)
 
     def _skill_menu(self) -> str:
-        entries = self._skills.list_skills()
-        if not entries:
+        roots = self._skills.list_top_level()
+        if not roots:
             return ""
-        lines = [
-            f"- `{e['name']}` — {e.get('description', '').strip()}"
-            for e in entries
-        ]
-        return "\n\n## Skill Menu\n\n" + "\n".join(lines)
+        preamble = (
+            "Use the `skill` tool to load any skill before using it. "
+            "Hub skills expand into sub-skills when loaded — read the "
+            "sub-skill catalog before deciding which to use."
+        )
+        lines: list[str] = []
+        for node in roots:
+            desc = node.metadata.description.strip()
+            child_count = len(node.children)
+            annotation = f" [{child_count} sub-skills]" if child_count > 0 else ""
+            lines.append(f"- `{node.metadata.name}` — {desc}{annotation}")
+        return "\n\n## Skills\n\n" + preamble + "\n\n" + "\n".join(lines)
 
     def _gotchas_section(self) -> str:
         body = self._gotchas.as_injection().strip()
