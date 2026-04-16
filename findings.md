@@ -192,6 +192,65 @@ From the earlier brainstorming session (before P0-P14), a decomposition into 8 s
 
 V3 plan targets: A wiring (P15), D compaction (P17), E session notes (P18), F tasks (P19).
 
+---
+
+## Hermes Migration Findings (2026-04-15)
+
+### Finding 18: Hermes Agent — Top 11 Migration Candidates
+
+From gap analysis of NousResearch/hermes-agent vs CCA. Priority order:
+
+| Candidate | CCA Gap | Hermes Pattern | Phase |
+|---|---|---|---|
+| CCAGENT_HOME | All paths hardcoded or via `CCAGENT_DATA_DIR` | `get_hermes_home()` env-var based path resolution | H1 |
+| sessions.db + FTS5 | YAML traces not queryable; no cross-session search | SQLite WAL + FTS5 virtual table + jitter retry | H2 |
+| Injection scanning | Wiki/skill content injected into system prompt with no safety scan | Regex scan before injection, skip offending block | H3 |
+| Parallel safe tools | All tool calls sequential in loop | `PARALLEL_SAFE_TOOLS` frozenset + asyncio.gather | H3 |
+| Skills cache-preservation | System prompt rebuilt every turn → cache miss | Static prompt built once; dynamic state merged into user msg | H3 |
+| Semantic compression | MicroCompactor drops payloads — lossy | LLM summarizes middle window (head+tail protected) | H4 |
+| Cron/APScheduler | No scheduling at all | In-process APScheduler, `cron_jobs` table in sessions.db | H4 |
+| Toolset composition | Tool restriction is ad-hoc flat lists | YAML-defined named toolset groups with recursive `includes` | H5 |
+| Batch runner | No trajectory generation | `scripts/batch_runner.py` JSONL in/out, multiprocessing, checkpoint | H5 |
+| MCP sampling callbacks | No sub-reasoning from skills | `POST /api/mcp/sample`, 5/turn rate limit, audit log | H6 |
+| Theme system | Branding hardcoded in code | `config/branding.yaml` + `GET /api/config/branding` | H6 |
+
+### Finding 19: SQLite sessions.db Schema Key Decisions
+
+- `cron_jobs` table defined in sessions.db schema at P2 time (not P4) to avoid schema migrations later
+- `source` column on `sessions` table: `'chat' | 'cron' | 'batch'` — enables filtering by origin
+- FTS5 uses content-table pattern (`content='messages'`) with insert/delete triggers for sync
+- WAL checkpoint every 50 writes (PASSIVE) prevents WAL file growing unbounded
+- Jitter: 20–150ms random sleep, 15 max retries — breaks convoy effect under concurrent reads
+
+### Finding 20: Prompt Cache Preservation — Critical Architectural Point
+
+Current `injector.py` call pattern:
+```
+build() → static base + skill catalog + wiki digest + dataset profile + session memory
+       → single system_prompt string
+       → re-built every turn
+```
+Every turn that has new wiki state breaks the Anthropic cache → full re-computation.
+
+After H3.6/H3.7 fix:
+```
+build_static() → base + skill catalog    (once per session, stable)
+build_dynamic() → wiki + dataset + memory (per-turn, merged INTO user message)
+```
+The dynamic part is NOT a separate user message — it's merged into the current turn's user message. Anthropic requires alternating user/assistant; two consecutive user roles are rejected.
+
+### Finding 21: Parallel Tool Safety Rules
+
+`PARALLEL_SAFE_TOOLS = {skill, sandbox.run, execute_python, session_search}`
+- All are read-only or stateless relative to each other
+- DuckDB connection in sandbox is READ-ONLY — no write contention
+
+`NEVER_PARALLEL_TOOLS = {delegate_subagent, write_working, promote_finding, save_artifact, todo_write, todo_read}`
+- All mutate shared wiki state or create artifacts
+- Sequential execution prevents interleaved writes to working.md or index.md
+
+Rule: parallelize only when ALL requested tools are in PARALLEL_SAFE and NONE are in NEVER_PARALLEL.
+
 ### Finding 11: Gap Summary (for documentation)
 | Domain | Agent has | Agent missing vs CC-main | Agent better than Analytical |
 |---|---|---|---|

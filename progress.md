@@ -115,3 +115,41 @@
 - [x] findings.md to be updated
 
 ### Next: P15 (wire full harness to chat_api.py) — the single highest-impact change
+
+---
+
+## Session: 2026-04-15 (Hermes migration — design + planning)
+
+### Context Restored
+- Read task_plan.md: v1/v2/v3 all complete (P0–P22, EVAL-1–5)
+- Read progress.md: 3 prior sessions documented
+
+### Work Completed
+
+#### Gap Analysis
+- Cloned NousResearch/hermes-agent to /Users/jay/Developer/hermes-agent
+- Deep architectural exploration of both codebases (parallel agents)
+- Produced 12-candidate gap analysis document
+
+#### Brainstorming → Spec
+- Decisions: mega-plan, sessions.db replaces YAML, in-process APScheduler, main model for compression, Telegram excluded, CCAGENT_HOME
+- Sequenced into 6 phases (H1–H6) with strict dependency ordering
+- Self-review fixed 3 issues: consecutive user-role bug (P3c), AgentFactory clarification, config_api.py new file note
+- Spec committed: `docs/superpowers/specs/2026-04-15-hermes-migration-design.md`
+
+#### Planning (this session)
+- [x] task_plan.md: Added H1–H6 with granular numbered tasks (74 tasks + 23 test tasks total)
+- [x] findings.md: Added Findings 18–21 (migration candidates, schema decisions, cache-preservation pattern, parallel safety rules)
+- [x] progress.md: Updated (this entry)
+
+### Phase Status
+All H1–H6 phases: **pending** — ready to execute
+
+### Key Architectural Decisions to Remember
+1. Dynamic context merges INTO current user message, not prepended as separate message
+2. `cron_jobs` table defined at H2 time (in sessions.db schema), not H4 — avoids migration later
+3. `AgentFactory` lives in `wiring.py` — thin helper to build AgentLoop with correct deps
+4. `config_api.py` is a NEW file (not an existing one to modify)
+5. Batch runner is a standalone CLI script (`scripts/batch_runner.py`), not in FastAPI
+
+### Next: Execute H1 (CCAGENT_HOME) — lowest risk, pure path resolution, no logic changes
