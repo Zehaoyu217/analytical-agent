@@ -87,7 +87,7 @@ class CronEngine:
         try:
             self._scheduler.remove_job(job_id)
         except Exception:  # noqa: BLE001 — job may not be registered
-            pass
+            logger.warning("remove_job %r not found in scheduler", job_id)
 
     def pause_job(self, job_id: str) -> None:
         """Disable *job_id* in the DB and pause it in the scheduler."""
@@ -95,7 +95,7 @@ class CronEngine:
         try:
             self._scheduler.pause_job(job_id)
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("pause_job %r not found in scheduler", job_id)
 
     def resume_job(self, job_id: str) -> None:
         """Enable *job_id* in the DB and resume it in the scheduler."""
@@ -103,7 +103,7 @@ class CronEngine:
         try:
             self._scheduler.resume_job(job_id)
         except Exception:  # noqa: BLE001
-            pass
+            logger.warning("resume_job %r not found in scheduler", job_id)
 
     def trigger_now(self, job_id: str) -> None:
         """Run *job_id* immediately (outside its normal schedule)."""

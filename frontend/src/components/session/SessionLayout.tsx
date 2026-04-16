@@ -7,6 +7,7 @@ import { SessionRightPanel } from '@/components/right-panel/SessionRightPanel'
 import { ResizeHandle } from '@/components/layout/ResizeHandle'
 import { useResizablePanel } from '@/hooks/useResizablePanel'
 import { SessionDevToolsPanel } from '@/components/session/SessionDevToolsPanel'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { cn } from '@/lib/utils'
 
 type MiddleTab = 'conversation' | 'devtools'
@@ -132,7 +133,9 @@ export function SessionLayout() {
 
       {/* Right panel — resizable, hidden below lg (1024px) */}
       <div style={{ width: right.size, minWidth: right.size }} className="hidden lg:flex flex-shrink-0">
-        <SessionRightPanel />
+        <ErrorBoundary name="RightPanel">
+          <SessionRightPanel />
+        </ErrorBoundary>
       </div>
     </div>
   )

@@ -107,8 +107,10 @@ endif
 	cd backend && uv run python -m app.sop.cli --level $(level)
 
 # Infrastructure
+COMPOSE_FILE := infra/docker/docker-compose.yml
+
 docker-build:
-	docker compose build
+	docker compose -f $(COMPOSE_FILE) build
 
 docker-up:
-	docker compose up -d
+	docker compose -f $(COMPOSE_FILE) up -d

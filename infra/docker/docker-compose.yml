@@ -26,9 +26,10 @@ services:
       # Optional static token — if unset, no auth is enforced
       - AUTH_TOKEN=${AUTH_TOKEN:-}
       # ── Capacity ────────────────────────────────────────────
-      - MAX_SESSIONS=${MAX_SESSIONS:-10}
-      - MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER:-3}
-      - MAX_SESSIONS_PER_HOUR=${MAX_SESSIONS_PER_HOUR:-10}
+      # Defaults match Helm chart (values.yaml). Lower via .env on small machines.
+      - MAX_SESSIONS=${MAX_SESSIONS:-50}
+      - MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER:-5}
+      - MAX_SESSIONS_PER_HOUR=${MAX_SESSIONS_PER_HOUR:-20}
       # ── Network ─────────────────────────────────────────────
       # Comma-separated list of allowed CORS origins (empty = all)
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}

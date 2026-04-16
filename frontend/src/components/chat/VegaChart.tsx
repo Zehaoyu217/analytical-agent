@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
-import embed, { type Result } from 'vega-embed'
+import embed, { type Result, type VisualizationSpec } from 'vega-embed'
 import { CHART_COLOR_SCALE } from '@/lib/design-tokens'
 
 interface VegaChartProps {
@@ -148,8 +148,7 @@ export function VegaChart({ spec }: VegaChartProps) {
 
         if (cancelled) return
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await embed(containerRef.current!, themed as any, {
+        const result = await embed(containerRef.current!, themed as VisualizationSpec, {
           actions: { export: true, source: false, compiled: false, editor: false },
           renderer: 'svg',
           tooltip: TOOLTIP_OPTS,

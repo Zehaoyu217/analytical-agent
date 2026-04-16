@@ -12,7 +12,6 @@ import { DataTable } from '@/components/right-panel/DataTable'
 
 interface MessageBubbleProps {
   message: Message
-  conversationId?: string
   onRegenerate?: () => void
 }
 

@@ -81,3 +81,12 @@ backend/wiki/
 frontend/e2e-*.cjs
 frontend/e2e-*.png
 backend/test-artifacts/
+
+# Playwright runtime artifacts (regenerated per run)
+frontend/playwright-report/
+frontend/playwright-results.xml
+frontend/test-results/
+frontend/smoke-*.png
+
+# Backend runtime data (sandbox artifacts, settings, duckdb)
+backend/data/

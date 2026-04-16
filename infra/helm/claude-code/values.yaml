@@ -4,7 +4,9 @@
 # ── Image ──────────────────────────────────────────────────────────────────────
 image:
   repository: ghcr.io/anthropics/claude-code-web
-  tag: latest
+  # Pin to a specific version tag in production — never use "latest".
+  # CI sets this via: helm upgrade ... --set image.tag=$GIT_SHA
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -49,11 +51,13 @@ securityContext:
 # ── Resources ──────────────────────────────────────────────────────────────────
 resources:
   requests:
-    memory: "256Mi"
-    cpu: "250m"
-  limits:
+    # LLM agent workloads: conversations in memory + DuckDB + sandboxes.
+    # Tune up if OOM kills appear in pod events (kubectl describe pod).
     memory: "512Mi"
     cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "2"
 
 # ── Service ────────────────────────────────────────────────────────────────────
 service:
@@ -107,7 +111,8 @@ secrets:
   anthropicApiKey: ""
   # Static auth token for token provider (optional)
   authToken: ""
-  # Cookie/session signing key — generate with: openssl rand -hex 32
+  # Cookie/session signing key — REQUIRED. Generate with: openssl rand -hex 32
+  # Never leave empty — the chart will fail loudly if this is unset.
   sessionSecret: ""
   # Name of an existing secret to use instead of creating one
   existingSecret: ""
@@ -142,6 +147,16 @@ readinessProbe:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# ── Network Policy ─────────────────────────────────────────────────────────────
+networkPolicy:
+  # Enable to restrict pod-to-pod ingress to ingress-controller pods only.
+  enabled: false
+  # Namespace where your ingress controller runs (e.g. "ingress-nginx").
+  ingressNamespace: ingress-nginx
+  # Label selector matching ingress controller pods.
+  ingressPodSelector:
+    app.kubernetes.io/name: ingress-nginx
 
 # ── Extra environment variables ────────────────────────────────────────────────
 extraEnv: []

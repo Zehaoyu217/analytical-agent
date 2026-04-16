@@ -223,6 +223,6 @@ class ArtifactStore:
         self._load_session(session_id)
         nlower = name.lower()
         for a in self._cache.get(session_id, []):
-            if a.name == nlower or a.title.lower() == nlower:
+            if a.name.lower() == nlower or a.title.lower() == nlower:
                 return a
         return None

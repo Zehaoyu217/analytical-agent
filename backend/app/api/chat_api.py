@@ -18,6 +18,7 @@ import re
 import secrets
 import sys
 import time
+from uuid import uuid4
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,7 @@ from app.harness.turn_state import TurnState
 from app.harness.wiring import (
     get_artifact_store,
     get_pre_turn_injector,
+    get_semantic_compactor,
     get_session_db,
     get_skill_registry,
     get_wiki_engine,
@@ -78,8 +80,14 @@ _CONVERSATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _DEFAULT_MAX_STEPS = 20
 
 # ── chart capture suffix (run after every sandbox call) ──────────────────────
+# Sentinels are per-call UUIDs so user code cannot spoof artifact boundaries.
 
-_CHART_CAPTURE_SUFFIX = """
+
+def _make_vega_capture(token: str) -> str:
+    """Return the chart-capture suffix with per-call sentinel tokens."""
+    start = f"__VEGA_SPEC_{token}__"
+    end = f"__END_SPEC_{token}__"
+    return f"""
 import json as __json_cap, sys as __sys_cap
 for __vname_cap, __vobj_cap in list(globals().items()):
     if __vname_cap.startswith('_'):
@@ -92,34 +100,49 @@ for __vname_cap, __vobj_cap in list(globals().items()):
             and 'vega-lite' in __d_cap['$schema']
         ):
             __sys_cap.stdout.write(
-                '\\n__VEGA_SPEC__' + __json_cap.dumps(__d_cap) + '__END_SPEC__\\n'
+                '\\n{start}' + __json_cap.dumps(__d_cap) + '{end}\\n'
             )
             __sys_cap.stdout.flush()
     except Exception:
         pass
 """
 
-_VEGA_MARKER_RE = re.compile(r"\n?__VEGA_SPEC__(.*?)__END_SPEC__\n?", re.DOTALL)
-_ARTIFACT_MARKER_RE = re.compile(r"\n?__SAVED_ARTIFACT__(.*?)__END_SAVED_ARTIFACT__\n?", re.DOTALL)
+
+def _make_vega_re(token: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"\n?__VEGA_SPEC_{re.escape(token)}__(.*?)__END_SPEC_{re.escape(token)}__\n?",
+        re.DOTALL,
+    )
 
 
-def _strip_charts(stdout: str) -> tuple[str, list[dict[str, Any]]]:
+def _make_artifact_re(token: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"\n?__SAVED_ARTIFACT_{re.escape(token)}__(.*?)__END_SAVED_ARTIFACT_{re.escape(token)}__\n?",
+        re.DOTALL,
+    )
+
+
+def _strip_charts(
+    stdout: str, pattern: re.Pattern[str]
+) -> tuple[str, list[dict[str, Any]]]:
     """Extract Vega-Lite specs emitted by the chart-capture suffix."""
     charts: list[dict[str, Any]] = []
-    for match in _VEGA_MARKER_RE.finditer(stdout):
+    for match in pattern.finditer(stdout):
         with contextlib.suppress(Exception):
             charts.append(json.loads(match.group(1).strip()))
-    cleaned = _VEGA_MARKER_RE.sub("", stdout).strip()
+    cleaned = pattern.sub("", stdout).strip()
     return cleaned, charts
 
 
-def _strip_sandbox_artifacts(stdout: str) -> tuple[str, list[dict[str, Any]]]:
+def _strip_sandbox_artifacts(
+    stdout: str, pattern: re.Pattern[str]
+) -> tuple[str, list[dict[str, Any]]]:
     """Extract save_artifact payloads emitted by the sandbox save_artifact function."""
     artifacts: list[dict[str, Any]] = []
-    for match in _ARTIFACT_MARKER_RE.finditer(stdout):
+    for match in pattern.finditer(stdout):
         with contextlib.suppress(Exception):
             artifacts.append(json.loads(match.group(1).strip()))
-    cleaned = _ARTIFACT_MARKER_RE.sub("", stdout).strip()
+    cleaned = pattern.sub("", stdout).strip()
     return cleaned, artifacts
 
 
@@ -497,6 +520,7 @@ def _to_frontend_artifact(content: str, fmt: str, artifact_type: str) -> tuple[s
             json.loads(stripped)  # validate it's real JSON
             return stripped, "vega-lite"
         except Exception:
+            logger.debug("vega artifact content is not valid JSON — dropping", exc_info=True)
             return "", ""
     if fmt == "mermaid":
         return stripped, "mermaid"
@@ -513,6 +537,7 @@ def _to_frontend_artifact(content: str, fmt: str, artifact_type: str) -> tuple[s
             table_json = json.dumps({"columns": columns, "rows": rows, "total_rows": len(rows)})
             return table_json, "table-json"
         except Exception:
+            logger.debug("CSV-to-table-json conversion failed — keeping raw CSV", exc_info=True)
             return stripped, "csv"
     if fmt in ("json",):
         try:
@@ -574,9 +599,16 @@ def _build_dispatcher(
     # under the LLM-facing `execute_python` name.
     def _execute_python(args: dict[str, Any]) -> dict[str, Any]:
         code = str(args.get("code", ""))
-        result = sandbox.run(code + "\n\n" + _CHART_CAPTURE_SUFFIX)
-        cleaned, charts = _strip_charts(result.stdout)
-        cleaned, raw_artifacts = _strip_sandbox_artifacts(cleaned)
+        turn_token = uuid4().hex[:16]
+        vega_re = _make_vega_re(turn_token)
+        artifact_re = _make_artifact_re(turn_token)
+        # Prepend token assignment so save_artifact() picks it up at call time.
+        token_preamble = f"_ARTIFACT_SENTINEL_TOKEN = {turn_token!r}\n"
+        result = sandbox.run(
+            token_preamble + code + "\n\n" + _make_vega_capture(turn_token),
+        )
+        cleaned, charts = _strip_charts(result.stdout, vega_re)
+        cleaned, raw_artifacts = _strip_sandbox_artifacts(cleaned, artifact_re)
         charts_out.extend(charts)
         outputs_out["latest"] = cleaned
         # Persist sandbox save_artifact() payloads and queue for SSE emission.
@@ -706,7 +738,11 @@ def _agent_loop_sync(
             saved_artifacts_out=saved_artifacts,
             client=client,
         )
-        loop = AgentLoop(dispatcher, hook_runner=HookRunner())
+        loop = AgentLoop(
+            dispatcher,
+            hook_runner=HookRunner(),
+            semantic_compactor=get_semantic_compactor(),
+        )
         outcome = loop.run(
             client=client,
             system=system_prompt,
@@ -810,7 +846,11 @@ def _stream_agent_loop(
 
             dispatcher.register("get_context_status", _ctx_status_handler)
 
-            loop = AgentLoop(dispatcher, hook_runner=HookRunner())
+            loop = AgentLoop(
+            dispatcher,
+            hook_runner=HookRunner(),
+            semantic_compactor=get_semantic_compactor(),
+        )
 
             # We need the TurnState that AgentLoop builds internally so we can
             # hand it to TurnWrapUp afterward. AgentLoop.run_stream() doesn't
@@ -932,7 +972,7 @@ def _stream_agent_loop(
         try:
             _run_wrap_up(final_outcome_state, final_text, session_id, turn_index=1)
         except Exception as exc:
-            logger.warning("turn wrap-up skipped: %s", exc)
+            logger.warning("turn wrap-up skipped: %s", exc, exc_info=True)
 
 
 def _run_wrap_up(

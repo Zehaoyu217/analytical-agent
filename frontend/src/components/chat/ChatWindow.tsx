@@ -125,7 +125,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       <VirtualMessageList
         messages={messages}
         isStreaming={isStreaming}
-        conversationId={conversationId}
         onScrollStateChange={handleScrollStateChange}
         onRegenerate={handleRegenerate}
       />

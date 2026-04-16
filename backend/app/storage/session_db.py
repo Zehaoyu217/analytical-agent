@@ -177,18 +177,24 @@ class SessionDB:
         id: str,
         model: str | None = None,
         goal: str | None = None,
+        title: str | None = None,
         source: str = "chat",
     ) -> None:
-        """Insert a new session row. Idempotent — ignores duplicate id."""
+        """Insert a new session row. Idempotent — ignores duplicate id.
+
+        *title* defaults to the first 60 characters of *goal* when omitted.
+        """
         trimmed_goal = (goal or "")[:300] or None
+        if title is None and trimmed_goal:
+            title = trimmed_goal[:60]
 
         def _insert() -> None:
             with self._connect() as conn:
                 conn.execute(
                     """INSERT OR IGNORE INTO sessions
-                       (id, created_at, model, goal, source)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (id, time.time(), model, trimmed_goal, source),
+                       (id, created_at, model, title, goal, source)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (id, time.time(), model, title, trimmed_goal, source),
                 )
                 self._checkpoint(conn)
 

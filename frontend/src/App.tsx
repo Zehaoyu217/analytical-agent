@@ -21,6 +21,7 @@ import { PromptsSection } from '@/sections/PromptsSection'
 import { ContextSection } from '@/sections/ContextSection'
 import { DevtoolsSection } from '@/sections/DevtoolsSection'
 import { SettingsSection } from '@/sections/SettingsSection'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(window.location.hash)
@@ -35,6 +36,14 @@ function useHashRoute(): string {
 function ShortcutWiring() {
   const { registerCommand, openPalette, openHelp } = useCommandRegistry()
   const { theme, setTheme } = useTheme()
+  const conversations = useChatStore((s) => s.conversations)
+  const activeConversationId = useChatStore((s) => s.activeConversationId)
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation)
+  const createConversationRemote = useChatStore((s) => s.createConversationRemote)
+  const createConversation = useChatStore((s) => s.createConversation)
+  const toggleSidebar = useChatStore((s) => s.toggleSidebar)
+  const setActiveSection = useChatStore((s) => s.setActiveSection)
+  const openSearch = useChatStore((s) => s.openSearch)
 
   useKeyboardShortcuts()
 
@@ -51,6 +60,35 @@ function ShortcutWiring() {
         icon: 'Search',
       }),
       registerCommand({
+        id: CMD.NEW_CONVERSATION,
+        keys: ['mod+n'],
+        label: 'New conversation',
+        description: 'Start a new chat session',
+        category: 'Chat',
+        action: () => {
+          createConversationRemote('New Conversation').catch(() => createConversation())
+        },
+        icon: 'Plus',
+      }),
+      registerCommand({
+        id: CMD.TOGGLE_SIDEBAR,
+        keys: ['mod+b'],
+        label: 'Toggle sidebar',
+        description: 'Show or hide the left panel',
+        category: 'View',
+        action: toggleSidebar,
+        icon: 'PanelLeft',
+      }),
+      registerCommand({
+        id: CMD.OPEN_SETTINGS,
+        keys: ['mod+,'],
+        label: 'Open settings',
+        description: 'Go to the settings section',
+        category: 'Navigation',
+        action: () => setActiveSection('settings'),
+        icon: 'Settings',
+      }),
+      registerCommand({
         id: CMD.TOGGLE_THEME,
         keys: [],
         label: 'Toggle theme',
@@ -58,6 +96,18 @@ function ShortcutWiring() {
         category: 'Theme',
         action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
         icon: 'Sun',
+      }),
+      registerCommand({
+        id: CMD.FOCUS_CHAT,
+        keys: ['mod+l'],
+        label: 'Focus chat input',
+        description: 'Move focus to the chat message box',
+        category: 'Chat',
+        action: () => {
+          const el = document.querySelector<HTMLElement>('[data-chat-input]')
+          el?.focus()
+        },
+        icon: 'MessageSquare',
       }),
       registerCommand({
         id: CMD.SHOW_HELP,
@@ -69,11 +119,74 @@ function ShortcutWiring() {
         global: true,
         icon: 'HelpCircle',
       }),
+      registerCommand({
+        id: CMD.FOCUS_DEVTOOLS,
+        keys: ['mod+shift+d'],
+        label: 'Open DevTools',
+        description: 'Switch to the DevTools section',
+        category: 'DevTools',
+        action: () => setActiveSection('devtools'),
+        icon: 'Terminal',
+      }),
+      registerCommand({
+        id: CMD.PREV_CONVERSATION,
+        keys: ['mod+shift+['],
+        label: 'Previous conversation',
+        description: 'Switch to the previous conversation',
+        category: 'Navigation',
+        when: () => conversations.length > 1,
+        action: () => {
+          const idx = conversations.findIndex((c) => c.id === activeConversationId)
+          if (idx > 0) setActiveConversation(conversations[idx - 1].id)
+        },
+      }),
+      registerCommand({
+        id: CMD.NEXT_CONVERSATION,
+        keys: ['mod+shift+]'],
+        label: 'Next conversation',
+        description: 'Switch to the next conversation',
+        category: 'Navigation',
+        when: () => conversations.length > 1,
+        action: () => {
+          const idx = conversations.findIndex((c) => c.id === activeConversationId)
+          if (idx >= 0 && idx < conversations.length - 1)
+            setActiveConversation(conversations[idx + 1].id)
+        },
+      }),
+      registerCommand({
+        id: CMD.GLOBAL_SEARCH,
+        keys: ['mod+shift+f'],
+        label: 'Global search',
+        description: 'Search across all conversations',
+        category: 'Navigation',
+        action: openSearch,
+        global: true,
+        icon: 'Search',
+      }),
+      ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) =>
+        registerCommand({
+          id: CMD[`SWITCH_${n}` as keyof typeof CMD],
+          keys: [`mod+${n}`],
+          label: `Switch to conversation ${n}`,
+          description: `Go to conversation slot ${n}`,
+          category: 'Navigation',
+          when: () => conversations.length >= n,
+          action: () => {
+            const target = conversations[n - 1]
+            if (target) setActiveConversation(target.id)
+          },
+        })
+      ),
     ]
     return () => {
       for (const dispose of disposers) dispose()
     }
-  }, [registerCommand, openPalette, openHelp, theme, setTheme])
+  }, [
+    registerCommand, openPalette, openHelp, theme, setTheme,
+    conversations, activeConversationId, setActiveConversation,
+    createConversationRemote, createConversation, toggleSidebar,
+    setActiveSection, openSearch,
+  ])
 
   return null
 }
@@ -119,21 +232,25 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AnnouncerProvider>
-        <CommandRegistryProvider>
-          <SkipToContent />
-          <ShortcutWiring />
-          <div className="flex h-dvh overflow-hidden bg-canvas text-surface-100">
-            <IconRail />
-            <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-              <SectionContent />
+    <ErrorBoundary name="App">
+      <ThemeProvider>
+        <AnnouncerProvider>
+          <CommandRegistryProvider>
+            <SkipToContent />
+            <ShortcutWiring />
+            <div className="flex h-dvh overflow-hidden bg-canvas text-surface-100">
+              <IconRail />
+              <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+                <ErrorBoundary name="SectionContent">
+                  <SectionContent />
+                </ErrorBoundary>
+              </div>
             </div>
-          </div>
-          <CommandPalette />
-          <ShortcutsHelp />
-        </CommandRegistryProvider>
-      </AnnouncerProvider>
-    </ThemeProvider>
+            <CommandPalette />
+            <ShortcutsHelp />
+          </CommandRegistryProvider>
+        </AnnouncerProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   )
 }

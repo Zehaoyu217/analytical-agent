@@ -153,3 +153,67 @@ All H1–H6 phases: **pending** — ready to execute
 5. Batch runner is a standalone CLI script (`scripts/batch_runner.py`), not in FastAPI
 
 ### Next: Execute H1 (CCAGENT_HOME) — lowest risk, pure path resolution, no logic changes
+
+---
+
+## Session: 2026-04-16 (Deepdive audit + Gap-Closure Phase 1)
+
+### Context Restored
+- Read prior planning files; reconciled stale task_plan.md (which still had H1–H6 pending) with the truth from `docs/deepdive-audit-2026-04-16.md` (5.5/6 Hermes phases shipped)
+- Audit identified gaps: H3b orphan (no parallel dispatch), SemanticCompactor orphan, broken `.mcp.json`, slash command stub that sent `/help` as chat, dead `ToolCallsPanel.tsx`, missing v4 P24/P27, v2 spec drift
+
+### Phase 1 — Cleanup (complete)
+- Deleted `frontend/src/components/right-panel/ToolCallsPanel.tsx` (dead — superseded by `TerminalPanel`)
+- Fixed `.mcp.json` MCP server path (`mcp-server/dist/index.js` → `mcp/dist/index.js`)
+- Refactored slash commands to client-side dispatch:
+  - `frontend/src/lib/store.ts`: added `clearActiveConversation`
+  - `frontend/src/components/chat/ChatInput.tsx`: imports `useCommandRegistry`; `pickSlashCommand` switches on `cmd.id` and invokes `openHelp / clearActiveConversation / createConversation / setActiveSection`
+  - Removed `backend.slash.execute` from `frontend/src/lib/api-backend.ts` and the `POST /api/slash/execute` endpoint from `backend/app/api/slash_api.py`
+- Test rewrites: `SlashMenu.test.tsx` (5 behavioral tests), `test_slash_api.py` (added `test_execute_endpoint_removed` 404 assertion), `api-backend.test.ts` (dropped slash.execute case)
+- Verification: vitest 16/16 green, pytest 2/2 green, `tsc --noEmit` clean
+
+### Next: Phase 2 — wire `SemanticCompactor` into `loop.py` (two-stage MicroCompact → SemanticCompact)
+
+### Phase 2 — Wire SemanticCompactor (complete)
+- `AgentLoop.__init__` extended with `semantic_compactor` + `context_token_budget`
+- New `_maybe_semantic_compact()` helper runs as stage-2 after MicroCompact; emits `semantic_compact` SSE event in `run_stream`
+- `wiring.get_semantic_compactor()` singleton wired into both `chat_api.py` AgentLoop construction sites
+- Tests: 4 new cases in `test_loop_semantic_compaction.py`; pytest 21/21 green
+
+### Phase 3 — Hermes H3b parallel-safe dispatch (complete)
+- `loop.py`: `PARALLEL_SAFE_TOOLS` (7 read-only), `NEVER_PARALLEL_TOOLS` (8 mutators/recursive/sandbox), `_should_parallelize()` predicate, `_dispatch_calls()` ThreadPoolExecutor batcher (max 8 workers), `_emit_post_dispatch_events()` helper to keep serial+parallel SSE order identical
+- `run_stream` parallel branch: emits all `tool_call` previews up front, then `tool_result` events in submission order (not completion order)
+- Serial fallback intact for `delegate_subagent` / `write_working` / `execute_python` etc; `a2a_start` ordering preserved
+- Tests: 11 new in `test_parallel_tools.py`; harness suite 156/156 green; semantic compaction 4/4 still green
+- Deviation logged: `sandbox.run` is NEVER-parallel (shared session globals would race) vs Hermes spec which whitelisted it
+
+### Phase 4 — v4 P24 inline-table synthesis (complete)
+- `loop.py`: `_user_wants_inline_table()` regex predicate + `_response_has_table()` markdown detector + `_INLINE_TABLE_SYSTEM` prompt + `_build_inline_table_messages()` helper that pulls the last 3 tool-result payloads as the data source
+- `AgentLoop._maybe_inject_inline_table()` re-synthesises only when `stop_reason ∈ {end_turn, max_steps}` AND user asked AND response lacks a table; never adopts a rewrite that still lacks a table; never crashes on provider errors
+- `run_stream` emits new `inline_table` SSE event (`step`, `reason="user_requested_table_not_in_response"`) on injection
+- Tests: 14 cases in `test_inline_table_injection.py`; harness suite 174/174 green
+- No frontend changes required — `MessageBubble` already renders markdown tables
+
+### Phase 5 — v4 P27 eval scores ledger (complete)
+- `docs/eval_scores.md` created — running ledger seeded with two historical rows (2026-04-15 baseline + post-v3 fixes), with "How to add a row" workflow, "How to interpret a row" guidance, and a "Persistent failures to watch" subtable that already cites P24 as the fix for `L1 table_correctness`
+- Cross-linked from existing eval docs and `log.md`
+- Documentation-only (no code) — matches v4 P27 spec
+
+### Phase 6 — v2 spec drift reconciliation (complete)
+- Audited frontend tree: `components/skills/`, `components/agents/`, `components/prompts/`, `components/context/` directories were never created — planned subcomponents (`SkillDependencyGraph.tsx`, `AgentCard.tsx`, `PromptList.tsx`/`PromptDetail.tsx`, `LayerBreakdown.tsx`/`CompactionHistory.tsx`/`CompactionDiff.tsx`) are inlined inside `sections/<Area>Section.tsx`
+- `components/right-panel/`: `VegaChart.tsx` and `ArtifactCard.tsx` not created (inlined in `ArtifactsPanel.tsx`); `DataTable.tsx` and `TerminalPanel.tsx` were extracted as planned
+- `components/layout/`: `SectionRouter.tsx` not created (routing inlined in `App.tsx`); `IconRail.tsx` and `ContextBar.tsx` extracted as planned
+- Edited `docs/progressive_plan_v2.md`: added "Spec Drift Note (2026-04-16)" callouts under Phases 7, 8, 9, 10, 11, 13 explaining the inline-collapse decision, and added a header note above the "Frontend New Files Summary" pointing future contributors to those callouts
+- Documentation-only (no code) — closes audit recommendation #9
+
+### Phase 7 — verify + cut v0.1.0 (in progress)
+- Backend test suite green: `pytest app/harness/tests/ tests/ -q` → 579 passed, 10 skipped
+- `docs/log.md` cut: prior `[Unreleased]` block renamed to `## [v0.1.0] - 2026-04-16` with release-note paragraph; fresh empty `[Unreleased]` header opened above
+- Added Phase 5 + Phase 6 entries (`Eval scores ledger`, `v2 spec-drift notes`) to the v0.1.0 block
+
+### Awaiting user confirmation
+Working tree has 50+ modified files spanning Phases 1–6. Two durable state-changing steps remain to actually cut v0.1.0:
+1. **Commit** the gap-closure work (one logical commit per phase, or one combined commit?)
+2. **Tag** the resulting commit as `v0.1.0`
+
+Both visible to other contributors / pushable; pausing here for user direction.

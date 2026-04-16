@@ -97,6 +97,9 @@ def build_duckdb_globals(
         f"_SESSION_ID = {session_id!r}",
         f"_DB_PATH = {db_path!r}",
         f"_ARTIFACT_DIR = {artifact_dir!r}",
+        # Per-call sentinel token — overridden at each sandbox.run() call by
+        # prepending `_ARTIFACT_SENTINEL_TOKEN = "<uuid>"` to the user code.
+        "_ARTIFACT_SENTINEL_TOKEN = ''",
         "",
         "import pathlib as _pathlib",
         # Connect read-only — safe for concurrent sandbox processes
@@ -143,7 +146,8 @@ def build_duckdb_globals(
         "    else:",
         "        _content = str(data); _preview = str(data)[:80]",
         "    _payload = _json_sa.dumps({'title': title, 'type': _type, 'format': _fmt, 'content': _content})",
-        "    _sys_sa.stdout.write('\\n__SAVED_ARTIFACT__' + _payload + '__END_SAVED_ARTIFACT__\\n')",
+        "    _tok_sa = _ARTIFACT_SENTINEL_TOKEN",
+        "    _sys_sa.stdout.write('\\n__SAVED_ARTIFACT_' + _tok_sa + '__' + _payload + '__END_SAVED_ARTIFACT_' + _tok_sa + '__\\n')",
         "    _sys_sa.stdout.flush()",
         "    return f\"Saved artifact '{title}' ({_type}/{_fmt}): {_preview}\"",
         "",

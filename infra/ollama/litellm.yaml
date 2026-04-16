@@ -29,7 +29,8 @@ litellm_settings:
   request_timeout: 600
 
 general_settings:
-  master_key: "sk-ollama-local"
+  # Local dev default exported via .env: LITELLM_MASTER_KEY=sk-ollama-local
+  master_key: "${LITELLM_MASTER_KEY}"
   # Disable auth since this is local only
   disable_spend_logs: true
   store_model_in_db: false

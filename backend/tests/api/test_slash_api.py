@@ -23,26 +23,8 @@ def test_list_slash_commands(client: TestClient) -> None:
         assert cmd["description"]
 
 
-def test_execute_known_command(client: TestClient) -> None:
-    r = client.post("/api/slash/execute", json={"command_id": "help", "args": {}})
-    assert r.status_code == 200
-    assert r.json() == {"ok": True, "message": "Executed help"}
-
-
-def test_execute_accepts_optional_fields(client: TestClient) -> None:
-    r = client.post(
-        "/api/slash/execute",
-        json={"command_id": "clear", "conversation_id": "abc-123", "args": {"quiet": True}},
-    )
-    assert r.status_code == 200
-    assert r.json()["ok"] is True
-
-
-def test_execute_unknown_returns_404(client: TestClient) -> None:
-    r = client.post("/api/slash/execute", json={"command_id": "launch-nukes"})
+def test_execute_endpoint_removed(client: TestClient) -> None:
+    """Slash commands are dispatched client-side; the legacy execute endpoint
+    is gone. Posting to it must 404 (FastAPI default for unknown routes)."""
+    r = client.post("/api/slash/execute", json={"command_id": "help"})
     assert r.status_code == 404
-
-
-def test_execute_missing_command_id_returns_422(client: TestClient) -> None:
-    r = client.post("/api/slash/execute", json={})
-    assert r.status_code == 422

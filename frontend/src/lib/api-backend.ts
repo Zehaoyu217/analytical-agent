@@ -76,11 +76,6 @@ export interface SlashCommand {
   description: string
 }
 
-export interface SlashExecuteResponse {
-  ok: boolean
-  message: string
-}
-
 export interface ModelEntry {
   id: string
   label: string
@@ -194,15 +189,5 @@ export const backend = {
   slash: {
     list: (): Promise<SlashCommand[]> =>
       request<SlashCommand[]>('GET', '/api/slash'),
-    execute: (
-      command_id: string,
-      args?: Record<string, unknown>,
-      conversation_id?: string | null,
-    ): Promise<SlashExecuteResponse> =>
-      request<SlashExecuteResponse>('POST', '/api/slash/execute', {
-        command_id,
-        args: args ?? {},
-        conversation_id: conversation_id ?? null,
-      }),
   },
 }

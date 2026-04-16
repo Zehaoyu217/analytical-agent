@@ -86,8 +86,10 @@ class PreTurnInjector:
         # Cache the static base prompt — it never changes at runtime, so
         # re-reading the file on every turn is unnecessary I/O.
         self._static_cache: str | None = None
-        # Cache the rendered skill menu — the registry tree is fixed at startup,
-        # so rebuilding the string on every turn is pure waste.
+        # Cache the rendered skill menu. The registry tree is loaded once at
+        # startup and never mutated at runtime, so the rendered string is
+        # permanently stable. If hot-reload is ever needed, call
+        # invalidate_caches() to clear both caches.
         self._skill_menu_cache: str | None = None
 
     def _static(self) -> str:
@@ -116,6 +118,11 @@ class PreTurnInjector:
         if not body:
             return ""
         return "\n\n## Operational State\n\n" + "\n\n".join(body)
+
+    def invalidate_caches(self) -> None:
+        """Clear all cached strings. Useful in tests or if the skill registry is reloaded."""
+        self._static_cache = None
+        self._skill_menu_cache = None
 
     def _skill_menu(self) -> str:
         if self._skill_menu_cache is None:

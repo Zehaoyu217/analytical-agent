@@ -2,7 +2,7 @@
   "mcpServers": {
     "claude-code-explorer": {
       "command": "node",
-      "args": ["mcp-server/dist/index.js"],
+      "args": ["mcp/dist/index.js"],
       "env": {
         "CLAUDE_CODE_SRC_ROOT": "./src"
       }

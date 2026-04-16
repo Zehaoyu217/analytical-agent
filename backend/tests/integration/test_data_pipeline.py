@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from app.data.db_init import get_data_context, initialize_db
+from app.data.db_init import get_data_context, initialize_db, _BANK_MACRO_DIR
 from app.harness.sandbox import SandboxExecutor
 from app.harness.sandbox_bootstrap import build_duckdb_globals
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
-DATA_PRESENT = Path("/Users/jay/Developer/bank-macro-analysis/data/processed/panel_data.csv").exists()
+DATA_PRESENT = (_BANK_MACRO_DIR / "panel_data.csv").exists()
 
 
 # ── db_init ───────────────────────────────────────────────────────────────────

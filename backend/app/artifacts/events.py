@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import Callable
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 Event = dict[str, Any]
 Subscriber = Callable[[Event], None]
@@ -32,7 +35,7 @@ class EventBus:
             try:
                 fn(event)
             except Exception:  # noqa: BLE001 - subscriber errors must not break emit
-                pass
+                logger.warning("EventBus subscriber %r raised", fn, exc_info=True)
 
 
 _default_bus: EventBus | None = None

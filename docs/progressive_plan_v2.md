@@ -106,6 +106,11 @@ Three-panel layout (replaces current `ChatLayout`):
 
 **Success:** App launches with icon rail. Clicking icons switches sections. Chat section works identically to current app.
 
+> **Spec Drift Note (2026-04-16):** `components/layout/SectionRouter.tsx` was not created
+> as a standalone file. Section routing is implemented directly in `App.tsx` via a small
+> `activeSection` switch over the seven sections. The plan's intent (a dedicated router)
+> was met by the inline implementation; no behavioural gap exists.
+
 ---
 
 ## Phase 8 — Skills Explorer Page
@@ -175,6 +180,13 @@ Reads from filesystem at `backend/app/skills/{name}/`. Excludes `__pycache__/`, 
 
 **Success:** Clicking a skill shows its SKILL.md rendered as markdown, lists dependency arrows, and shows all Python source in scrollable CodeBlocks.
 
+> **Spec Drift Note (2026-04-16):** The `frontend/src/components/skills/` directory was
+> never created. `SkillList.tsx`, `SkillDetail.tsx`, and `SkillDependencyGraph.tsx` were
+> intentionally collapsed into `frontend/src/sections/SkillsSection.tsx` as inline
+> sub-components (`SkillListPanel`, `SkillDetailPanel`, `DependencyGraph`). The page
+> ships the full feature set described above; only the file-layout differs. Don't search
+> for `SkillDependencyGraph.tsx` — it lives inside `SkillsSection.tsx`.
+
 ---
 
 ## Phase 9 — Monitoring Dashboard (Agent Cards)
@@ -219,6 +231,12 @@ Running agents poll `/api/trace/traces` every 3 seconds to update card status/tu
 - Modify: existing `MonitorPage.tsx` — already works; no changes needed
 
 **Success:** Monitoring section shows a card per agent session. Running agents animate their token counter. Click navigates to existing monitor detail page.
+
+> **Spec Drift Note (2026-04-16):** The `frontend/src/components/agents/` directory was
+> never created. `AgentCard.tsx` and `AgentCardSkeleton.tsx` were intentionally collapsed
+> into `frontend/src/sections/AgentsSection.tsx` as inline sub-components. The card grid,
+> filter bar, status badges, and live polling all live inside the section file. Don't
+> search for `AgentCard.tsx` — it lives inside `AgentsSection.tsx`.
 
 ---
 
@@ -303,6 +321,12 @@ Source of truth:
 
 **Success:** Prompts section shows categorized list. Clicking any prompt shows its full text, estimated token count, and where in the context it appears (layer + compactable flag).
 
+> **Spec Drift Note (2026-04-16):** The `frontend/src/components/prompts/` directory was
+> never created. `PromptList.tsx` and `PromptDetail.tsx` were intentionally collapsed
+> into `frontend/src/sections/PromptsSection.tsx` as inline sub-components. The
+> categorized list, search, monospace detail viewer, and token-count badges all live
+> inside the section file.
+
 ---
 
 ## Phase 11 — Context Inspector Page
@@ -373,6 +397,14 @@ layer breakdown, per-session tracking, and compaction diff view for information 
 - Modify: `backend/app/api/context_api.py` — add `/context/{session_id}`, `/context/{session_id}/history`, `/context/{session_id}/compaction/{id}/diff`, `/context/sessions`
 
 **Success:** Context section shows live layer breakdown for any session. Selecting a compaction event shows exactly which layers were removed vs survived. Information loss percentage is calculated and flagged HIGH/MEDIUM/LOW.
+
+> **Spec Drift Note (2026-04-16):** The `frontend/src/components/context/` directory was
+> never created. `LayerBreakdown.tsx`, `CompactionHistory.tsx`, and `CompactionDiff.tsx`
+> were intentionally collapsed into `frontend/src/sections/ContextSection.tsx` as inline
+> sub-components (e.g. `CompactionDiffPanel()`). One exception: `ContextBar.tsx` was
+> created as a standalone file at `frontend/src/components/layout/ContextBar.tsx`
+> because it is reused outside the Context section (in the chat header). Don't search
+> for `CompactionDiff.tsx` — it lives inside `ContextSection.tsx`.
 
 ---
 
@@ -465,6 +497,13 @@ artifact payloads. Verify `ArtifactStore.get_session_artifacts()` returns these 
 **Success:** A `query_duckdb` → `save_artifact(type="chart", spec={...})` flow results in a
 rendered Vega-Lite chart appearing in the Artifacts panel in real time.
 
+> **Spec Drift Note (2026-04-16):** `VegaChart.tsx` and `ArtifactCard.tsx` were not
+> created as standalone files. The artifact-type routing (chart / table / html / profile
+> / text / image) and the Vega-Lite embed are implemented inline inside
+> `frontend/src/components/right-panel/ArtifactsPanel.tsx`. `DataTable.tsx` was extracted
+> as planned because it is also reused by the Skills detail view. Don't search for
+> `VegaChart.tsx` or `ArtifactCard.tsx` — both live inside `ArtifactsPanel.tsx`.
+
 ---
 
 ## Phase 14 — Gap Analysis Document
@@ -522,6 +561,11 @@ the frontend can be completed.
 ---
 
 ## Frontend New Files Summary
+
+> **Note (2026-04-16):** Several `components/<area>/` subdirectories below were
+> intentionally collapsed into their `sections/<Area>Section.tsx` files. See the
+> "Spec Drift Note" callout at the end of Phases 7, 8, 9, 10, 11, and 13 for the
+> exact mapping. The list below is the original plan, kept for historical reference.
 
 ```
 frontend/src/

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from app.harness.clients.base import (
@@ -14,14 +16,60 @@ from app.harness.clients.base import (
 )
 from app.harness.compactor import MicroCompactor
 from app.harness.dispatcher import ToolDispatcher, ToolResult
-from app.harness.hooks import HookRunner
 from app.harness.guardrails.end_of_turn import end_of_turn
 from app.harness.guardrails.post_tool import post_tool
 from app.harness.guardrails.pre_tool import pre_tool_gate
 from app.harness.guardrails.tiers import apply_tier
 from app.harness.guardrails.types import GuardrailOutcome
+from app.harness.hooks import HookRunner
+from app.harness.semantic_compactor import SemanticCompactionResult, SemanticCompactor
 from app.harness.stream_events import StreamEvent
 from app.harness.turn_state import TurnState
+
+
+# ── Parallel-safe tool dispatch (Hermes H3b) ─────────────────────────────────
+#
+# A small whitelist of tools whose handlers are read-only and have no shared
+# mutable state, so calling them concurrently in a thread pool is safe. The
+# read-only contract means the order in which they execute does not affect the
+# final result, only the order of side-effect-free mutations to ``state._log``.
+PARALLEL_SAFE_TOOLS: frozenset[str] = frozenset({
+    "skill",
+    "read_file",
+    "glob_files",
+    "search_text",
+    "session_search",
+    "get_artifact",
+    "get_context_status",
+})
+
+# Hard-deny set: any tool that mutates wiki, scratchpad, artifacts, sandbox
+# bootstrap globals, or recurses into another agent.
+NEVER_PARALLEL_TOOLS: frozenset[str] = frozenset({
+    "write_working",
+    "todo_write",
+    "promote_finding",
+    "save_artifact",
+    "update_artifact",
+    "delegate_subagent",
+    "execute_python",
+    "sandbox.run",
+})
+
+_PARALLEL_MAX_WORKERS = 8
+
+
+def _should_parallelize(calls: tuple[ToolCall, ...] | list[ToolCall]) -> bool:
+    """Return True only when every call in *calls* is in the safe whitelist.
+
+    Conservative: requires len ≥ 2, no never-parallel tool, all calls in the
+    explicit safe set (unknown tools fall back to sequential).
+    """
+    if len(calls) < 2:
+        return False
+    if any(c.name in NEVER_PARALLEL_TOOLS for c in calls):
+        return False
+    return all(c.name in PARALLEL_SAFE_TOOLS for c in calls)
 
 
 @dataclass
@@ -65,12 +113,178 @@ class AgentLoop:
         dispatcher: ToolDispatcher,
         compactor: MicroCompactor | None = None,
         hook_runner: HookRunner | None = None,
+        semantic_compactor: SemanticCompactor | None = None,
+        context_token_budget: int = 200_000,
     ) -> None:
         self._dispatcher = dispatcher
         self._compactor = compactor or MicroCompactor()
         self._hook_runner = hook_runner or HookRunner()
+        self._semantic_compactor = semantic_compactor
+        self._context_token_budget = context_token_budget
+
+    # ── v4 P24: post-turn inline-table fix-up ────────────────────────────────
+
+    def _maybe_inject_inline_table(
+        self,
+        client: ModelClient,
+        user_message: str,
+        messages: list[Message],
+        final_text: str,
+        stop_reason: str,
+    ) -> tuple[str, bool]:
+        """Re-synthesise *final_text* with a markdown table when the user asked.
+
+        Returns ``(final_text, injected)`` where *injected* is True iff the
+        re-synthesis call ran AND produced new non-empty text containing a
+        table. Otherwise the original *final_text* is returned untouched.
+        """
+        if stop_reason not in ("end_turn", "max_steps"):
+            return final_text, False
+        if not _user_wants_inline_table(user_message):
+            return final_text, False
+        if _response_has_table(final_text):
+            return final_text, False
+
+        synth_msgs = _build_inline_table_messages(user_message, messages, final_text)
+        try:
+            resp = client.complete(CompletionRequest(
+                system=_INLINE_TABLE_SYSTEM,
+                messages=tuple(synth_msgs),
+                tools=(), tool_choice=None, max_tokens=4096,
+            ))
+        except Exception:  # noqa: BLE001 — never crash the turn over a fix-up
+            return final_text, False
+
+        new_text = (resp.text or "").strip()
+        # Only adopt the rewrite if it actually contains a table now.
+        if new_text and _response_has_table(new_text):
+            return new_text, True
+        return final_text, False
+
+    # ── stage-2 semantic compaction ───────────────────────────────────────────
+
+    def _maybe_semantic_compact(
+        self,
+        messages: list[Message],
+        client: ModelClient,
+    ) -> tuple[list[Message], SemanticCompactionResult | None]:
+        """Run stage-2 semantic compaction when wired and over budget.
+
+        Returns the (possibly-rewritten) message list and the report (or None
+        when the compactor is not configured / threshold not crossed).
+        """
+        if self._semantic_compactor is None:
+            return messages, None
+        token_count = sum(len(m.content or "") for m in messages) // 4
+        if not self._semantic_compactor.should_compact(
+            messages, token_count, self._context_token_budget,
+        ):
+            return messages, None
+        result = self._semantic_compactor.compact(messages, client)
+        return result.messages, result
+
+    # ── streaming event emission ──────────────────────────────────────────────
+
+    def _emit_post_dispatch_events(
+        self,
+        tr: _SingleToolResult,
+        steps: int,
+    ) -> Generator[StreamEvent, None, None]:
+        """Yield the SSE events that always follow a single tool dispatch.
+
+        Centralised so both the serial and parallel branches of run_stream
+        emit events in the same order with the same payload shape.
+        """
+        call = tr.call
+        if tr.status == "blocked":
+            yield StreamEvent(
+                type="tool_result",
+                payload={
+                    "step": steps, "name": call.name, "status": "blocked",
+                    "artifact_ids": [], "preview": str(tr.result_payload)[:200],
+                },
+            )
+            return
+
+        try:
+            from app.trace.publishers import publish_tool_call as _pub_tc
+            _pub_tc(
+                turn=steps, tool_name=call.name,
+                tool_input=dict(call.arguments),
+                tool_output=str(tr.result_payload)[:4096],
+                duration_ms=tr.dispatch_ms,
+                error=None if tr.status == "ok" else str(tr.result_payload)[:512],
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+        if tr.scratchpad_update:
+            yield StreamEvent(
+                type="scratchpad_delta",
+                payload={"content": tr.scratchpad_update},
+            )
+            try:
+                from app.trace.publishers import publish_scratchpad_write as _pub_sw
+                _pub_sw(turn=steps, key="working.md",
+                        value_preview=tr.scratchpad_update[:200])
+            except Exception:  # noqa: BLE001
+                pass
+
+        if tr.todo_update is not None:
+            yield StreamEvent(
+                type="todos_update",
+                payload={"todos": tr.todo_update},
+            )
+
+        if tr.is_a2a:
+            yield StreamEvent(
+                type="a2a_end",
+                payload={
+                    "step": steps,
+                    "artifact_id": tr.a2a_artifact_id,
+                    "summary": tr.a2a_summary,
+                    "ok": tr.a2a_ok,
+                },
+            )
+
+        yield StreamEvent(
+            type="tool_result",
+            payload={
+                "step": steps, "name": call.name,
+                "status": tr.status,
+                "artifact_ids": list(tr.artifact_ids),
+                "preview": str(tr.result_payload)[:200],
+            },
+        )
 
     # ── shared tool dispatch ──────────────────────────────────────────────────
+
+    def _dispatch_calls(
+        self,
+        calls: tuple[ToolCall, ...] | list[ToolCall],
+        state: TurnState,
+        outcomes: list[GuardrailOutcome],
+        client: ModelClient,
+        session_id: str = "",
+    ) -> list[_SingleToolResult]:
+        """Dispatch a batch of tool calls, in parallel when safe (Hermes H3b).
+
+        Returns results in submission order regardless of completion order so
+        downstream message append + SSE emission stay deterministic.
+        """
+        if not _should_parallelize(calls):
+            return [
+                self._dispatch_single_call(c, state, outcomes, client, session_id)
+                for c in calls
+            ]
+        workers = min(_PARALLEL_MAX_WORKERS, len(calls))
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(
+                lambda c: self._dispatch_single_call(
+                    c, state, outcomes, client, session_id,
+                ),
+                calls,
+            ))
 
     def _dispatch_single_call(
         self,
@@ -209,6 +423,7 @@ class AgentLoop:
         for step in range(1, max_steps + 1):
             steps = step
             messages, _ = self._compactor.maybe_compact(messages)
+            messages, _ = self._maybe_semantic_compact(messages, client)
             # Force tool use on the first step when no tool results are in context yet.
             # After a synthesis prompt is injected, strip tools so the model MUST write text.
             has_tool_results = any(m.role == "tool" for m in messages)
@@ -255,14 +470,21 @@ class AgentLoop:
                 content=resp.text or "",
                 tool_calls=tuple(resp.tool_calls),
             ))
-            for call in resp.tool_calls:
-                tr = self._dispatch_single_call(call, state, outcomes, client)
+            results = self._dispatch_calls(resp.tool_calls, state, outcomes, client)
+            for tr in results:
                 messages.append(tr.tool_message)
                 # BLOCK: tool_message already contains the rejection payload; skip rest.
                 if tr.status == "blocked":
                     continue
         else:
             stop_reason = "max_steps"
+
+        # P24 — re-synthesise with an inline markdown table when the user
+        # explicitly asked to "show / display / list" rows but the model
+        # returned only an artifact citation.
+        final_text, _ = self._maybe_inject_inline_table(
+            client, user_message, messages, final_text, stop_reason,
+        )
 
         end_findings = end_of_turn(
             scratchpad=state.scratchpad,
@@ -323,6 +545,19 @@ class AgentLoop:
                         "tokens_before": compact_report.tokens_before,
                         "tokens_after": compact_report.tokens_after,
                         "artifact_refs": list(compact_report.artifact_refs),
+                    },
+                )
+
+            messages, semantic_report = self._maybe_semantic_compact(messages, client)
+            if semantic_report is not None and semantic_report.turns_summarized > 0:
+                yield StreamEvent(
+                    type="semantic_compact",
+                    payload={
+                        "step": steps,
+                        "turns_summarized": semantic_report.turns_summarized,
+                        "tokens_before": semantic_report.tokens_before,
+                        "tokens_after": semantic_report.tokens_after,
+                        "summary_preview": semantic_report.summary_preview,
                     },
                 )
 
@@ -426,93 +661,54 @@ class AgentLoop:
                 content=resp.text or "",
                 tool_calls=tuple(resp.tool_calls),
             ))
-            for call in resp.tool_calls:
-                yield StreamEvent(
-                    type="tool_call",
-                    payload={
-                        "step": steps,
-                        "name": call.name,
-                        "input_preview": _arg_preview(call.arguments),
-                    },
-                )
 
-                # Emit a2a_start before dispatch so the parent client can show
-                # a nested progress indicator before the sub-agent runs.
-                is_a2a = call.name == "delegate_subagent"
-                if is_a2a:
+            parallel = _should_parallelize(resp.tool_calls)
+            if parallel:
+                # Emit all tool_call previews first so the UI can render the
+                # whole batch as "running" before any result arrives. Then run
+                # dispatches concurrently and stream results in submission order.
+                for call in resp.tool_calls:
                     yield StreamEvent(
-                        type="a2a_start",
+                        type="tool_call",
                         payload={
                             "step": steps,
-                            "task_preview": str(call.arguments.get("task", ""))[:200],
-                            "tools_allowed": call.arguments.get("tools_allowed", []),
+                            "name": call.name,
+                            "input_preview": _arg_preview(call.arguments),
                         },
                     )
-
-                tr = self._dispatch_single_call(call, state, outcomes, client, session_id)
-                messages.append(tr.tool_message)
-
-                if tr.status == "blocked":
+                results = self._dispatch_calls(
+                    resp.tool_calls, state, outcomes, client, session_id,
+                )
+                for tr in results:
+                    messages.append(tr.tool_message)
+                    yield from self._emit_post_dispatch_events(tr, steps)
+            else:
+                for call in resp.tool_calls:
                     yield StreamEvent(
-                        type="tool_result",
-                        payload={
-                            "step": steps, "name": call.name, "status": "blocked",
-                            "artifact_ids": [], "preview": str(tr.result_payload)[:200],
-                        },
-                    )
-                    continue
-
-                # ── Tool call trace ────────────────────────────────────────
-                try:
-                    from app.trace.publishers import publish_tool_call as _pub_tc
-                    _pub_tc(
-                        turn=steps, tool_name=call.name,
-                        tool_input=dict(call.arguments),
-                        tool_output=str(tr.result_payload)[:4096],
-                        duration_ms=tr.dispatch_ms,
-                        error=None if tr.status == "ok" else str(tr.result_payload)[:512],
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-                if tr.scratchpad_update:
-                    yield StreamEvent(
-                        type="scratchpad_delta",
-                        payload={"content": tr.scratchpad_update},
-                    )
-                    try:
-                        from app.trace.publishers import publish_scratchpad_write as _pub_sw
-                        _pub_sw(turn=steps, key="working.md",
-                                value_preview=tr.scratchpad_update[:200])
-                    except Exception:  # noqa: BLE001
-                        pass
-
-                if tr.todo_update is not None:
-                    yield StreamEvent(
-                        type="todos_update",
-                        payload={"todos": tr.todo_update},
-                    )
-
-                if is_a2a:
-                    yield StreamEvent(
-                        type="a2a_end",
+                        type="tool_call",
                         payload={
                             "step": steps,
-                            "artifact_id": tr.a2a_artifact_id,
-                            "summary": tr.a2a_summary,
-                            "ok": tr.a2a_ok,
+                            "name": call.name,
+                            "input_preview": _arg_preview(call.arguments),
                         },
                     )
 
-                yield StreamEvent(
-                    type="tool_result",
-                    payload={
-                        "step": steps, "name": call.name,
-                        "status": tr.status,
-                        "artifact_ids": list(tr.artifact_ids),
-                        "preview": str(tr.result_payload)[:200],
-                    },
-                )
+                    # Emit a2a_start before dispatch so the parent client can show
+                    # a nested progress indicator before the sub-agent runs.
+                    is_a2a = call.name == "delegate_subagent"
+                    if is_a2a:
+                        yield StreamEvent(
+                            type="a2a_start",
+                            payload={
+                                "step": steps,
+                                "task_preview": str(call.arguments.get("task", ""))[:200],
+                                "tools_allowed": call.arguments.get("tools_allowed", []),
+                            },
+                        )
+
+                    tr = self._dispatch_single_call(call, state, outcomes, client, session_id)
+                    messages.append(tr.tool_message)
+                    yield from self._emit_post_dispatch_events(tr, steps)
         else:
             stop_reason = "max_steps"
             # Agent exhausted the step budget without writing a final response.
@@ -531,6 +727,22 @@ class AgentLoop:
                     final_text = (synth_resp.text or "").strip()
                 except Exception:  # noqa: BLE001
                     pass
+
+        # P24 — re-synthesise with an inline markdown table when the user
+        # explicitly asked to "show / display / list" rows but the model
+        # returned only an artifact citation.
+        new_text, injected = self._maybe_inject_inline_table(
+            client, user_message, messages, final_text, stop_reason,
+        )
+        if injected:
+            final_text = new_text
+            yield StreamEvent(
+                type="inline_table",
+                payload={
+                    "step": steps,
+                    "reason": "user_requested_table_not_in_response",
+                },
+            )
 
         end_findings = end_of_turn(scratchpad=state.scratchpad, claims=[])
         outcomes.append(apply_tier(client.tier, end_findings))
@@ -559,6 +771,74 @@ def _arg_preview(arguments: dict[str, object], max_len: int = 120) -> str:
     """Return a short human-readable preview of tool arguments."""
     text = json.dumps(arguments)
     return text[:max_len] + ("…" if len(text) > max_len else "")
+
+
+# ── v4 P24: inline-table synthesis ───────────────────────────────────────────
+
+# Matches "show/display/list/give me … (table | top N | rows)" within ~60 chars.
+_SHOW_TABLE_PATTERNS = re.compile(
+    r"\b(show|display|list|give me)\b.{0,60}\b(table|top\s*\d+|rows?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# A markdown table row needs at least two pipes around two cells: `| a | b |`.
+_TABLE_LINE_PATTERN = re.compile(r"^\|.+\|.+\|", re.MULTILINE)
+
+
+def _user_wants_inline_table(user_message: str) -> bool:
+    """True when the user explicitly asked for a table / top-N / rows."""
+    return bool(_SHOW_TABLE_PATTERNS.search(user_message or ""))
+
+
+def _response_has_table(text: str) -> bool:
+    """True when *text* already contains at least one markdown table line."""
+    return bool(_TABLE_LINE_PATTERN.search(text or ""))
+
+
+_INLINE_TABLE_SYSTEM = """\
+You are a data analyst rewriting a previously-drafted response.
+The user explicitly asked to see rows displayed inline as a markdown table,
+but the previous response only cited an artifact instead of showing the data.
+
+Rewrite the response to include the requested rows as a markdown table
+(up to 20 rows). Use the data already present in the most recent tool
+results in the conversation. Keep the original headline, executive summary,
+and caveats; just add the markdown table inside the Evidence section.
+
+Do not call any tools. Output the full rewritten markdown response only.
+"""
+
+
+def _build_inline_table_messages(
+    user_message: str,
+    messages: list[Message],
+    final_text: str,
+    keep_results: int = 3,
+    result_chars: int = 1500,
+) -> list[Message]:
+    """Build the synthesis prompt for the inline-table fix-up call.
+
+    Surfaces the most recent tool-result payloads (which contain the printed
+    DataFrame rows) so the model has the raw data without needing to call
+    tools again.
+    """
+    tool_msgs = [m for m in messages if m.role == "tool"]
+    recent = tool_msgs[-keep_results:]
+    snippets: list[str] = []
+    for i, m in enumerate(recent, 1):
+        content = (m.content or "")[:result_chars]
+        snippets.append(f"Tool result {i}:\n{content}")
+    data_section = "\n\n".join(snippets) if snippets else "(no tool results available)"
+    instruction = (
+        f'The user asked: "{user_message}"\n\n'
+        f"Recent tool results (use these for the table data):\n\n"
+        f"{data_section}\n\n"
+        f"Your previous response was:\n\n"
+        f"{final_text}\n\n"
+        f"Rewrite it to include a markdown table (≤20 rows) with the requested "
+        f"rows inside the Evidence section. Keep the rest of the structure."
+    )
+    return [Message(role="user", content=instruction)]
 
 
 _SYNTHESIS_SYSTEM = """\

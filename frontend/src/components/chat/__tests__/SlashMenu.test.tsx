@@ -52,6 +52,13 @@ function makeFetchMock(handlers: Record<string, Handler>) {
   }
 }
 
+const SLASH_LIST = [
+  { id: 'help', label: '/help', description: 'Show help' },
+  { id: 'clear', label: '/clear', description: 'Clear conversation' },
+  { id: 'new', label: '/new', description: 'New conversation' },
+  { id: 'settings', label: '/settings', description: 'Open settings' },
+]
+
 describe('<ChatInput> slash menu', () => {
   beforeEach(() => {
     useChatStore.setState({
@@ -59,12 +66,21 @@ describe('<ChatInput> slash menu', () => {
         {
           id: 'conv-1',
           title: 'Test',
-          messages: [],
+          messages: [
+            {
+              id: 'm1',
+              role: 'user',
+              content: 'hello',
+              timestamp: 1,
+              status: 'complete',
+            },
+          ],
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
       ],
       activeConversationId: 'conv-1',
+      activeSection: 'chat',
     })
   })
 
@@ -72,111 +88,98 @@ describe('<ChatInput> slash menu', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows slash suggestions when user types "/" and executes on Enter', async () => {
-    const { impl, calls } = makeFetchMock({
-      'GET /api/slash': {
-        body: [
-          { id: 'help', label: '/help', description: 'Show help' },
-          { id: 'clear', label: '/clear', description: 'Clear conversation' },
-        ],
-      },
-      'POST /api/slash/execute': {
-        body: { ok: true, message: 'Executed help' },
-      },
+  async function openMenu(): Promise<HTMLTextAreaElement> {
+    const { impl } = makeFetchMock({
+      'GET /api/slash': { body: SLASH_LIST },
     })
     vi.stubGlobal('fetch', impl)
 
     render(<ChatInput conversationId="conv-1" />)
-
     const textarea = screen.getByLabelText('Message') as HTMLTextAreaElement
 
-    // Type "/"
     await act(async () => {
       fireEvent.change(textarea, { target: { value: '/' } })
     })
-    // Let the slash fetch resolve.
-    await act(async () => {
-      await Promise.resolve()
-    })
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { await Promise.resolve() })
+    return textarea
+  }
 
-    expect(screen.getByRole('listbox', { name: /slash commands/i })).toBeInTheDocument()
+  it('shows slash suggestions when user types "/"', async () => {
+    await openMenu()
+    expect(
+      screen.getByRole('listbox', { name: /slash commands/i }),
+    ).toBeInTheDocument()
     expect(screen.getByText('/help')).toBeInTheDocument()
     expect(screen.getByText('/clear')).toBeInTheDocument()
+  })
 
-    // Press Enter to pick the first suggestion.
+  it('picking /clear empties active conversation messages and clears input', async () => {
+    const textarea = await openMenu()
+
+    // Filter to /clear and press Enter to pick.
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: '/clear' } })
+    })
     await act(async () => {
       fireEvent.keyDown(textarea, { key: 'Enter' })
     })
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await act(async () => { await Promise.resolve() })
 
-    // Textarea value is the label of the picked command.
-    expect(textarea.value).toBe('/help')
-
-    // Execute was called.
-    const execCall = calls.find((c) => c.url === '/api/slash/execute')
-    expect(execCall).toBeDefined()
-    expect((execCall?.body as { command_id: string }).command_id).toBe('help')
+    expect(useChatStore.getState().conversations[0].messages).toHaveLength(0)
+    expect(textarea.value).toBe('')
+    expect(
+      screen.queryByRole('listbox', { name: /slash commands/i }),
+    ).not.toBeInTheDocument()
   })
 
-  it('closes the menu after pick so the next Enter submits instead of re-firing', async () => {
+  it('picking /new creates an additional conversation', async () => {
+    const textarea = await openMenu()
+    const before = useChatStore.getState().conversations.length
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: '/new' } })
+    })
+    await act(async () => {
+      fireEvent.keyDown(textarea, { key: 'Enter' })
+    })
+
+    expect(useChatStore.getState().conversations.length).toBe(before + 1)
+    expect(textarea.value).toBe('')
+  })
+
+  it('picking /settings switches activeSection', async () => {
+    const textarea = await openMenu()
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: '/settings' } })
+    })
+    await act(async () => {
+      fireEvent.keyDown(textarea, { key: 'Enter' })
+    })
+
+    expect(useChatStore.getState().activeSection).toBe('settings')
+    expect(textarea.value).toBe('')
+  })
+
+  it('does not POST to /api/slash/execute (legacy endpoint)', async () => {
     const { impl, calls } = makeFetchMock({
-      'GET /api/slash': {
-        body: [{ id: 'help', label: '/help', description: 'Show help' }],
-      },
-      'POST /api/slash/execute': {
-        body: { ok: true, message: 'Executed help' },
-      },
-      // Accept persistence + chat send calls so the happy path can complete.
-      'POST /api/conversations/conv-1/turns': {
-        body: { id: 'conv-1', turns: [] },
-      },
-      'POST /api/chat': {
-        body: { response: 'ok', session_id: 'sess-1' },
-      },
+      'GET /api/slash': { body: SLASH_LIST },
     })
     vi.stubGlobal('fetch', impl)
 
     render(<ChatInput conversationId="conv-1" />)
     const textarea = screen.getByLabelText('Message') as HTMLTextAreaElement
 
-    // Type "/" → menu opens.
     await act(async () => {
-      fireEvent.change(textarea, { target: { value: '/' } })
+      fireEvent.change(textarea, { target: { value: '/help' } })
     })
     await act(async () => { await Promise.resolve() })
     await act(async () => { await Promise.resolve() })
-    expect(screen.queryByRole('listbox', { name: /slash commands/i })).toBeInTheDocument()
-
-    // First Enter picks the command — menu should close even though input
-    // still starts with "/".
     await act(async () => {
       fireEvent.keyDown(textarea, { key: 'Enter' })
     })
-    await act(async () => { await Promise.resolve() })
 
-    expect(textarea.value).toBe('/help')
-    expect(screen.queryByRole('listbox', { name: /slash commands/i })).not.toBeInTheDocument()
-
-    // Second Enter must submit, not re-fire the command.
-    const execBefore = calls.filter((c) => c.url === '/api/slash/execute').length
-    await act(async () => {
-      fireEvent.keyDown(textarea, { key: 'Enter' })
-    })
-    await act(async () => { await Promise.resolve() })
-
-    const execAfter = calls.filter((c) => c.url === '/api/slash/execute').length
-    expect(execAfter).toBe(execBefore)
-
-    // ChatInput now uses the streaming endpoint /api/chat/stream
-    const chatCall = calls.find(
-      (c) => c.url === '/api/chat/stream' || c.url === '/api/chat',
-    )
-    expect(chatCall).toBeDefined()
-    expect((chatCall?.body as { message: string }).message).toBe('/help')
+    expect(calls.find((c) => c.url === '/api/slash/execute')).toBeUndefined()
   })
 })

@@ -1,0 +1,13 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "claude-code.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "claude-code.labels" . | nindent 4 }}
+rules:
+  # Minimal permissions — extend here as the app requires Kubernetes API access.
+  # Currently empty: the pod does not call the Kubernetes API at runtime.
+  []
+{{- end }}

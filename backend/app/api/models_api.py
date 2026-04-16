@@ -93,7 +93,7 @@ def _has_tool_capability(base_url: str, model_name: str) -> bool:
             return "tools" in capabilities
         # Older Ollama: no capabilities field — fall through to prefix check
     except Exception:
-        pass
+        logger.debug("Ollama capability check failed for %s", model_name, exc_info=True)
 
     name_lower = model_name.lower()
     return any(name_lower.startswith(p) for p in _KNOWN_TOOL_CAPABLE_PREFIXES)

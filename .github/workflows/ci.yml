@@ -76,7 +76,6 @@ jobs:
 
       - name: Audit root dependencies
         run: bun audit --production
-        continue-on-error: true  # promote to required once baseline is clean
 
       - name: Install web dependencies
         working-directory: web

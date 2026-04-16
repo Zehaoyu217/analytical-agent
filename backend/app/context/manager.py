@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,7 +113,7 @@ class ContextManager:
                 kept_layers=survived,
             )
         except Exception:
-            pass
+            logger.warning("publish_compaction raised", exc_info=True)
 
     def set_turn(self, turn: int) -> None:
         self._turn = turn

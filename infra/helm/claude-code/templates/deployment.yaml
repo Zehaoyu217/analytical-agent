@@ -33,6 +33,9 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      # Give active sessions time to drain before the process is force-killed.
+      # Default 30s is too short for an agent mid-turn streaming a response.
+      terminationGracePeriodSeconds: 60
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -77,6 +80,14 @@ spec:
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            # Give the app up to 5 minutes to start before liveness kicks in.
+            # Prevents restart loops during slow cold starts (DuckDB init, skill loading).
+            failureThreshold: 30
+            periodSeconds: 10
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:

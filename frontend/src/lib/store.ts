@@ -93,6 +93,7 @@ interface ChatState {
 
   createConversation: () => string
   setActiveConversation: (id: string) => void
+  clearActiveConversation: () => void
   addMessage: (conversationId: string, msg: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (conversationId: string, messageId: string, patch: Partial<Message>) => void
   setConversationSessionId: (conversationId: string, sessionId: string) => void
@@ -162,6 +163,17 @@ export const useChatStore = create<ChatState>()(
       },
 
       setActiveConversation: (id) => set({ activeConversationId: id }),
+
+      clearActiveConversation: () =>
+        set((state) => {
+          const id = state.activeConversationId
+          if (!id) return {}
+          return {
+            conversations: state.conversations.map((c) =>
+              c.id === id ? { ...c, messages: [], updatedAt: Date.now() } : c,
+            ),
+          }
+        }),
 
       addMessage: (conversationId, msg) => {
         const id = nanoid()
@@ -305,11 +317,13 @@ export const useChatStore = create<ChatState>()(
         set((state) => ({ settings: { ...state.settings, ...patch } })),
 
       openSettings: () => {
-        // Stub — Settings panel lands in a later phase
+        set({ activeSection: 'settings' })
       },
 
       openSearch: () => {
-        // Stub — Global search lands in a later phase
+        // Global search UI not yet built — navigate to a section that
+        // makes sense until a dedicated search panel lands.
+        set({ activeSection: 'chat' })
       },
 
       setActiveSection: (section) => set({ activeSection: section }),

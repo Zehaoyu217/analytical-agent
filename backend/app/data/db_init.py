@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 _BANK_MACRO_DIR = Path(
     os.getenv(
         "BANK_MACRO_DATA_DIR",
-        "/Users/jay/Developer/bank-macro-analysis/data/processed",
+        "data/bank-macro/processed",
     )
 )
 
 _BANK_REVENUES_DIR = Path(
     os.getenv(
         "BANK_REVENUES_DATA_DIR",
-        "/Users/jay/Developer/bank-revenues/data/processed",
+        "data/bank-revenues/processed",
     )
 )
 
@@ -94,7 +94,7 @@ def _try_date_range(conn: duckdb.DuckDBPyConnection, tbl: str, col_names: list[s
                 row = conn.execute(f'SELECT MIN("{col}"), MAX("{col}") FROM "{tbl}"').fetchone()
                 return row if row else None
             except Exception:
-                pass
+                continue
     return None
 
 

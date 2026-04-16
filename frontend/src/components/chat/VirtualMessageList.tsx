@@ -29,7 +29,6 @@ export interface VirtualMessageListProps {
    * forward-compat.
    */
   isStreaming: boolean
-  conversationId?: string
   /**
    * Called whenever the user's proximity to the bottom of the scroll region
    * crosses the threshold. The second arg is a callable that performs a
@@ -43,7 +42,6 @@ export interface VirtualMessageListProps {
 export function VirtualMessageList({
   messages,
   isStreaming,
-  conversationId,
   onScrollStateChange,
   onRegenerate,
 }: VirtualMessageListProps) {
@@ -129,7 +127,6 @@ export function VirtualMessageList({
             >
               <MessageBubble
                 message={message}
-                conversationId={conversationId}
                 onRegenerate={onRegenerate ? () => onRegenerate(message.id) : undefined}
               />
             </div>

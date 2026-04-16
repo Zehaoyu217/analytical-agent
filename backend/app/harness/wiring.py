@@ -45,6 +45,7 @@ _skill_registry: SkillRegistry | None = None
 _pre_turn_injector: PreTurnInjector | None = None
 _cron_engine: Any = None  # CronEngine — late import avoids APScheduler at import time
 _toolset_resolver: Any = None  # ToolsetResolver — late import
+_semantic_compactor: Any = None  # SemanticCompactor — late import
 
 
 def _path_from_env(env_var: str, default: Path) -> Path:
@@ -309,9 +310,22 @@ def get_cron_engine(agent_factory: Any = None) -> Any:
     return _cron_engine
 
 
+def get_semantic_compactor() -> Any:
+    """Return the process-wide SemanticCompactor singleton (stage-2 compaction)."""
+    global _semantic_compactor
+    if _semantic_compactor is not None:
+        return _semantic_compactor
+    with _lock:
+        if _semantic_compactor is None:
+            from app.harness.semantic_compactor import SemanticCompactor  # noqa: PLC0415
+
+            _semantic_compactor = SemanticCompactor()
+    return _semantic_compactor
+
+
 def reset_singletons_for_tests() -> None:
     """Clear cached singletons so tests get fresh instances."""
-    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _pre_turn_injector, _cron_engine, _toolset_resolver
+    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _pre_turn_injector, _cron_engine, _toolset_resolver, _semantic_compactor
     with _lock:
         _artifact_store = None
         _session_db = None
@@ -320,3 +334,4 @@ def reset_singletons_for_tests() -> None:
         _pre_turn_injector = None
         _cron_engine = None
         _toolset_resolver = None
+        _semantic_compactor = None

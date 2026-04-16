@@ -163,19 +163,6 @@ describe('api-backend client', () => {
     expect(calls[0].method).toBe('GET')
   })
 
-  it('slash.execute POSTs command_id + args + conversation_id', async () => {
-    const { impl, calls } = mockFetch([{ body: { ok: true, message: 'ok' } }])
-    vi.stubGlobal('fetch', impl)
-    await backend.slash.execute('help', { x: 1 }, 'conv-1')
-    expect(calls[0].url).toBe('/api/slash/execute')
-    expect(calls[0].method).toBe('POST')
-    expect(calls[0].body).toEqual({
-      command_id: 'help',
-      args: { x: 1 },
-      conversation_id: 'conv-1',
-    })
-  })
-
   it('throws an Error on non-2xx with response body in message', async () => {
     const { impl } = mockFetch([
       { status: 404, body: 'conversation not found', contentType: 'text/plain' },

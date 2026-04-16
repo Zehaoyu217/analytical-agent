@@ -40,14 +40,6 @@ from app.wiki.engine import WikiEngine
 from app.wiki.schema import Finding
 
 
-def _lookup_frame(args: dict[str, Any]):
-    # Hook for DuckDB-backed frame lookup by name/id — wired up in the
-    # agent API layer. Placeholder here keeps the registration self-contained.
-    raise NotImplementedError(
-        "frame lookup: pass 'data' inline or wire DuckDB lookup in higher layer"
-    )
-
-
 def register_core_tools(
     dispatcher: ToolDispatcher,
     artifact_store: ArtifactStore,
@@ -57,6 +49,54 @@ def register_core_tools(
     registry: SkillRegistry | None = None,
     session_db: SessionDB | None = None,
 ) -> None:
+    def _lookup_frame(args: dict[str, Any]) -> "pd.DataFrame":
+        """Resolve a named or ID-referenced artifact into a pandas DataFrame.
+
+        Lookup order:
+          1. ``artifact_id`` key — direct ID lookup.
+          2. ``name`` / ``dataset_name`` / ``frame_name`` key — name lookup
+             (case-insensitive match against artifact name or title).
+
+        Raises ``ValueError`` with the list of available artifact names when
+        nothing is found so the model can self-correct.
+        """
+        import json as _json  # noqa: PLC0415
+
+        import pandas as pd  # noqa: PLC0415
+
+        artifact = None
+
+        if "artifact_id" in args:
+            artifact = artifact_store.get_artifact(session_id, str(args["artifact_id"]))
+
+        if artifact is None:
+            frame_name = (
+                args.get("name")
+                or args.get("dataset_name")
+                or args.get("frame_name")
+            )
+            if frame_name:
+                artifact = artifact_store.get_artifact_by_name(session_id, str(frame_name))
+
+        if artifact is None:
+            available = [
+                a.name or a.title
+                for a in artifact_store.get_artifacts(session_id)
+            ]
+            raise ValueError(
+                "frame not found — pass 'data' inline, or provide 'artifact_id' / 'name'. "
+                f"Available artifacts in this session: {available}"
+            )
+
+        try:
+            records = _json.loads(artifact.content)
+            return pd.DataFrame(records)
+        except Exception as exc:
+            raise ValueError(
+                f"artifact '{artifact.name or artifact.id}' content could not be parsed "
+                f"as tabular data: {exc}"
+            ) from exc
+
     def _load_skill_body(args: dict[str, Any]) -> dict:
         """Return the SKILL.md body with breadcrumb header and sub-skill catalog.
 

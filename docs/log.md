@@ -31,8 +31,59 @@ Entry shape:
 
 ## [Unreleased]
 
+<!-- Add new entries here as they happen. Above this line stays empty between releases. -->
+
+---
+
+## [v0.1.0] - 2026-04-16
+
+First tagged milestone. Closes the deepdive-audit gap-closure plan: cleanup, semantic-compaction wiring, parallel tool dispatch (Hermes H3b), inline-table fix-up synthesis (v4 P24), eval-scores ledger (v4 P27), and v2 spec-drift reconciliation. Full backend test suite green (579 passed, 10 skipped).
+
+### Security
+
+- **Sentinel injection hardened**: `__VEGA_SPEC__` and `__SAVED_ARTIFACT__` markers are now per-call UUIDs (`__VEGA_SPEC_{token}__`) generated in `_execute_python` and embedded as `_ARTIFACT_SENTINEL_TOKEN` — user sandbox code can no longer spoof artifact boundaries. (`api/chat_api.py`, `harness/sandbox_bootstrap.py`)
+- **CORS locked to env var**: `CORS_ORIGINS` must be set explicitly; no more wildcard bypass in production. (`api/main.py`)
+
+### Fixed
+
+- **`.mcp.json` MCP server path**: corrected `mcp-server/dist/index.js` → `mcp/dist/index.js` so the explorer MCP boots. (`.mcp.json`)
+- **Health endpoint mismatch**: `/health/live` and `/health/ready` routes now exist; Docker and Helm probes succeed. (`api/health.py`)
+- **`_lookup_frame` crash on named artifact**: fixed `None`-reference crash when `artifact_store`/`session_id` were not in scope; now a proper closure. (`harness/skill_tools.py`)
+- **`get_artifact_by_name` case comparison**: `a.name == nlower` → `a.name.lower() == nlower` — name lookups now actually work. (`artifacts/store.py`)
+- **Silent exceptions now logged**: 8 bare `except: pass` blocks across `events.py`, `context/manager.py`, `scheduler/engine.py`, `api/chat_api.py`, `api/models_api.py` now emit `logger.warning/debug`. (`various`)
+- **Session title populated on creation**: `create_session()` now derives `title` from the first 60 chars of `goal` when not supplied. (`storage/session_db.py`)
+- **Hardcoded developer paths removed**: `_BANK_MACRO_DIR` / `_BANK_REVENUES_DIR` default to relative paths; set `BANK_MACRO_DATA_DIR` env var to override. (`data/db_init.py`)
+
 ### Added
 
+- **Prometheus metrics**: `active_sessions` gauge + `http_requests_total` (via `prometheus-fastapi-instrumentator`) exposed at `/metrics`. (`app/metrics.py`, `app/main.py`)
+- **React ErrorBoundary**: `ErrorBoundary` component wraps App, SectionContent, and RightPanel — runtime component crashes are isolated instead of white-screening. (`frontend/src/components/ui/ErrorBoundary.tsx`)
+- **9 keyboard shortcuts wired**: `NEW_CONVERSATION`, `TOGGLE_SIDEBAR`, `OPEN_SETTINGS`, `FOCUS_CHAT`, `FOCUS_DEVTOOLS`, `PREV_CONVERSATION`, `NEXT_CONVERSATION`, `GLOBAL_SEARCH`, `SWITCH_1-9` — all now registered and functional. (`frontend/src/App.tsx`)
+- **E2E smoke suite**: 5 Playwright tests (app load, chat input, icon rail, theme toggle, section navigation) — all green. (`frontend/e2e/smoke.spec.ts`)
+- **`PreTurnInjector.invalidate_caches()`**: explicit invalidation method for tests and future hot-reload support. (`harness/injector.py`)
+
+### Changed
+
+- **Slash commands dispatch client-side**: `/help`, `/clear`, `/new`, `/settings` now invoke store actions (`openHelp`, `clearActiveConversation`, `createConversation`, `setActiveSection`) directly instead of being sent as chat messages. (`frontend/src/components/chat/ChatInput.tsx`, `frontend/src/lib/store.ts`)
+- **`openSettings()` / `openSearch()` de-stubbed**: `openSettings` navigates to `'settings'` section; `openSearch` navigates to `'chat'` pending a dedicated search panel. (`frontend/src/lib/store.ts`)
+- **`VegaChart.tsx` `as any` removed**: cast replaced with `VisualizationSpec` from `vega-embed`. (`frontend/src/components/chat/VegaChart.tsx`)
+- **`conversationId` prop removed from `MessageBubble`**: was declared but never used — removed from interface, props, and all callers. (`frontend/src/components/chat/MessageBubble.tsx`)
+- **Helm memory/CPU limits raised**: 512Mi/2Gi and 500m/2 CPU (was 256Mi/512Mi and 250m/500m). (`infra/helm/claude-code/values.yaml`)
+- **Docker Compose session limits updated**: `MAX_SESSIONS` 50, per-user 5, per-hour 20. (`infra/docker/docker-compose.yml`)
+- **`nginx.conf` deprecated header**: file marked as superseded by Caddyfile. (`infra/docker/nginx.conf`)
+
+### Removed
+
+- **Dead `ToolCallsPanel.tsx`**: removed orphaned right-panel component superseded by `TerminalPanel.tsx`; only references were in docs. (`frontend/src/components/right-panel/ToolCallsPanel.tsx`)
+- **`POST /api/slash/execute` endpoint**: legacy backend dispatch removed — slash commands are now dispatched client-side. Frontend `backend.slash.execute` method removed in lockstep. (`backend/app/api/slash_api.py`, `frontend/src/lib/api-backend.ts`)
+
+### Added
+
+- **Semantic compaction wired into agent loop (stage 2)**: `AgentLoop` now invokes `SemanticCompactor` after `MicroCompactor` when the conversation still exceeds 80% of the context token budget; `run_stream` emits a new `semantic_compact` SSE event. (`harness/loop.py`, `harness/wiring.py`, `api/chat_api.py`)
+- **Parallel-safe tool dispatch (Hermes H3b)**: read-only tools (`skill`, `read_file`, `glob_files`, `search_text`, `session_search`, `get_artifact`, `get_context_status`) now dispatch concurrently via `ThreadPoolExecutor` (max 8 workers) when the model emits ≥2 calls and none are mutating. Mutating / sandbox / recursive tools (`write_working`, `todo_write`, `promote_finding`, `save_artifact`, `update_artifact`, `delegate_subagent`, `execute_python`, `sandbox.run`) stay strictly serial. Result and SSE event order preserves submission order. (`harness/loop.py`)
+- **Inline-table fix-up synthesis (v4 P24)**: when the user explicitly asked to *show / display / list* rows but the model's response cited an artifact instead of including a markdown table, `AgentLoop` now runs a single fix-up completion call after the loop ends, re-synthesising the response with an inline table built from the most recent tool-result data. Emits a new `inline_table` SSE event when the rewrite is adopted. Never crashes the turn on provider errors; never adopts a rewrite that still lacks a table. (`harness/loop.py`)
+- **Eval scores ledger (v4 P27)**: new `docs/eval_scores.md` running ledger seeded with two historical rows (2026-04-15 baseline + post-v3 fixes), with "How to add a row" workflow, "How to interpret a row" guidance, and a "Persistent failures to watch" subtable that pre-flags table_correctness and false_positive_handling as items to verify on next eval run. Cross-linked from existing eval docs. (`docs/eval_scores.md`)
+- **v2 spec-drift notes**: added "Spec Drift Note (2026-04-16)" callouts to `docs/progressive_plan_v2.md` Phases 7, 8, 9, 10, 11, 13 documenting that planned subcomponents (`SkillDependencyGraph.tsx`, `AgentCard.tsx`, `PromptList.tsx`/`PromptDetail.tsx`, `LayerBreakdown.tsx`/`CompactionHistory.tsx`/`CompactionDiff.tsx`, `VegaChart.tsx`/`ArtifactCard.tsx`, `SectionRouter.tsx`) were intentionally collapsed into their `sections/<Area>Section.tsx` (or `App.tsx`/`ArtifactsPanel.tsx`) parents, and where each one actually lives. (`docs/progressive_plan_v2.md`)
 - **`statistical_gotchas` level-1 skill**: moved 14-entry gotcha catalog from always-injected system prompt to an on-demand skill. Saves ~250 tokens per turn; agent loads it explicitly when needed. (`skills/statistical_gotchas/`) — prompt cleanup
 - **Session file auto-cleanup**: `WikiEngine.write_session_notes` now prunes session files older than 3 days automatically, preventing unbounded accumulation in `knowledge/wiki/sessions/`. (`wiki/engine.py`)
 - **`log.md` 100 MB cap**: `WikiEngine.append_log` trims the oldest entries when the log exceeds 100 MB, preserving the header and newest lines. (`wiki/engine.py`)

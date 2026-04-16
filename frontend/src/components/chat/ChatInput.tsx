@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import { Send, Square } from 'lucide-react'
 import { useChatStore } from '@/lib/store'
 import { useDevtoolsStore } from '@/stores/devtools'
+import { useCommandRegistry } from '@/hooks/useCommandRegistry'
 import { streamChatMessage } from '@/lib/api-chat'
 import { backend, type SlashCommand } from '@/lib/api-backend'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,10 @@ export function ChatInput({ conversationId }: ChatInputProps) {
   const setDraftInput = useChatStore((s) => s.setDraftInput)
   const planMode = useChatStore((s) => s.planMode)
   const togglePlanMode = useChatStore((s) => s.togglePlanMode)
+  const clearActiveConversation = useChatStore((s) => s.clearActiveConversation)
+  const createConversation = useChatStore((s) => s.createConversation)
+  const setActiveSection = useChatStore((s) => s.setActiveSection)
+  const { openHelp } = useCommandRegistry()
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -111,22 +116,28 @@ export function ChatInput({ conversationId }: ChatInputProps) {
 
   const pickSlashCommand = useCallback(
     (cmd: SlashCommand) => {
-      setInput(cmd.label)
+      switch (cmd.id) {
+        case 'help':
+          openHelp()
+          break
+        case 'clear':
+          clearActiveConversation()
+          break
+        case 'new':
+          createConversation()
+          break
+        case 'settings':
+          setActiveSection('settings')
+          break
+      }
+      setInput('')
       setSlashLocked(true)
-      // Fire-and-forget; we don't want execute failures to block the UX.
-      backend.slash
-        .execute(cmd.id, {}, conversationId)
-        .catch((err: unknown) => {
-          if (typeof window !== 'undefined') {
-            window.console?.warn?.('slash execute failed', err)
-          }
-        })
       requestAnimationFrame(() => {
         textareaRef.current?.focus()
         adjustHeight()
       })
     },
-    [conversationId, adjustHeight],
+    [openHelp, clearActiveConversation, createConversation, setActiveSection, adjustHeight],
   )
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -522,6 +533,7 @@ export function ChatInput({ conversationId }: ChatInputProps) {
             <textarea
               id="chat-input"
               ref={textareaRef}
+              data-chat-input
               value={input}
               onChange={handleChange}
               onKeyDown={handleKeyDown}

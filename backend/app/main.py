@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -49,13 +50,26 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    _cors_origins = [
+        o.strip()
+        for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        if o.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator  # noqa: PLC0415
+        from app.metrics import active_sessions_gauge  # noqa: PLC0415, F401
+
+        Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    except ImportError:
+        pass  # prometheus-fastapi-instrumentator not installed — metrics endpoint disabled
 
     app.include_router(health_router)
     app.include_router(context_router)

@@ -105,14 +105,93 @@ within testpaths, so fixtures will still be available to data_profiler tests.
 **Source:** Gap analysis of NousResearch/hermes-agent vs CCA
 **Dependency order:** H1 → H2 → H3 → H4 → H5 → H6 (strict sequential)
 
+**Status (post deepdive 2026-04-16):** 5.5/6 complete; only H3b (parallel tool dispatch) remains.
+
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| H1 | CCAGENT_HOME path unification | **pending** |
-| H2 | sessions.db + FTS5 + trace migration | **pending** |
-| H3 | Injection scanning + parallel tools + skills cache | **pending** |
-| H4 | Semantic compression + Cron/APScheduler | **pending** |
-| H5 | Toolset composition + Batch runner | **pending** |
-| H6 | MCP sampling callbacks + Theme system | **pending** |
+| H1 | CCAGENT_HOME path unification | **complete** — `core/home.py` shipped |
+| H2 | sessions.db + FTS5 + trace migration | **complete** — `storage/session_db.py`, FTS5 search, recorder rewrite |
+| H3a | Injection scanning | **complete** — `harness/injection_guard.py` + injector wiring |
+| H3b | Parallel-safe tool dispatch | **complete** — Gap-Closure Phase 3 (2026-04-16) |
+| H3c | Static/dynamic prompt split (cache-preservation) | **complete** — `injector.build_static/build_dynamic`, dynamic merged into last user message |
+| H4a | APScheduler cron engine | **complete** — `scheduler/engine.py` + `scheduler_api.py` |
+| H4b | SemanticCompactor module | **built but ORPHANED** — file exists, not invoked from `loop.py` (see Gap-Closure Phase 2) |
+| H5 | Toolset composition + batch runner | **complete** — `harness/toolsets.py` + `scripts/batch_runner.py` |
+| H6 | MCP sampling + branding theme | **complete** — `mcp_sampling_api.py`, `config/branding.yaml`, frontend `useBranding` |
+
+---
+
+## Gap-Closure Plan — v0.1.0 Release (2026-04-16)
+
+**Source:** `docs/deepdive-audit-2026-04-16.md`
+**Goal:** Close every audited gap and cut v0.1.0.
+
+| # | Phase | Status |
+|---|-------|--------|
+| 1 | Cleanup — dead code, broken config, slash stubs | **complete** (2026-04-16) |
+| 2 | Wire `SemanticCompactor` into `loop.py` (or relocate to `experimental/`) | **complete** (2026-04-16) |
+| 3 | Hermes H3b — parallel-safe tool dispatch | **complete** (2026-04-16) |
+| 4 | v4 P24 — inline-table synthesis (`_user_wants_inline_table` + `inline_table` SSE) | **complete** (2026-04-16) |
+| 5 | v4 P27 — eval scores ledger (`docs/eval_scores.md`) | **complete** (2026-04-16) |
+| 6 | v2 spec drift reconciliation (decide on missing component dirs) | **complete** (2026-04-16) |
+| 7 | Verify + cut v0.1.0 (re-audit, log.md `[Unreleased]` → `v0.1.0`, tag) | **in_progress** |
+
+### Phase 7 — In Progress
+
+- ✅ Backend test suite re-verified: `pytest app/harness/tests/ tests/ -q` → **579 passed, 10 skipped** (skips are network/Ollama-dependent)
+- ✅ `docs/log.md` cut: opened fresh `[Unreleased]` header above; renamed prior `[Unreleased]` block to `## [v0.1.0] - 2026-04-16` with a release-note paragraph
+- ✅ Added Phase 5 + Phase 6 entries to the v0.1.0 block (`Eval scores ledger`, `v2 spec-drift notes`)
+- ⏸ **PAUSED — needs user confirmation:** working tree has 50+ uncommitted files from Phases 1–6 (cleanup, semantic-compaction wiring, parallel dispatch, inline-table, eval ledger, drift notes). Cutting v0.1.0 requires committing this work and tagging the resulting commit. Both actions are durable + visible to other contributors → confirming with user before proceeding.
+
+### Phase 6 — Done
+
+- Audited frontend tree: confirmed `components/skills/`, `components/agents/`, `components/prompts/`, `components/context/` directories were never created; planned subcomponents were intentionally collapsed into their `sections/<Area>Section.tsx` files
+- Confirmed `right-panel/`: `VegaChart.tsx` and `ArtifactCard.tsx` not created (inlined in `ArtifactsPanel.tsx`); `DataTable.tsx` and `TerminalPanel.tsx` were extracted as planned
+- Confirmed `layout/SectionRouter.tsx` not created (routing is inline in `App.tsx`); `IconRail.tsx` and `ContextBar.tsx` were extracted as planned
+- Added "Spec Drift Note (2026-04-16)" callouts to `docs/progressive_plan_v2.md` Phases 7, 8, 9, 10, 11, 13 explaining the inline-collapse decision and where each subcomponent lives
+- Added a header note to the "Frontend New Files Summary" section pointing future contributors to the inline drift notes
+- No code changes — pure documentation reconciliation
+
+### Phase 5 — Done
+
+- New `docs/eval_scores.md` running ledger with score table, "how to add a row" + "how to interpret a row" sections, and a "persistent failures to watch" subtable that pre-flags P24 (table_correctness) and P26 (false_positive_handling) as items to verify on next eval run
+- Seeded with two rows from `progress_eval_results_v1.md`: 2026-04-15 baseline (CFDF) and post-v3 fixes (CBCB)
+- Cross-linked from existing eval docs (`progress_eval_results_v1.md`, `eval-readiness-audit.md`, `eval-judge-setup.md`, `log.md`)
+- No code changes — pure documentation artifact (matches v4 P27 spec)
+
+### Phase 4 — Done
+
+- `loop.py` adds `_user_wants_inline_table()` (regex `(show|display|list|give me) … (table|top N|rows)`) and `_response_has_table()` (markdown `^|.+|.+|`)
+- New `_INLINE_TABLE_SYSTEM` prompt + `_build_inline_table_messages()` helper surfaces the most recent 3 tool-result payloads (≤1500 chars each) so the rewrite has the raw data without re-calling tools
+- `AgentLoop._maybe_inject_inline_table()` runs after the main loop in both `run()` and `run_stream()`; only fires when `stop_reason ∈ {end_turn, max_steps}` AND user asked AND response lacks a table; never crashes the turn (catches `BaseException` on the fix-up call); only adopts the rewrite if the new text actually contains a table
+- `run_stream` emits a new `inline_table` SSE event (with `step` + `reason`) on injection so the frontend can show the user a "rewritten with inline table" indicator
+- Tests: `test_inline_table_injection.py` — 14 cases covering predicates × 9, run() injection paths × 5, run_stream events × 3, system-prompt isolation × 1; full harness 174/174 green
+- Frontend: no new component needed — markdown tables already render via `MessageBubble`
+
+### Phase 3 — Done
+
+- `loop.py` adds `PARALLEL_SAFE_TOOLS` (7 read-only tools) + `NEVER_PARALLEL_TOOLS` (8 mutating/sandbox/recursive tools) + `_should_parallelize()` predicate (conservative: requires ≥2 calls, all in safe set, none in never set)
+- New `_dispatch_calls()` helper batches sequential vs `ThreadPoolExecutor`-parallel dispatch (max 8 workers); preserves submission order via `ex.map`
+- `run()` and `run_stream()` both call `_dispatch_calls`; `run_stream` emits all `tool_call` previews first, then results in order via shared `_emit_post_dispatch_events()` helper
+- Falls back to serial when any never-tool present (a2a_start/a2a_end ordering preserved)
+- Tests: `test_parallel_tools.py` — 11 cases (predicate logic × 6, sync run ordering × 3, streaming order × 3, message append order × 1); full harness suite 156/156 green
+- Deviation from Hermes spec: `sandbox.run` placed in NEVER set (our sandbox shares bootstrap globals — concurrent invocation would race on dataset state)
+
+### Phase 2 — Done
+
+- `AgentLoop` now accepts `semantic_compactor: SemanticCompactor | None` and `context_token_budget: int = 200_000`
+- New `_maybe_semantic_compact()` runs after `MicroCompactor.maybe_compact()`; calls `should_compact(messages, tokens, budget)` and `compact(messages, client)` only when over the 80% threshold
+- `run_stream` emits a new `semantic_compact` SSE event (turns_summarized, tokens_before/after, summary_preview)
+- `harness/wiring.py` exposes `get_semantic_compactor()` singleton; `chat_api.py` passes it to both AgentLoop construction sites
+- Tests: `test_loop_semantic_compaction.py` (4 cases — skipped under budget, invoked over budget, stream event emitted, no-op when not wired); existing `test_semantic_compactor.py` + `test_loop.py` still green (21 total)
+
+### Phase 1 — Done
+
+- Deleted dead `frontend/src/components/right-panel/ToolCallsPanel.tsx` (superseded by `TerminalPanel`)
+- Fixed `.mcp.json`: `mcp-server/dist/index.js` → `mcp/dist/index.js`
+- Slash commands now dispatch client-side: `/help`, `/clear`, `/new`, `/settings` invoke store actions / `useCommandRegistry` directly; no more sending `/help` as a chat message
+- Removed `POST /api/slash/execute` backend endpoint and `backend.slash.execute` client method (legacy stub)
+- Tests: `SlashMenu.test.tsx` (5 tests), `test_slash_api.py` (2 tests), `api-backend.test.ts` (slash.execute removed); all green
 
 ---
 
