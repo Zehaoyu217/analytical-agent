@@ -1,15 +1,18 @@
-"""Table CSS stub contract tests.
+"""Table CSS contract tests.
 
-The full theme system (tokens.yaml / ThemeTokens / variant-aware CSS) was
-never implemented. ``render_table_css`` is a deliberate stub that returns
-a single monospace, dark, border-collapsed table style for every variant.
-These tests pin the stub contract so we notice if the stub drifts or the
-full theme system is wired in (at which point these tests should be
-replaced with variant-aware assertions).
+``render_table_css`` returns a ``<style>`` block for the ``.ga-table``
+scoped selector family.  These tests verify the output shape, required
+selectors, and variant-arg behaviour.
 """
 from __future__ import annotations
 
 from config.themes.table_css import render_table_css
+
+
+def test_returns_style_block() -> None:
+    css = render_table_css()
+    assert css.strip().startswith("<style>")
+    assert css.strip().endswith("</style>")
 
 
 def test_returns_nonempty_css() -> None:
@@ -18,14 +21,14 @@ def test_returns_nonempty_css() -> None:
     assert "border-collapse: collapse" in css
 
 
-def test_contains_table_and_cell_selectors() -> None:
+def test_contains_ga_table_scoped_selectors() -> None:
     css = render_table_css()
-    assert "table {" in css
-    assert "th, td {" in css
+    assert ".ga-table {" in css
+    assert ".ga-table th" in css and ".ga-table td" in css
 
 
 def test_variant_arg_accepted_but_ignored() -> None:
-    """Stub accepts any variant name without raising; output is identical."""
+    """Variant arg is accepted; output is identical for all values."""
     default = render_table_css()
     editorial = render_table_css(variant="editorial")
     print_variant = render_table_css(variant="print")
