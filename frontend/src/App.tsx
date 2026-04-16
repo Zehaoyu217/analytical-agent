@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useBranding, prefetchBranding } from '@/hooks/useBranding'
 import { AnnouncerProvider } from '@/components/a11y/Announcer'
 import { SkipToContent } from '@/components/a11y/SkipToContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
@@ -100,9 +101,18 @@ function SectionContent() {
   }
 }
 
+// Kick off the branding fetch before any component mounts.
+prefetchBranding()
+
 export default function App() {
   const hash = useHashRoute()
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
+  const branding = useBranding()
+
+  // Sync browser tab title with branding config.
+  useEffect(() => {
+    document.title = branding.ui_title
+  }, [branding.ui_title])
 
   if (monitorMatch) {
     return <MonitorPage sessionId={monitorMatch[1]} />

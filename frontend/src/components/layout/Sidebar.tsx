@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useCallback } from 'react'
 import { useChatStore, type SidebarTab } from '@/lib/store'
+import { useBranding } from '@/hooks/useBranding'
 import { cn } from '@/lib/utils'
 import { DevToolsTab } from './DevToolsTab'
 import { HistoryTab } from '@/components/sidebar/HistoryTab'
@@ -39,6 +40,7 @@ export function Sidebar() {
   const sidebarOpen = useChatStore((s) => s.sidebarOpen)
   const sidebarWidth = useChatStore((s) => s.sidebarWidth)
   const sidebarTab = useChatStore((s) => s.sidebarTab)
+  const { ui_title } = useBranding()
   const toggleSidebar = useChatStore((s) => s.toggleSidebar)
   const setSidebarTab = useChatStore((s) => s.setSidebarTab)
   const conversations = useChatStore((s) => s.conversations)
@@ -94,7 +96,7 @@ export function Sidebar() {
       >
         {sidebarOpen && (
           <span className="flex-1 text-sm font-semibold text-surface-100 px-4 py-3 truncate">
-            Analytical Agent
+            {ui_title}
           </span>
         )}
 

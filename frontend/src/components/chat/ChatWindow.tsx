@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useChatStore } from '@/lib/store'
+import { useBranding } from '@/hooks/useBranding'
 import { extractTextContent } from '@/lib/utils'
 import { VirtualMessageList } from './VirtualMessageList'
 import { ScrollToBottom } from './ScrollToBottom'
@@ -19,6 +20,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   )
   const setDraftInput = useChatStore((s) => s.setDraftInput)
   const deleteMessage = useChatStore((s) => s.deleteMessage)
+  const { ui_title } = useBranding()
 
   const messages = conversation?.messages ?? []
   const isStreaming = messages.some((m) => m.status === 'streaming')
@@ -92,7 +94,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         <div className="max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-3 mb-6">
             <span className="text-[11px] font-mono tracking-[0.25em] text-surface-500 uppercase">
-              Analytical Agent
+              {ui_title}
             </span>
             <span className="w-px h-3 bg-surface-700 flex-shrink-0" aria-hidden />
             <span className="text-[11px] font-mono tracking-[0.18em] text-brand-accent/80 uppercase">

@@ -21,6 +21,8 @@ from app.api.session_search_api import router as session_search_router
 from app.api.scheduler_api import router as scheduler_router
 from app.api.todos_api import router as todos_router
 from app.api.trace_api import router as trace_router
+from app.api.mcp_sampling_api import router as mcp_sampling_router
+from app.api.config_api import router as config_router
 
 
 @asynccontextmanager
@@ -73,5 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(hooks_router)
     app.include_router(session_search_router)
     app.include_router(scheduler_router)
+    app.include_router(mcp_sampling_router)
+    app.include_router(config_router)
 
     return app

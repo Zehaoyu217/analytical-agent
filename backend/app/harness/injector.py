@@ -55,11 +55,13 @@ class PreTurnInjector:
         wiki: _Wiki,
         skill_registry: _SkillRegistry,
         gotcha_index: _GotchaIndex,
+        agent_persona: str = "",
     ) -> None:
         self._prompt_path = Path(prompt_path)
         self._wiki = wiki
         self._skills = skill_registry
         self._gotchas = gotcha_index
+        self._agent_persona = agent_persona
 
     def _static(self) -> str:
         return self._prompt_path.read_text(encoding="utf-8").rstrip()
@@ -177,11 +179,14 @@ class PreTurnInjector:
 
         Includes: base prompt text, skill catalog, statistical gotchas.
         """
-        return "".join([
-            self._static(),
-            self._skill_menu(),
-            self._gotchas_section(),
-        ])
+        parts: list[str] = []
+        if self._agent_persona:
+            parts.append(self._agent_persona.rstrip())
+            parts.append("\n\n")
+        parts.append(self._static())
+        parts.append(self._skill_menu())
+        parts.append(self._gotchas_section())
+        return "".join(parts)
 
     def build_dynamic(self, inputs: InjectorInputs) -> str | None:
         """Build the per-turn dynamic context fragment.

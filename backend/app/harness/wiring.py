@@ -235,15 +235,18 @@ def get_pre_turn_injector() -> PreTurnInjector:
         return _pre_turn_injector
     with _lock:
         if _pre_turn_injector is None:
+            from app.config import load_branding  # noqa: PLC0415
             prompt_path = _path_from_env("CCAGENT_PROMPT_PATH", _DEFAULT_PROMPT_PATH)
             wiki = get_wiki_engine()
             registry = get_skill_registry()
             gotchas = get_gotcha_index()
+            branding = load_branding()
             _pre_turn_injector = PreTurnInjector(
                 prompt_path=prompt_path,
                 wiki=_WikiInjectorAdapter(wiki),
                 skill_registry=_SkillMenuAdapter(registry),
                 gotcha_index=gotchas,
+                agent_persona=branding.agent_persona,
             )
     return _pre_turn_injector
 
