@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from app.harness.injection_guard import InjectionAttemptError, scan
 from app.skills.base import SkillNode
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,9 +69,17 @@ class PreTurnInjector:
         idx = self._wiki.index_digest()
         body = []
         if working:
-            body.append("### working.md\n\n" + working)
+            try:
+                scan(working, source="wiki/working.md")
+                body.append("### working.md\n\n" + working)
+            except InjectionAttemptError:
+                logger.warning("Injection attempt detected in wiki/working.md — block skipped")
         if idx:
-            body.append("### index.md\n\n" + idx)
+            try:
+                scan(idx, source="wiki/index.md")
+                body.append("### index.md\n\n" + idx)
+            except InjectionAttemptError:
+                logger.warning("Injection attempt detected in wiki/index.md — block skipped")
         if not body:
             return ""
         return "\n\n## Operational State\n\n" + "\n\n".join(body)
@@ -124,6 +136,11 @@ class PreTurnInjector:
         notes = self._wiki.latest_session_notes(exclude_session_id=session_id)
         if not notes.strip():
             return ""
+        try:
+            scan(notes, source="wiki/session_notes")
+        except InjectionAttemptError:
+            logger.warning("Injection attempt detected in session notes — block skipped")
+            return ""
         return "\n\n## Prior Session Memory\n\n" + notes.strip()
 
     def _token_budget_section(self, budget: TokenBudget | None) -> str:
@@ -150,7 +167,60 @@ class PreTurnInjector:
         ]
         return "\n\n" + "\n".join(lines)
 
+    def build_static(self) -> str:
+        """Build the stable, per-session part of the system prompt.
+
+        Call this **once** at session start and pass the result as the ``system``
+        parameter to every LLM call.  Because the content never changes within a
+        session, the Anthropic API can cache the prefix and avoid re-encoding it
+        on every turn.
+
+        Includes: base prompt text, skill catalog, statistical gotchas.
+        """
+        return "".join([
+            self._static(),
+            self._skill_menu(),
+            self._gotchas_section(),
+        ])
+
+    def build_dynamic(self, inputs: InjectorInputs) -> str | None:
+        """Build the per-turn dynamic context fragment.
+
+        Call this **each turn**.  Returns ``None`` when there is nothing to
+        inject (all sources empty).  When non-``None``, the caller must merge
+        the result *into* the last user message content — prepend it — rather
+        than inserting it as a separate message (the Anthropic API rejects
+        consecutive user-role messages).
+
+        Includes: wiki operational state, prior session memory, active dataset
+        profile, token-budget guidance, plan-mode instructions, and any extras.
+        """
+        parts: list[str] = []
+        op = self._operational_state()
+        if op:
+            parts.append(op)
+        mem = self._session_memory_section(inputs.session_id)
+        if mem:
+            parts.append(mem)
+        profile = self._profile_section(inputs.active_profile_summary)
+        if profile:
+            parts.append(profile)
+        budget = self._token_budget_section(inputs.token_budget)
+        if budget:
+            parts.append(budget)
+        plan = self._plan_mode_section(inputs.plan_mode)
+        if plan:
+            parts.append(plan)
+        for key, value in inputs.extras.items():
+            parts.append(f"\n\n## {key}\n\n{value.strip()}")
+        return "".join(parts) if parts else None
+
     def build(self, inputs: InjectorInputs) -> str:
+        """Build the full combined system prompt (static + dynamic).
+
+        Kept for backward compatibility with callers that have not yet been
+        updated to use :meth:`build_static` + :meth:`build_dynamic`.
+        """
         parts = [
             self._static(),
             self._operational_state(),

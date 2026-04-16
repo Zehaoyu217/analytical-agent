@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from app.harness.clients.base import (
     CompletionRequest,
     Message,
     ModelClient,
+    ToolCall,
     ToolSchema,
 )
 from app.harness.compactor import MicroCompactor
@@ -21,6 +24,38 @@ from app.harness.guardrails.tiers import apply_tier
 from app.harness.guardrails.types import GuardrailOutcome
 from app.harness.stream_events import StreamEvent
 from app.harness.turn_state import TurnState
+
+if TYPE_CHECKING:
+    from app.harness.injector import InjectorInputs, PreTurnInjector
+
+# ── Parallel tool execution policy ────────────────────────────────────────────
+
+# Tools that are safe to dispatch concurrently: read-only or fully isolated.
+PARALLEL_SAFE_TOOLS: frozenset[str] = frozenset({
+    "skill",
+    "sandbox.run",
+    "execute_python",
+    "session_search",
+})
+
+# Tools that must never run concurrently: they mutate shared state.
+NEVER_PARALLEL_TOOLS: frozenset[str] = frozenset({
+    "delegate_subagent",
+    "write_working",
+    "promote_finding",
+    "save_artifact",
+    "todo_write",
+    "todo_read",
+})
+
+
+def _should_parallelize(calls: list[ToolCall]) -> bool:
+    """Return True when every call in the batch is safe to run concurrently."""
+    return (
+        len(calls) >= 2
+        and all(c.name in PARALLEL_SAFE_TOOLS for c in calls)
+        and not any(c.name in NEVER_PARALLEL_TOOLS for c in calls)
+    )
 
 
 @dataclass
@@ -52,7 +87,21 @@ class AgentLoop:
         max_steps: int = 12,
         scratchpad: str = "",
         tools: tuple[ToolSchema, ...] = (),
+        injector: PreTurnInjector | None = None,
+        injector_inputs: InjectorInputs | None = None,
     ) -> LoopOutcome:
+        # Build static system prompt from injector when provided (cache-preservation).
+        if injector is not None:
+            system = injector.build_static()
+
+        # Merge per-turn dynamic context into the initial user message.
+        # Must be prepended to the message content — NOT a separate user message,
+        # because the Anthropic API rejects consecutive user-role entries.
+        if injector is not None and injector_inputs is not None:
+            dynamic_ctx = injector.build_dynamic(injector_inputs)
+            if dynamic_ctx:
+                user_message = f"{dynamic_ctx}\n\n{user_message}"
+
         state = TurnState(dataset_loaded=dataset_loaded, scratchpad=scratchpad)
         messages: list[Message] = [Message(role="user", content=user_message)]
         outcomes: list[GuardrailOutcome] = []
@@ -110,6 +159,9 @@ class AgentLoop:
                 content=resp.text or "",
                 tool_calls=tuple(resp.tool_calls),
             ))
+
+            # ── Phase 1: Pre-gate and pre-hooks ───────────────────────────────
+            _scheduled: list[ToolCall] = []
             for call in resp.tool_calls:
                 pre_findings = pre_tool_gate(
                     call, turn_trace=state.as_trace(),
@@ -135,9 +187,24 @@ class AgentLoop:
                         }),
                     ))
                     continue
-
                 self._hook_runner.run_pre(call.name, call.arguments)
-                result: ToolResult = self._dispatcher.dispatch(call)
+                _scheduled.append(call)
+
+            # ── Phase 2: Dispatch (parallel or sequential) ────────────────────
+            _results: dict[str, ToolResult] = {}
+            if _should_parallelize(_scheduled):
+                with ThreadPoolExecutor(max_workers=len(_scheduled)) as pool:
+                    for call, result in zip(
+                        _scheduled, pool.map(self._dispatcher.dispatch, _scheduled)
+                    ):
+                        _results[call.id] = result
+            else:
+                for call in _scheduled:
+                    _results[call.id] = self._dispatcher.dispatch(call)
+
+            # ── Phase 3: Post-process ─────────────────────────────────────────
+            for call in _scheduled:
+                result = _results[call.id]
                 self._hook_runner.run_post(
                     call.name,
                     result.payload if isinstance(result.payload, dict) else {},
@@ -145,7 +212,6 @@ class AgentLoop:
                 report = post_tool(result)
                 for aid in report.new_artifact_ids:
                     state.record_artifact(aid)
-                # Keep scratchpad in sync when the agent writes working.md.
                 if call.name == "write_working" and result.ok:
                     new_pad = (result.payload or {}).get("content", "")
                     if new_pad:
@@ -159,8 +225,10 @@ class AgentLoop:
                 )
                 content = json.dumps(_serializable(result.payload))
                 if report.trimmed_stdout:
-                    content = json.dumps({"artifact_refs": list(report.new_artifact_ids),
-                                          "trimmed_preview": report.trimmed_stdout})
+                    content = json.dumps({
+                        "artifact_refs": list(report.new_artifact_ids),
+                        "trimmed_preview": report.trimmed_stdout,
+                    })
                 messages.append(Message(
                     role="tool", tool_use_id=call.id,
                     name=call.name, content=content,
@@ -190,6 +258,8 @@ class AgentLoop:
         max_steps: int = 12,
         scratchpad: str = "",
         tools: tuple[ToolSchema, ...] = (),
+        injector: PreTurnInjector | None = None,
+        injector_inputs: InjectorInputs | None = None,
     ) -> Generator[StreamEvent, None, None]:
         """Run the agent loop, yielding a StreamEvent for each notable moment.
 
@@ -200,7 +270,24 @@ class AgentLoop:
         A ``scratchpad_delta`` event is emitted whenever the agent calls the
         ``write_working`` tool, carrying the full new scratchpad content so the
         UI can show live reasoning.
+
+        When *injector* is provided, the static system prompt is built via
+        ``build_static()`` (overriding the *system* parameter) and per-turn
+        dynamic context is merged into the initial user message before the first
+        LLM call, preserving Anthropic's prompt-cache prefix.
         """
+        # Build static system prompt from injector when provided (cache-preservation).
+        if injector is not None:
+            system = injector.build_static()
+
+        # Merge per-turn dynamic context into the initial user message.
+        # Must be prepended to the message content — NOT a separate user message,
+        # because the Anthropic API rejects consecutive user-role entries.
+        if injector is not None and injector_inputs is not None:
+            dynamic_ctx = injector.build_dynamic(injector_inputs)
+            if dynamic_ctx:
+                user_message = f"{dynamic_ctx}\n\n{user_message}"
+
         state = TurnState(dataset_loaded=dataset_loaded, scratchpad=scratchpad)
         messages: list[Message] = [Message(role="user", content=user_message)]
         outcomes: list[GuardrailOutcome] = []
@@ -330,6 +417,11 @@ class AgentLoop:
                 content=resp.text or "",
                 tool_calls=tuple(resp.tool_calls),
             ))
+
+            # ── Phase 1: Pre-gate, pre-hooks, and streaming tool_call events ──
+            _scheduled: list[ToolCall] = []
+            _a2a_calls: set[str] = set()
+
             for call in resp.tool_calls:
                 yield StreamEvent(
                     type="tool_call",
@@ -375,8 +467,8 @@ class AgentLoop:
 
                 # Emit a2a_start before sub-agent delegation so the parent
                 # client can show a nested progress indicator.
-                is_a2a = call.name == "delegate_subagent"
-                if is_a2a:
+                if call.name == "delegate_subagent":
+                    _a2a_calls.add(call.id)
                     task_preview = str(call.arguments.get("task", ""))[:200]
                     yield StreamEvent(
                         type="a2a_start",
@@ -388,19 +480,45 @@ class AgentLoop:
                     )
 
                 self._hook_runner.run_pre(call.name, call.arguments, session_id=session_id)
-                _dispatch_start = time.monotonic()
-                result: ToolResult = self._dispatcher.dispatch(call)
-                _dispatch_ms = int((time.monotonic() - _dispatch_start) * 1000)
+                _scheduled.append(call)
+
+            # ── Phase 2: Dispatch (parallel or sequential) ────────────────────
+            _dispatch_times: dict[str, int] = {}
+            _results: dict[str, ToolResult] = {}
+
+            if _should_parallelize(_scheduled):
+                def _timed_dispatch(c: ToolCall) -> tuple[ToolResult, int]:
+                    t = time.monotonic()
+                    return self._dispatcher.dispatch(c), int((time.monotonic() - t) * 1000)
+
+                with ThreadPoolExecutor(max_workers=len(_scheduled)) as pool:
+                    for call, (res, ms) in zip(
+                        _scheduled, pool.map(_timed_dispatch, _scheduled)
+                    ):
+                        _results[call.id] = res
+                        _dispatch_times[call.id] = ms
+            else:
+                for call in _scheduled:
+                    _t = time.monotonic()
+                    _results[call.id] = self._dispatcher.dispatch(call)
+                    _dispatch_times[call.id] = int((time.monotonic() - _t) * 1000)
+
+            # ── Phase 3: Post-hooks, trace, state updates, tool_result events ─
+            for call in _scheduled:
+                result: ToolResult = _results[call.id]
+                _dispatch_ms = _dispatch_times[call.id]
+
                 self._hook_runner.run_post(
                     call.name,
                     result.payload if isinstance(result.payload, dict) else {},
                     session_id=session_id,
                 )
 
-                # ── Tool call trace event ──────────────────────────────────
+                # Tool call trace event
                 try:
-                    from app.trace.publishers import publish_tool_call as _pub_tc
-                    _tool_out = result.payload if isinstance(result.payload, dict) else {"value": result.payload}
+                    from app.trace.publishers import publish_tool_call as _pub_tc  # noqa: PLC0415
+                    _tool_out = (result.payload if isinstance(result.payload, dict)
+                                 else {"value": result.payload})
                     _pub_tc(
                         turn=steps,
                         tool_name=call.name,
@@ -411,9 +529,11 @@ class AgentLoop:
                     )
                 except Exception:  # noqa: BLE001
                     pass
+
                 report = post_tool(result)
                 for aid in report.new_artifact_ids:
                     state.record_artifact(aid)
+
                 # Keep scratchpad in sync when the agent writes working.md and
                 # emit a live delta so the frontend panel can update in real time.
                 if call.name == "write_working" and result.ok:
@@ -425,10 +545,11 @@ class AgentLoop:
                             payload={"content": new_pad},
                         )
                         try:
-                            from app.trace.publishers import publish_scratchpad_write as _pub_sw
+                            from app.trace.publishers import publish_scratchpad_write as _pub_sw  # noqa: PLC0415
                             _pub_sw(turn=steps, key="working.md", value_preview=new_pad[:200])
                         except Exception:  # noqa: BLE001
                             pass
+
                 # Emit todos_update when todo_write succeeds so the frontend
                 # task panel refreshes in real time (P19).
                 if call.name == "todo_write" and result.ok:
@@ -437,6 +558,7 @@ class AgentLoop:
                         type="todos_update",
                         payload={"todos": new_todos},
                     )
+
                 state.record_tool(
                     name=call.name,
                     result_payload=(result.payload
@@ -454,7 +576,7 @@ class AgentLoop:
                     role="tool", tool_use_id=call.id, name=call.name, content=content,
                 ))
 
-                if is_a2a:
+                if call.id in _a2a_calls:
                     payload_dict = result.payload if isinstance(result.payload, dict) else {}
                     yield StreamEvent(
                         type="a2a_end",
