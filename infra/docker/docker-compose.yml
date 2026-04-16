@@ -34,6 +34,10 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       # ── Model (optional overrides) ──────────────────────────
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      # ── Data paths ──────────────────────────────────────────
+      # All runtime data (sessions DB, wiki, artifacts, traces) lives under
+      # CCAGENT_HOME. Point it at the mounted volume so data survives restarts.
+      - CCAGENT_HOME=${CCAGENT_HOME:-/data/ccagent}
     volumes:
       # All persistent data: sessions, user config, scrollback
       - claude-data:/data

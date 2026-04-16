@@ -1,11 +1,11 @@
-"""TraceRecorder — buffers events in-memory and finalizes to disk."""
+"""TraceRecorder — buffers events in-memory; finalizes to YAML + SessionDB."""
 from __future__ import annotations
 
 import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -20,6 +20,9 @@ from app.trace.events import (
     TraceEvent,
     TraceSummary,
 )
+
+if TYPE_CHECKING:
+    from app.storage.session_db import SessionDB
 
 JudgeRunner = Callable[[str, int], list[JudgeRun]]
 
@@ -44,6 +47,7 @@ class TraceRecorder:
         judge_runner: JudgeRunner | None = None,
         judge_n: int = 5,
         max_event_size_bytes: int = 10240,
+        session_db: SessionDB | None = None,
     ) -> None:
         self._session_id = session_id
         self._trace_mode = trace_mode
@@ -51,12 +55,21 @@ class TraceRecorder:
         self._judge_runner = judge_runner
         self._judge_n = judge_n
         self._max_event_size_bytes = max_event_size_bytes
+        self._session_db = session_db
         self._events: list[TraceEvent] = []
 
     def on_event(self, ev: TraceEvent) -> None:
         self._events.append(ev)
+        # Stream to SessionDB as events arrive
+        if self._session_db is not None:
+            self._db_write_event(ev)
 
     def finalize(self, final_grade: Grade | None) -> Path | None:
+        yaml_path = self._finalize_yaml(final_grade)
+        self._finalize_db(final_grade)
+        return yaml_path
+
+    def _finalize_yaml(self, final_grade: Grade | None) -> Path | None:
         if not self._should_write(final_grade):
             return None
         try:
@@ -73,8 +86,58 @@ class TraceRecorder:
             atomic_write_yaml(path, trace)
             return path
         except Exception as exc:  # noqa: BLE001  — tracing must never raise
-            print(f"[trace] finalize failed for {self._session_id}: {exc}", file=sys.stderr)
+            print(f"[trace] yaml finalize failed for {self._session_id}: {exc}", file=sys.stderr)
             return None
+
+    def _finalize_db(self, final_grade: Grade | None) -> None:
+        if self._session_db is None:
+            return
+        try:
+            summary = self._build_summary(final_grade)
+            self._session_db.finalize_session(
+                id=self._session_id,
+                outcome=summary.outcome,
+                step_count=summary.turn_count,
+                input_tokens=summary.total_input_tokens,
+                output_tokens=summary.total_output_tokens,
+            )
+        except Exception as exc:  # noqa: BLE001  — tracing must never raise
+            print(f"[trace] db finalize failed for {self._session_id}: {exc}", file=sys.stderr)
+
+    def _db_write_event(self, ev: TraceEvent) -> None:
+        """Write a single trace event to SessionDB as a message row."""
+        assert self._session_db is not None
+        try:
+            if isinstance(ev, SessionStartEvent):
+                self._session_db.create_session(
+                    id=self._session_id,
+                    goal=ev.input_query,
+                    source="chat",
+                )
+            elif isinstance(ev, LlmCallEvent):
+                self._session_db.append_message(
+                    session_id=self._session_id,
+                    role="assistant",
+                    content=ev.response_text,
+                    step_index=ev.turn,
+                )
+            elif isinstance(ev, ToolCallEvent):
+                self._session_db.append_message(
+                    session_id=self._session_id,
+                    role="tool",
+                    content=None,
+                    tool_calls={"name": ev.tool_name, "input": ev.tool_input},
+                    tool_result={"output": ev.tool_output} if ev.tool_output else None,
+                    step_index=ev.turn,
+                )
+            elif isinstance(ev, FinalOutputEvent):
+                self._session_db.append_message(
+                    session_id=self._session_id,
+                    role="assistant",
+                    content=ev.output_text,
+                )
+        except Exception as exc:  # noqa: BLE001  — tracing must never raise
+            print(f"[trace] db event write failed: {exc}", file=sys.stderr)
 
     def _should_write(self, final_grade: Grade | None) -> bool:
         if self._trace_mode == "always":

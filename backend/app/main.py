@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,8 +17,25 @@ from app.api.settings_api import router as settings_router
 from app.api.skills_api import router as skills_router
 from app.api.slash_api import router as slash_router
 from app.api.sop_api import router as sop_router
+from app.api.session_search_api import router as session_search_router
+from app.api.scheduler_api import router as scheduler_router
 from app.api.todos_api import router as todos_router
 from app.api.trace_api import router as trace_router
+from app.api.mcp_sampling_api import router as mcp_sampling_router
+from app.api.config_api import router as config_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # type: ignore[type-arg]
+    """Start the cron engine on startup and shut it down gracefully on exit."""
+    from app.harness.wiring import get_cron_engine  # noqa: PLC0415
+
+    engine = get_cron_engine()
+    engine.start()
+    try:
+        yield
+    finally:
+        engine.stop()
 
 
 def create_app() -> FastAPI:
@@ -27,6 +46,7 @@ def create_app() -> FastAPI:
         title="Analytical Agent",
         version="0.1.0",
         description="Full-stack analytical platform for MLE, data scientists, and quants",
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -53,5 +73,9 @@ def create_app() -> FastAPI:
     app.include_router(data_status_router)
     app.include_router(todos_router)
     app.include_router(hooks_router)
+    app.include_router(session_search_router)
+    app.include_router(scheduler_router)
+    app.include_router(mcp_sampling_router)
+    app.include_router(config_router)
 
     return app

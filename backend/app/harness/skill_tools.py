@@ -28,6 +28,7 @@ from app.skills.statistical_analysis.distribution_fit import fit as dist_fit
 from app.skills.statistical_analysis.group_compare import compare
 from app.skills.registry import SkillRegistry
 from app.skills.statistical_analysis.stat_validate import validate
+from app.storage.session_db import SessionDB
 from app.skills.statistical_analysis.time_series import (
     characterize,
     decompose,
@@ -54,6 +55,7 @@ def register_core_tools(
     sandbox: SandboxExecutor,
     session_id: str,
     registry: SkillRegistry | None = None,
+    session_db: SessionDB | None = None,
 ) -> None:
     def _load_skill_body(args: dict[str, Any]) -> dict:
         """Return the SKILL.md body with breadcrumb header and sub-skill catalog.
@@ -352,3 +354,29 @@ def register_core_tools(
     dispatcher.register("read_file", fs.read_file)
     dispatcher.register("glob_files", fs.glob_files)
     dispatcher.register("search_text", fs.search_text)
+
+    # ── Session search (H2) ───────────────────────────────────────────────────
+    _sdb = session_db
+
+    def _session_search(args: dict[str, Any]) -> dict[str, Any]:
+        if _sdb is None:
+            return {"results": [], "error": "session_db not available"}
+        query = str(args.get("query", "")).strip()
+        if not query:
+            return {"results": [], "error": "query is required"}
+        limit = min(int(args.get("limit", 5)), 20)
+        results = _sdb.search(query=query, limit=limit)
+        return {
+            "results": [
+                {
+                    "session_id": r.session_id,
+                    "message_id": r.message_id,
+                    "snippet": r.snippet,
+                    "role": r.role,
+                    "timestamp": r.timestamp,
+                }
+                for r in results
+            ]
+        }
+
+    dispatcher.register("session_search", _session_search)

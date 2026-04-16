@@ -7,6 +7,14 @@ the same instances; this module builds them lazily and caches them.
 
 All accessors are idempotent: first call constructs, subsequent calls reuse.
 Tests can override paths via the ``CCAGENT_*`` environment variables.
+
+Runtime data paths default to subdirectories of ``CCAGENT_HOME`` (``~/.ccagent``
+by default — see ``app.core.home``). Override individual paths with:
+  CCAGENT_ARTIFACT_DB   — SQLite DB for artifacts
+  CCAGENT_ARTIFACT_DISK — directory for large artifact blobs
+  CCAGENT_WIKI_ROOT     — wiki root directory
+  CCAGENT_SKILLS_ROOT   — skills package directory (source, not data)
+  CCAGENT_PROMPT_PATH   — path to the base system prompt markdown
 """
 from __future__ import annotations
 
@@ -15,29 +23,44 @@ from pathlib import Path
 from threading import RLock
 
 from app.artifacts.store import ArtifactStore
+from app.core.home import artifacts_db_path, artifacts_disk_path, sessions_db_path, wiki_root_path
 from app.harness.injector import PreTurnInjector
 from app.skills.registry import SkillRegistry
+from app.storage.session_db import SessionDB
 from app.wiki.engine import WikiEngine
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
-_DEFAULT_ARTIFACT_DB = _BACKEND_ROOT / "data" / "artifacts.db"
-_DEFAULT_ARTIFACT_DISK = _BACKEND_ROOT / "data" / "artifacts"
-_DEFAULT_WIKI_ROOT = _REPO_ROOT / "knowledge" / "wiki"
+# Skills root and prompt path are source-code paths, not runtime data —
+# they stay relative to the repo rather than CCAGENT_HOME.
 _DEFAULT_SKILLS_ROOT = _BACKEND_ROOT / "app" / "skills"
 _DEFAULT_PROMPT_PATH = _REPO_ROOT / "prompts" / "data_scientist.md"
 
 _lock = RLock()
 _artifact_store: ArtifactStore | None = None
+_session_db: SessionDB | None = None
 _wiki_engine: WikiEngine | None = None
 _skill_registry: SkillRegistry | None = None
 _pre_turn_injector: PreTurnInjector | None = None
+_cron_engine: Any = None  # CronEngine — late import avoids APScheduler at import time
+_toolset_resolver: Any = None  # ToolsetResolver — late import
 
 
 def _path_from_env(env_var: str, default: Path) -> Path:
     raw = os.environ.get(env_var)
     return Path(raw) if raw else default
+
+
+def get_session_db() -> SessionDB:
+    global _session_db
+    if _session_db is not None:
+        return _session_db
+    with _lock:
+        if _session_db is None:
+            db_path = _path_from_env("CCAGENT_SESSION_DB", sessions_db_path())
+            _session_db = SessionDB(db_path=db_path)
+    return _session_db
 
 
 def get_artifact_store() -> ArtifactStore:
@@ -46,8 +69,8 @@ def get_artifact_store() -> ArtifactStore:
         return _artifact_store
     with _lock:
         if _artifact_store is None:
-            db = _path_from_env("CCAGENT_ARTIFACT_DB", _DEFAULT_ARTIFACT_DB)
-            disk = _path_from_env("CCAGENT_ARTIFACT_DISK", _DEFAULT_ARTIFACT_DISK)
+            db = _path_from_env("CCAGENT_ARTIFACT_DB", artifacts_db_path())
+            disk = _path_from_env("CCAGENT_ARTIFACT_DISK", artifacts_disk_path())
             db.parent.mkdir(parents=True, exist_ok=True)
             disk.mkdir(parents=True, exist_ok=True)
             _artifact_store = ArtifactStore(db_path=db, disk_root=disk)
@@ -60,7 +83,7 @@ def get_wiki_engine() -> WikiEngine:
         return _wiki_engine
     with _lock:
         if _wiki_engine is None:
-            root = _path_from_env("CCAGENT_WIKI_ROOT", _DEFAULT_WIKI_ROOT)
+            root = _path_from_env("CCAGENT_WIKI_ROOT", wiki_root_path())
             root.mkdir(parents=True, exist_ok=True)
             (root / "findings").mkdir(exist_ok=True)
             (root / "hypotheses").mkdir(exist_ok=True)
@@ -200,24 +223,100 @@ def get_pre_turn_injector() -> PreTurnInjector:
         return _pre_turn_injector
     with _lock:
         if _pre_turn_injector is None:
+            from app.config import load_branding  # noqa: PLC0415
             prompt_path = _path_from_env("CCAGENT_PROMPT_PATH", _DEFAULT_PROMPT_PATH)
             wiki = get_wiki_engine()
             registry = get_skill_registry()
-            # gotcha_index removed — statistical gotchas are now a level-1 skill
-            # loaded on demand via `skill statistical_gotchas`, not injected every turn.
+            branding = load_branding()
             _pre_turn_injector = PreTurnInjector(
                 prompt_path=prompt_path,
                 wiki=_WikiInjectorAdapter(wiki),
                 skill_registry=_SkillMenuAdapter(registry),
+                agent_persona=branding.agent_persona,
             )
     return _pre_turn_injector
 
 
+_DEFAULT_TOOLSETS_PATH = _BACKEND_ROOT / "config" / "toolsets.yaml"
+
+
+def get_toolset_resolver() -> Any:
+    """Return the process-wide ToolsetResolver singleton."""
+    global _toolset_resolver
+    if _toolset_resolver is not None:
+        return _toolset_resolver
+    with _lock:
+        if _toolset_resolver is None:
+            from app.harness.toolsets import ToolsetResolver  # noqa: PLC0415
+
+            ts_path = _path_from_env("CCAGENT_TOOLSETS_PATH", _DEFAULT_TOOLSETS_PATH)
+            _toolset_resolver = ToolsetResolver.from_yaml(ts_path)
+    return _toolset_resolver
+
+
+class _MinimalCronFactory:
+    """Minimal AgentFactory for cron job execution.
+
+    Builds a bare-bones loop (no registered tools) backed by the Anthropic API.
+    For production use with the full data-science tool catalog, supply a custom
+    factory via ``get_cron_engine(agent_factory=...)``.
+    """
+
+    def build_loop(self, session_id: str) -> Any:
+        from app.harness.dispatcher import ToolDispatcher  # noqa: PLC0415
+        from app.harness.loop import AgentLoop  # noqa: PLC0415
+
+        return AgentLoop(dispatcher=ToolDispatcher())
+
+    def build_client(self) -> Any:
+        import anthropic  # noqa: PLC0415
+
+        from app.harness.clients.anthropic_client import AnthropicClient  # noqa: PLC0415
+        from app.harness.config import ModelProfile  # noqa: PLC0415
+
+        profile = ModelProfile(
+            name="cron-worker",
+            provider="anthropic",
+            model_id="claude-haiku-4-5-20251001",
+            tier="standard",
+        )
+        return AnthropicClient(profile=profile, api_client=anthropic.Anthropic())
+
+    def build_system(self) -> str:
+        try:
+            return get_pre_turn_injector().build_static()
+        except Exception:  # noqa: BLE001
+            return "You are a helpful AI assistant running a scheduled analysis job."
+
+
+def get_cron_engine(agent_factory: Any = None) -> Any:
+    """Return the process-wide CronEngine singleton.
+
+    Pass *agent_factory* the first time to override the default minimal factory.
+    Subsequent calls with a factory argument are ignored (singleton is already built).
+    """
+    global _cron_engine
+    if _cron_engine is not None:
+        return _cron_engine
+    with _lock:
+        if _cron_engine is None:
+            from app.scheduler.engine import CronEngine  # noqa: PLC0415
+
+            _cron_engine = CronEngine(
+                session_db=get_session_db(),
+                agent_factory=agent_factory or _MinimalCronFactory(),
+            )
+    return _cron_engine
+
+
 def reset_singletons_for_tests() -> None:
     """Clear cached singletons so tests get fresh instances."""
-    global _artifact_store, _wiki_engine, _skill_registry, _pre_turn_injector
+    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _pre_turn_injector, _cron_engine, _toolset_resolver
     with _lock:
         _artifact_store = None
+        _session_db = None
         _wiki_engine = None
         _skill_registry = None
         _pre_turn_injector = None
+        _cron_engine = None
+        _toolset_resolver = None

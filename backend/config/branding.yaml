@@ -1,0 +1,26 @@
+# CCA branding configuration.
+#
+# Loaded at runtime by ``app.config.load_branding()``.
+# Override by placing a ``branding.yaml`` in ``$CCAGENT_HOME/config/``.
+
+agent:
+  # Short display name for the agent — used in UI headers and API responses.
+  name: "Analytical Agent"
+
+  # Optional persona prefix prepended before the base system prompt.
+  # Leave blank to use the default prompt file with no prepended persona.
+  persona: ""
+
+ui:
+  # Browser tab / sidebar title.
+  title: "Analytical Agent"
+
+  # Primary accent colour (CSS hex or oklch).
+  accent_color: "#e0733a"
+
+  # Phrases shown in the loading/thinking spinner.
+  spinner_phrases:
+    - "Thinking..."
+    - "Analysing..."
+    - "Running tools..."
+    - "Crunching numbers..."

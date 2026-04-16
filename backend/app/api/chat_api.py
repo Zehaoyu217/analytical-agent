@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from app.artifacts.events import get_event_bus
 from app.config import get_config
+from app.core.home import traces_path
 from app.context.manager import ContextLayer, session_registry
 from app.data.db_init import get_data_context
 from app.harness.a2a import register_delegate_tool
@@ -56,6 +57,7 @@ from app.harness.turn_state import TurnState
 from app.harness.wiring import (
     get_artifact_store,
     get_pre_turn_injector,
+    get_session_db,
     get_skill_registry,
     get_wiki_engine,
     get_wiki_wrap_up_adapter,
@@ -376,8 +378,16 @@ def filter_tools_for_plan_mode(
     Drops anything that executes code, writes artifacts, promotes findings, or
     spawns sub-agents. The agent is left with enough to plan (skills to read,
     working-md to sketch, todos to declare) but not to mutate state.
+
+    The allowed set is read from ``config/toolsets.yaml`` (``planning`` toolset)
+    when available; falls back to the hardcoded ``_PLAN_MODE_TOOL_NAMES`` frozenset.
     """
-    return tuple(t for t in tools if t.name in _PLAN_MODE_TOOL_NAMES)
+    try:
+        from app.harness.wiring import get_toolset_resolver  # noqa: PLC0415
+        planning_tools = get_toolset_resolver().resolve("planning")
+    except Exception:  # noqa: BLE001
+        planning_tools = _PLAN_MODE_TOOL_NAMES
+    return tuple(t for t in tools if t.name in planning_tools)
 
 # ── prompt assembly ───────────────────────────────────────────────────────────
 
@@ -557,6 +567,7 @@ def _build_dispatcher(
         sandbox=sandbox,
         session_id=session_id,
         registry=skill_registry,
+        session_db=get_session_db(),
     )
 
     # Override `sandbox.run` with a chart- and artifact-capturing variant exposed
@@ -957,7 +968,8 @@ def _run_wrap_up(
 
 
 def _traces_dir() -> Path:
-    return Path(os.environ.get("TRACE_DIR", "traces"))
+    raw = os.environ.get("TRACE_DIR")
+    return Path(raw) if raw else traces_path()
 
 
 def _make_trace_id(conversation_id: str | None) -> str:
@@ -1012,6 +1024,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
     with TraceSession(
         session_id=trace_id, level=1, level_label="chat",
         input_query=payload.message, trace_mode="always", output_dir=output_dir,
+        session_db=get_session_db(),
     ):
         try:
             session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
@@ -1078,6 +1091,7 @@ def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
             input_query=payload.message,
             trace_mode="always",
             output_dir=output_dir,
+            session_db=get_session_db(),
         ):
             final_text = ""
             for line in _stream_agent_loop(

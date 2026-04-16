@@ -1,0 +1,47 @@
+# Toolset definitions for the agent harness.
+#
+# Each toolset lists the tool names it directly owns plus any other toolsets
+# it inherits from via 'includes'.  ToolsetResolver.resolve(name) flattens
+# the full set (with cycle detection) and returns a frozenset[str].
+#
+# Toolsets are consumed by:
+#   - SubagentDispatcher.dispatch(toolset="readonly")  — A2A delegation
+#   - filter_tools_for_plan_mode()                      — Plan Mode gate
+#   - CronEngine / BatchRunner                          — background runners
+
+toolsets:
+
+  # Read-only tools: no side effects, no code execution, no writes.
+  readonly:
+    tools:
+      - skill
+      - session_search
+      - read_file
+      - glob_files
+      - search_text
+
+  # Standard analytical work: read-only + sandbox + scratchpad + artefact saves.
+  standard:
+    includes:
+      - readonly
+    tools:
+      - execute_python
+      - write_working
+      - todo_write
+      - save_artifact
+      - get_context_status
+
+  # Full suite: standard + promotion + A2A delegation.
+  full:
+    includes:
+      - standard
+    tools:
+      - promote_finding
+      - delegate_subagent
+
+  # Plan Mode: write structure but cannot execute code or mutate state.
+  planning:
+    tools:
+      - skill
+      - write_working
+      - todo_write

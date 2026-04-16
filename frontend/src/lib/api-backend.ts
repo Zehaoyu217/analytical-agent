@@ -104,6 +104,14 @@ export interface DataInfo {
   tables: string[]
 }
 
+export interface BrandingConfig {
+  agent_name: string
+  agent_persona: string
+  ui_title: string
+  ui_accent_color: string
+  ui_spinner_phrases: string[]
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
@@ -178,6 +186,10 @@ export const backend = {
   },
   data: {
     info: (): Promise<DataInfo> => request<DataInfo>('GET', '/api/data/info'),
+  },
+  config: {
+    branding: (): Promise<BrandingConfig> =>
+      request<BrandingConfig>('GET', '/api/config/branding'),
   },
   slash: {
     list: (): Promise<SlashCommand[]> =>

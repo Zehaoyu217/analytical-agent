@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from app.harness.injection_guard import InjectionAttemptError, scan
 from app.skills.base import SkillNode
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +44,10 @@ class _Wiki(Protocol):
     def latest_session_notes(self, exclude_session_id: str = "") -> str: ...
 
 
+class _GotchaIndex(Protocol):
+    def as_injection(self) -> str: ...
+
+
 def _has_content_beyond_headers(text: str) -> bool:
     """Return True only when *text* contains at least one non-blank, non-heading,
     non-placeholder line.
@@ -67,10 +75,14 @@ class PreTurnInjector:
         prompt_path: str | Path,
         wiki: _Wiki,
         skill_registry: _SkillRegistry,
+        gotcha_index: _GotchaIndex | None = None,
+        agent_persona: str = "",
     ) -> None:
         self._prompt_path = Path(prompt_path)
         self._wiki = wiki
         self._skills = skill_registry
+        self._gotchas = gotcha_index
+        self._agent_persona = agent_persona
         # Cache the static base prompt — it never changes at runtime, so
         # re-reading the file on every turn is unnecessary I/O.
         self._static_cache: str | None = None
@@ -90,9 +102,17 @@ class PreTurnInjector:
         # Only inject a section when there is real content — skip header-only
         # or all-placeholder files (e.g. fresh ``# Working`` / empty index).
         if working and _has_content_beyond_headers(working):
-            body.append("### working.md\n\n" + working)
+            try:
+                scan(working, source="wiki/working.md")
+                body.append("### working.md\n\n" + working)
+            except InjectionAttemptError:
+                logger.warning("Injection attempt detected in wiki/working.md — block skipped")
         if idx and _has_content_beyond_headers(idx):
-            body.append("### index.md\n\n" + idx)
+            try:
+                scan(idx, source="wiki/index.md")
+                body.append("### index.md\n\n" + idx)
+            except InjectionAttemptError:
+                logger.warning("Injection attempt detected in wiki/index.md — block skipped")
         if not body:
             return ""
         return "\n\n## Operational State\n\n" + "\n\n".join(body)
@@ -118,6 +138,14 @@ class PreTurnInjector:
             annotation = f" [{child_count} sub-skills]" if child_count > 0 else ""
             lines.append(f"- `{node.metadata.name}` — {desc}{annotation}")
         return "\n\n## Skills\n\n" + preamble + "\n\n" + "\n".join(lines)
+
+    def _gotchas_section(self) -> str:
+        if self._gotchas is None:
+            return ""
+        body = self._gotchas.as_injection().strip()
+        if not body:
+            return ""
+        return "\n\n## Statistical Gotchas\n\n" + body
 
     def _profile_section(self, summary: str | None) -> str:
         if not summary:
@@ -148,6 +176,11 @@ class PreTurnInjector:
         notes = self._wiki.latest_session_notes(exclude_session_id=session_id)
         if not notes.strip():
             return ""
+        try:
+            scan(notes, source="wiki/session_notes")
+        except InjectionAttemptError:
+            logger.warning("Injection attempt detected in session notes — block skipped")
+            return ""
         return "\n\n## Prior Session Memory\n\n" + notes.strip()
 
     def _token_budget_section(self, budget: TokenBudget | None) -> str:
@@ -176,12 +209,69 @@ class PreTurnInjector:
         ]
         return "\n\n" + "\n".join(lines)
 
+    def build_static(self) -> str:
+        """Build the stable, per-session part of the system prompt.
+
+        Call this **once** at session start and pass the result as the ``system``
+        parameter to every LLM call.  Because the content never changes within a
+        session, the Anthropic API can cache the prefix and avoid re-encoding it
+        on every turn.
+
+        Includes: base prompt text, skill catalog, statistical gotchas.
+        """
+        parts: list[str] = []
+        if self._agent_persona:
+            parts.append(self._agent_persona.rstrip())
+            parts.append("\n\n")
+        parts.append(self._static())
+        parts.append(self._skill_menu())
+        parts.append(self._gotchas_section())
+        return "".join(parts)
+
+    def build_dynamic(self, inputs: InjectorInputs) -> str | None:
+        """Build the per-turn dynamic context fragment.
+
+        Call this **each turn**.  Returns ``None`` when there is nothing to
+        inject (all sources empty).  When non-``None``, the caller must merge
+        the result *into* the last user message content — prepend it — rather
+        than inserting it as a separate message (the Anthropic API rejects
+        consecutive user-role messages).
+
+        Includes: wiki operational state, prior session memory, active dataset
+        profile, token-budget guidance, plan-mode instructions, and any extras.
+        """
+        parts: list[str] = []
+        op = self._operational_state()
+        if op:
+            parts.append(op)
+        mem = self._session_memory_section(inputs.session_id)
+        if mem:
+            parts.append(mem)
+        profile = self._profile_section(inputs.active_profile_summary)
+        if profile:
+            parts.append(profile)
+        budget = self._token_budget_section(inputs.token_budget)
+        if budget:
+            parts.append(budget)
+        plan = self._plan_mode_section(inputs.plan_mode)
+        if plan:
+            parts.append(plan)
+        for key, value in inputs.extras.items():
+            parts.append(f"\n\n## {key}\n\n{value.strip()}")
+        return "".join(parts) if parts else None
+
     def build(self, inputs: InjectorInputs) -> str:
+        """Build the full combined system prompt (static + dynamic).
+
+        Kept for backward compatibility with callers that have not yet been
+        updated to use :meth:`build_static` + :meth:`build_dynamic`.
+        """
         parts = [
             self._static(),
             self._operational_state(),
             self._session_memory_section(inputs.session_id),
             self._skill_menu(),
+            self._gotchas_section(),
             self._profile_section(inputs.active_profile_summary),
             self._token_budget_section(inputs.token_budget),
             self._plan_mode_section(inputs.plan_mode),

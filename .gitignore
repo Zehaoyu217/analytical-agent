@@ -26,7 +26,7 @@ out/
 .env.*.local
 
 # Data
-data/
+/data/
 *.db
 *.duckdb
 

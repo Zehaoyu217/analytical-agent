@@ -74,15 +74,31 @@ class SubagentDispatcher:
         task: str,
         tools_allowed: list[str],
         *,
+        toolset: str | None = "readonly",
         max_steps: int = 6,
         system: str = "",
     ) -> SubagentResult:
-        """Run a sub-agent synchronously and return its result."""
+        """Run a sub-agent synchronously and return its result.
+
+        Args:
+            toolset: Named toolset from ``config/toolsets.yaml``.  When given,
+                the resolved set is unioned with *tools_allowed* (explicit list
+                takes precedence for backwards compat).  Defaults to ``"readonly"``.
+        """
         # Import here to avoid a circular import at module load time.
         from app.harness.loop import AgentLoop
 
+        # Expand named toolset, union with explicit tools_allowed list.
+        allowed_set: set[str] = set(tools_allowed)
+        if toolset:
+            try:
+                from app.harness.wiring import get_toolset_resolver  # noqa: PLC0415
+                allowed_set |= get_toolset_resolver().resolve(toolset)
+            except Exception:  # noqa: BLE001 — toolset resolution must never crash delegation
+                logger.warning("toolset %r could not be resolved; using tools_allowed only", toolset)
+
         child_dispatcher = ToolDispatcher()
-        for name in tools_allowed:
+        for name in allowed_set:
             handler = self._parent_dispatcher.get_handler(name)
             if handler is not None:
                 child_dispatcher.register(name, handler)
@@ -155,9 +171,10 @@ def register_delegate_tool(
     def _handle(args: dict[str, Any]) -> dict[str, Any]:
         task: str = args.get("task", "")
         tools_allowed: list[str] = args.get("tools_allowed", [])
+        toolset: str | None = args.get("toolset", "readonly")
         if not task:
             return {"error": "task is required"}
-        result = subagent.dispatch(task, tools_allowed)
+        result = subagent.dispatch(task, tools_allowed, toolset=toolset)
         return {
             "artifact_id": result.artifact_id,
             "summary": result.summary,

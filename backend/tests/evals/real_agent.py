@@ -12,14 +12,12 @@ Usage in eval tests:
 The adapter:
 1. POSTs to /api/chat/stream with the eval prompt and db_path.
 2. Streams SSE events, capturing tool calls and the final response.
-3. After the stream ends, loads the trace YAML to extract full tool call data
-   (requires EVAL-2: publish_tool_call wired in loop.py).
+3. After the stream ends, loads session data from SessionDB (preferred) or YAML.
 4. Returns an AgentTrace suitable for the eval runner.
 
 Prerequisites:
 - Backend running at base_url
 - eval.db seeded (make seed-eval)
-- Trace YAML write enabled (TRACE_DIR env var or default ./traces/)
 """
 from __future__ import annotations
 
@@ -32,7 +30,9 @@ from typing import Any
 import httpx
 import yaml
 
+from app.core.home import sessions_db_path
 from app.evals.types import AgentTrace
+from app.storage.session_db import Session, SessionDB
 
 _DEFAULT_BASE_URL = os.environ.get("CCAGENT_EVAL_BASE_URL", "http://localhost:8000")
 _DEFAULT_TRACES_DIR = os.environ.get("TRACE_DIR", "traces")
@@ -60,6 +60,7 @@ class RealAgentAdapter:
         self._base_url = base_url.rstrip("/")
         self._traces_dir = Path(traces_dir)
         self._timeout = timeout
+        self._session_db: SessionDB | None = None
 
     async def run(self, prompt: str, db_path: str | None = None) -> AgentTrace:
         """Run the real agent against the given prompt.
@@ -216,9 +217,25 @@ class RealAgentAdapter:
         except Exception:  # noqa: BLE001
             pass
 
-    # ── Trace YAML helpers ────────────────────────────────────────────────────
+    # ── Trace helpers (DB preferred, YAML fallback) ───────────────────────────
+
+    def _get_session_db(self) -> SessionDB:
+        """Return a SessionDB instance pointing at the shared sessions.db."""
+        if self._session_db is None:
+            self._session_db = SessionDB(db_path=sessions_db_path())
+        return self._session_db
+
+    def _load_session_from_db(self, session_id: str) -> Session | None:
+        """Look up session + messages from SessionDB. Returns None if not found."""
+        if not session_id:
+            return None
+        try:
+            return self._get_session_db().get_session(session_id, include_messages=True)
+        except Exception:  # noqa: BLE001
+            return None
 
     def _load_trace_yaml(self, session_id: str) -> dict[str, Any] | None:
+        """Legacy YAML loader — used as fallback when DB has no entry."""
         path = self._traces_dir / f"{session_id}.yaml"
         if not path.exists():
             return None
@@ -228,10 +245,23 @@ class RealAgentAdapter:
             return None
 
     def _extract_queries_from_trace(self, session_id: str) -> list[str]:
+        # Try DB first
+        session = self._load_session_from_db(session_id)
+        if session is not None:
+            queries: list[str] = []
+            for msg in session.messages:
+                if msg.role == "tool" and msg.tool_calls:
+                    name = msg.tool_calls.get("name", "")
+                    if name == "execute_python":
+                        code = msg.tool_calls.get("input", {}).get("code", "")
+                        if code:
+                            queries.append(str(code))
+            return queries
+        # Fallback to YAML
         trace = self._load_trace_yaml(session_id)
         if trace is None:
             return []
-        queries: list[str] = []
+        queries = []
         for ev in trace.get("events", []):
             if ev.get("kind") == "tool_call" and ev.get("tool_name") == "execute_python":
                 code = ev.get("tool_input", {}).get("code", "")
@@ -240,10 +270,25 @@ class RealAgentAdapter:
         return queries
 
     def _extract_intermediate_from_trace(self, session_id: str) -> list[Any]:
+        # Try DB first
+        session = self._load_session_from_db(session_id)
+        if session is not None:
+            intermediate: list[Any] = []
+            for msg in session.messages:
+                if msg.role == "tool" and msg.tool_calls:
+                    name = msg.tool_calls.get("name", "")
+                    output = (msg.tool_result or {}).get("output", "")
+                    if output and name != "execute_python":
+                        intermediate.append({
+                            "tool": name,
+                            "output_preview": str(output)[:200],
+                        })
+            return intermediate
+        # Fallback to YAML
         trace = self._load_trace_yaml(session_id)
         if trace is None:
             return []
-        intermediate: list[Any] = []
+        intermediate = []
         for ev in trace.get("events", []):
             if ev.get("kind") == "tool_call":
                 output = ev.get("tool_output", "")
@@ -255,6 +300,11 @@ class RealAgentAdapter:
         return intermediate
 
     def _extract_token_count_from_trace(self, session_id: str) -> int:
+        # Try DB first
+        session = self._load_session_from_db(session_id)
+        if session is not None:
+            return session.input_tokens + session.output_tokens
+        # Fallback to YAML
         trace = self._load_trace_yaml(session_id)
         if trace is None:
             return 0
