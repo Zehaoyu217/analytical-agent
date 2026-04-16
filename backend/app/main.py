@@ -15,6 +15,7 @@ from app.api.settings_api import router as settings_router
 from app.api.skills_api import router as skills_router
 from app.api.slash_api import router as slash_router
 from app.api.sop_api import router as sop_router
+from app.api.session_search_api import router as session_search_router
 from app.api.todos_api import router as todos_router
 from app.api.trace_api import router as trace_router
 
@@ -53,5 +54,6 @@ def create_app() -> FastAPI:
     app.include_router(data_status_router)
     app.include_router(todos_router)
     app.include_router(hooks_router)
+    app.include_router(session_search_router)
 
     return app

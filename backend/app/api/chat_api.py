@@ -57,6 +57,7 @@ from app.harness.turn_state import TurnState
 from app.harness.wiring import (
     get_artifact_store,
     get_pre_turn_injector,
+    get_session_db,
     get_skill_registry,
     get_wiki_engine,
     get_wiki_wrap_up_adapter,
@@ -496,6 +497,7 @@ def _build_dispatcher(
         sandbox=sandbox,
         session_id=session_id,
         registry=skill_registry,
+        session_db=get_session_db(),
     )
 
     # Override `sandbox.run` with a chart-capturing variant exposed under the
@@ -871,6 +873,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
     with TraceSession(
         session_id=trace_id, level=1, level_label="chat",
         input_query=payload.message, trace_mode="always", output_dir=output_dir,
+        session_db=get_session_db(),
     ):
         try:
             session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
@@ -937,6 +940,7 @@ def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
             input_query=payload.message,
             trace_mode="always",
             output_dir=output_dir,
+            session_db=get_session_db(),
         ):
             final_text = ""
             for line in _stream_agent_loop(

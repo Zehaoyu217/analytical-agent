@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
+from typing import TYPE_CHECKING
 
 from app.trace import bus
 from app.trace.events import (
@@ -22,6 +23,9 @@ from app.trace.events import (
     ToolCallEvent,
 )
 from app.trace.recorder import JudgeRunner, TraceRecorder
+
+if TYPE_CHECKING:
+    from app.storage.session_db import SessionDB
 
 
 def _now() -> str:
@@ -121,6 +125,7 @@ class TraceSession:
         trace_mode: str,
         output_dir: Path,
         judge_runner: JudgeRunner | None = None,
+        session_db: SessionDB | None = None,
     ) -> None:
         self._session_id = session_id
         self._level = level
@@ -129,6 +134,7 @@ class TraceSession:
         self._trace_mode = trace_mode
         self._output_dir = output_dir
         self._judge_runner = judge_runner
+        self._session_db = session_db
         self._final_grade: Grade | None = None
         self._started_at: str = ""
         self._recorder: TraceRecorder | None = None
@@ -142,6 +148,7 @@ class TraceSession:
             trace_mode=self._trace_mode,
             output_dir=self._output_dir,
             judge_runner=self._judge_runner,
+            session_db=self._session_db,
         )
         bus.subscribe(self._recorder.on_event)
         self._started_at = _now()

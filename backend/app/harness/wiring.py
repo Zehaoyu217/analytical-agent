@@ -23,10 +23,11 @@ from pathlib import Path
 from threading import RLock
 
 from app.artifacts.store import ArtifactStore
-from app.core.home import artifacts_db_path, artifacts_disk_path, wiki_root_path
+from app.core.home import artifacts_db_path, artifacts_disk_path, sessions_db_path, wiki_root_path
 from app.harness.injector import PreTurnInjector
 from app.knowledge.gotchas import GotchaIndex, load_index
 from app.skills.registry import SkillRegistry
+from app.storage.session_db import SessionDB
 from app.wiki.engine import WikiEngine
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +40,7 @@ _DEFAULT_PROMPT_PATH = _REPO_ROOT / "prompts" / "data_scientist.md"
 
 _lock = RLock()
 _artifact_store: ArtifactStore | None = None
+_session_db: SessionDB | None = None
 _wiki_engine: WikiEngine | None = None
 _skill_registry: SkillRegistry | None = None
 _gotcha_index: GotchaIndex | None = None
@@ -48,6 +50,17 @@ _pre_turn_injector: PreTurnInjector | None = None
 def _path_from_env(env_var: str, default: Path) -> Path:
     raw = os.environ.get(env_var)
     return Path(raw) if raw else default
+
+
+def get_session_db() -> SessionDB:
+    global _session_db
+    if _session_db is not None:
+        return _session_db
+    with _lock:
+        if _session_db is None:
+            db_path = _path_from_env("CCAGENT_SESSION_DB", sessions_db_path())
+            _session_db = SessionDB(db_path=db_path)
+    return _session_db
 
 
 def get_artifact_store() -> ArtifactStore:
@@ -235,9 +248,10 @@ def get_pre_turn_injector() -> PreTurnInjector:
 
 def reset_singletons_for_tests() -> None:
     """Clear cached singletons so tests get fresh instances."""
-    global _artifact_store, _wiki_engine, _skill_registry, _gotcha_index, _pre_turn_injector
+    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _gotcha_index, _pre_turn_injector
     with _lock:
         _artifact_store = None
+        _session_db = None
         _wiki_engine = None
         _skill_registry = None
         _gotcha_index = None
