@@ -60,7 +60,7 @@ export function SessionLayout() {
         <div
           role="tablist"
           aria-label="Middle panel view"
-          className="flex items-center h-9 shrink-0 border-b border-surface-700/80 bg-surface-900/40 px-2"
+          className="flex items-center h-9 shrink-0 bg-surface-900/40 mx-2"
         >
           {(['conversation', 'devtools'] as MiddleTab[]).map((tab) => {
             const isActive = middleTab === tab
@@ -73,7 +73,7 @@ export function SessionLayout() {
                 aria-selected={isActive}
                 onClick={() => setMiddleTab(tab)}
                 className={cn(
-                  'flex items-center gap-2 pl-0 pr-4 h-full',
+                  'flex items-center gap-2 pl-2 pr-4 h-full',
                   'text-[10px] font-mono font-semibold tracking-[0.22em] uppercase',
                   'border-b transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent/50',
                   isActive

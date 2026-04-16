@@ -63,7 +63,7 @@ export function SessionRightPanel() {
       aria-label="Session state"
     >
       {/* ── Tab bar ────────────────────────────────────────── */}
-      <div role="tablist" aria-label="Session panel" className="flex flex-shrink-0 border-b border-surface-700/60">
+      <div role="tablist" aria-label="Session panel" className="flex flex-shrink-0">
         {(['traces', 'tasks', 'scratchpad'] as Tab[]).map((tab) => {
           const isActive = activeTab === tab
           const dot =

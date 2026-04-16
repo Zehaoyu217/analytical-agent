@@ -450,7 +450,7 @@ export function ChatInput({ conversationId }: ChatInputProps) {
   const canSubmit = !!input.trim() && !isSending
 
   return (
-    <div className="bg-canvas pb-3 pt-1">
+    <div className="bg-canvas px-2 pb-3 pt-1">
       <div className="relative">
         {/* Error banner floats above the card */}
         {error && (
