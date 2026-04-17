@@ -39,6 +39,7 @@ Entry shape:
 - **Global session search panel**: Cmd/Ctrl+Shift+F now opens a Radix dialog that queries `/api/sessions/search` (FTS5) with debounced input, groups results by session, and navigates to `#/monitor/{session_id}` on Enter. Replaces the prior stub that silently switched to the Chat section. (`frontend/src/components/search/GlobalSearchPanel.tsx`, `frontend/src/lib/store.ts`, `frontend/src/lib/api-backend.ts`)
 - **Second-brain bridge**: `SECOND_BRAIN_HOME` + `SECOND_BRAIN_ENABLED` config flags, editable install of sibling `second-brain` project, five `sb_*` chat tools (`sb_search`, `sb_load`, `sb_reason`, `sb_ingest`, `sb_promote_claim`) with graceful degradation when the KB home is absent, `UserPromptSubmit` hook that prefixes prompts with the top-5 BM25 hits, and `PostToolUse` matcher reindexing after `sb_ingest`/`sb_promote_claim`. (`backend/app/config.py`, `backend/app/tools/sb_tools.py`, `backend/app/api/chat_api.py`, `.claude/settings.json`) — `36ab247`, `bb7a087`, `a96a60d`, `fb3f3a2`
 - Second Brain automation: `sb process-inbox`, `sb ingest --retry`, `sb watch` (+ `--once`), `sb maintain` (+ `--json`). Launchd/cron/systemd recipes in the second-brain repo's `docs/automation.md`.
+- **second-brain bridge** — shipped real `sb_promote_claim` tool handler (claims now persist to `~/second-brain/claims/<slug>.md`), and added backend `second_brain/` Level-1 reference skill with `schema` + `reasoning-patterns` sub-skills.
 
 ### Changed
 
