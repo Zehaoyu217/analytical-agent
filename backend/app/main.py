@@ -1,29 +1,31 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.chat_api import router as chat_router
-from app.api.data_status_api import router as data_status_router
+from app.api.config_api import router as config_router
 from app.api.context_api import router as context_router
 from app.api.conversations_api import router as conversations_router
+from app.api.data_status_api import router as data_status_router
 from app.api.datasets_api import router as datasets_router
 from app.api.files_api import router as files_router
 from app.api.health import router as health_router
 from app.api.hooks_api import router as hooks_router
+from app.api.mcp_sampling_api import router as mcp_sampling_router
 from app.api.models_api import router as models_router
 from app.api.prompts_api import router as prompts_router
+from app.api.scheduler_api import router as scheduler_router
+from app.api.session_search_api import router as session_search_router
 from app.api.settings_api import router as settings_router
 from app.api.skills_api import router as skills_router
 from app.api.slash_api import router as slash_router
 from app.api.sop_api import router as sop_router
-from app.api.session_search_api import router as session_search_router
-from app.api.scheduler_api import router as scheduler_router
 from app.api.todos_api import router as todos_router
 from app.api.trace_api import router as trace_router
-from app.api.mcp_sampling_api import router as mcp_sampling_router
-from app.api.config_api import router as config_router
 
 
 @asynccontextmanager
@@ -63,8 +65,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    _health_dir = Path.cwd() / "docs" / "health"
+    if _health_dir.is_dir():
+        app.mount("/static/health", StaticFiles(directory=str(_health_dir)), name="health-static")
+
     try:
         from prometheus_fastapi_instrumentator import Instrumentator  # noqa: PLC0415
+
         from app.metrics import active_sessions_gauge  # noqa: PLC0415, F401
 
         Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
