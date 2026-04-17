@@ -70,7 +70,7 @@ class ConfigRegistryPlugin:
 
     def scan(self, ctx: ScanContext) -> ScanResult:
         builder_failures: list[str] = []
-        current = self._build_current(ctx, builder_failures)
+        current = self.build_current(ctx, builder_failures)
 
         manifest_rel = self.config.get("manifest_path", "config/manifest.yaml")
         manifest_path = ctx.repo_root / manifest_rel
@@ -143,7 +143,7 @@ class ConfigRegistryPlugin:
             failures=rule_failures + builder_failures,
         )
 
-    def _build_current(
+    def build_current(
         self, ctx: ScanContext, failures: list[str]
     ) -> dict[str, Any]:
         current = empty_manifest()

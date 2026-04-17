@@ -58,13 +58,12 @@ def read_manifest(path: Path) -> dict[str, Any]:
     return out
 
 
-def write_manifest(path: Path, manifest: dict[str, Any]) -> None:
-    """Write ``manifest`` to ``path`` deterministically.
+def manifest_to_yaml(manifest: dict[str, Any]) -> str:
+    """Render ``manifest`` to deterministic YAML text (with header).
 
-    Top-level keys emit in fixed order (`TOP_LEVEL_ORDER`); list
-    entries sort by ``id`` ascending; LF line endings; trailing newline.
+    Top-level keys emit in fixed order (`TOP_LEVEL_ORDER`); list entries
+    sort by ``id`` ascending; LF line endings; trailing newline.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
     sorted_manifest = empty_manifest()
     for key in TOP_LEVEL_ORDER:
         if key in manifest:
@@ -76,11 +75,35 @@ def write_manifest(path: Path, manifest: dict[str, Any]) -> None:
     body = yaml.safe_dump(
         sorted_manifest,
         default_flow_style=False,
-        sort_keys=False,           # we control top-level order
+        sort_keys=False,
         allow_unicode=True,
-        width=10_000,              # avoid auto-wrapping URLs/messages
+        width=10_000,
     )
-    path.write_text(HEADER + body)
+    return HEADER + body
+
+
+def write_manifest(path: Path, manifest: dict[str, Any]) -> None:
+    """Write ``manifest`` to ``path`` deterministically."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(manifest_to_yaml(manifest))
+
+
+def emit_manifest_text(repo_root: Path) -> str:
+    """Re-run Plugin E against ``repo_root`` and return the regenerated YAML.
+
+    Used by Plugin F autofix to propose a regenerated manifest without
+    writing to disk. Lazy-imports ConfigRegistryPlugin to avoid circular
+    import (plugin.py imports from this module).
+    """
+    from ...protocol import ScanContext
+    from ...schema import GraphSnapshot
+    from .plugin import ConfigRegistryPlugin
+
+    plugin = ConfigRegistryPlugin(check_only=True)
+    ctx = ScanContext(repo_root=repo_root, graph=GraphSnapshot.load(repo_root))
+    failures: list[str] = []
+    manifest = plugin.build_current(ctx, failures)
+    return manifest_to_yaml(manifest)
 
 
 def diff_manifests(
