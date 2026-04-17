@@ -62,6 +62,16 @@ def _build_engine(
         )
         engine.register(cr_plugin)
 
+    hc_cfg_enabled = enabled.get("hooks_check", {}).get("enabled", True)
+    want_hc = (only is None or only == "hooks_check") and hc_cfg_enabled
+    if want_hc:
+        from .plugins.hooks_check.plugin import HooksCheckPlugin
+        hc_plugin = HooksCheckPlugin(config=enabled.get("hooks_check", {}))
+        if only == "hooks_check":
+            from dataclasses import replace
+            hc_plugin = replace(hc_plugin, depends_on=())
+        engine.register(hc_plugin)
+
     return engine
 
 
