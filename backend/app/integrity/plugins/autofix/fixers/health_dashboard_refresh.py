@@ -18,16 +18,47 @@ LATEST_REL = Path("docs/health/latest.md")
 TREND_REL = Path("docs/health/trend.md")
 
 
+def _normalize_plugins(raw: Any) -> dict[str, dict[str, Any]]:
+    """Normalize plugins field to {name: {issues, rules_run}} regardless of input shape.
+
+    Production report.json uses a list: [{name, issue_count, failures, version}, ...].
+    The fixer-internal fixture uses a dict: {name: {issues, rules_run}}.
+    """
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, list):
+        out: dict[str, dict[str, Any]] = {}
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name", ""))
+            if not name:
+                continue
+            out[name] = {
+                "issues": int(entry.get("issue_count", entry.get("issues", 0))),
+                "rules_run": list(entry.get("rules_run", [])),
+            }
+        return out
+    return {}
+
+
 def _render_latest(aggregate: dict[str, Any]) -> str:
     date_iso = str(aggregate.get("date", ""))
-    by_sev = aggregate.get("by_severity") or {}
-    plugins = aggregate.get("plugins") or {}
+    by_sev = aggregate.get("by_severity") or aggregate.get("counts") or {}
+    plugins = _normalize_plugins(aggregate.get("plugins"))
+    issue_total = aggregate.get("issue_total")
+    if issue_total is None:
+        issues_raw = aggregate.get("issues")
+        if isinstance(issues_raw, list):
+            issue_total = len(issues_raw)
+        else:
+            issue_total = sum(int(p.get("issues", 0)) for p in plugins.values())
     lines = [
         f"# Integrity Health — {date_iso}",
         "",
         "## Summary",
         "",
-        f"- Total issues: **{aggregate.get('issue_total', 0)}**",
+        f"- Total issues: **{issue_total}**",
         f"- INFO: {by_sev.get('INFO', 0)}",
         f"- WARN: {by_sev.get('WARN', 0)}",
         f"- ERROR: {by_sev.get('ERROR', 0)}",
