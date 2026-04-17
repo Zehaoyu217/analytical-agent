@@ -1,0 +1,36 @@
+# Doc-audit ignore list
+# Files matched here are excluded from the doc.unindexed BFS requirement.
+# Gitignore-style globs.
+
+# Generated graph reports
+knowledge/graphs/**
+
+# ADR and gotchas template files (not real content)
+knowledge/adr/template.md
+knowledge/gotchas/_template.md
+
+# Individual statistical gotcha articles — loaded on demand, indexed via INDEX.md
+knowledge/gotchas/base_rate_neglect.md
+knowledge/gotchas/berksons_paradox.md
+knowledge/gotchas/confounding.md
+knowledge/gotchas/ecological_fallacy.md
+knowledge/gotchas/immortal_time_bias.md
+knowledge/gotchas/look_ahead_bias.md
+knowledge/gotchas/multicollinearity.md
+knowledge/gotchas/multiple_comparisons.md
+knowledge/gotchas/non_stationarity.md
+knowledge/gotchas/regression_to_mean.md
+knowledge/gotchas/selection_bias.md
+knowledge/gotchas/simpsons_paradox.md
+knowledge/gotchas/spurious_correlation.md
+knowledge/gotchas/survivorship_bias.md
+
+# Wiki operational log (internal)
+knowledge/wiki/log.md
+
+# Internal / generated evaluation docs
+docs/eval_scores.md
+docs/eval-judge-setup.md
+
+# Internal design doc — not user-facing
+docs/progressive-skill-exposure.md

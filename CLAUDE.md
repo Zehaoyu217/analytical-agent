@@ -93,16 +93,21 @@ Pure refactors, test-only commits, and doc-only commits do not require an entry 
 
 ## Current State
 
-Read `knowledge/wiki/working.md` for what's in progress.
+Read [knowledge/wiki/working.md](knowledge/wiki/working.md) for what's in progress.
 
 ## Deeper Context
 
-- Architecture decisions: `knowledge/adr/`
-- Development setup: `docs/dev-setup.md`
-- Testing guide: `docs/testing.md`
-- Skill creation: `docs/skill-creation.md`
-- Known gotchas: `docs/gotchas.md`
-- Changelog: `docs/log.md`
+- Architecture decisions: [knowledge/adr/000-initial-vision.md](knowledge/adr/000-initial-vision.md), [001-python-over-typescript.md](knowledge/adr/001-python-over-typescript.md), [002-vite-over-nextjs.md](knowledge/adr/002-vite-over-nextjs.md)
+- Development setup: [docs/dev-setup.md](docs/dev-setup.md)
+- Testing guide: [docs/testing.md](docs/testing.md)
+- Skill creation: [docs/skill-creation.md](docs/skill-creation.md)
+- Known gotchas: [docs/gotchas.md](docs/gotchas.md)
+- Changelog: [docs/log.md](docs/log.md)
+- Architecture overview: [docs/architecture.md](docs/architecture.md)
+- Git workflow: [docs/git-workflow.md](docs/git-workflow.md)
+- Statistical gotchas index: [knowledge/gotchas/INDEX.md](knowledge/gotchas/INDEX.md)
+- Wiki index: [knowledge/wiki/index.md](knowledge/wiki/index.md)
+- Project overview: [README.md](README.md)
 
 ## Design Context
 
@@ -138,4 +143,4 @@ Tight grid, monospace everywhere it makes sense, data density as a virtue. Refer
 
 5. **Dark is not a mode — it's the product** — design for the dark theme as if the light theme doesn't exist. High contrast within the dark palette; the orange accent should feel intentional, not decorative.
 
-> Full context in `.impeccable.md` at project root.
+> Full context in [.impeccable.md](.impeccable.md) at project root.
