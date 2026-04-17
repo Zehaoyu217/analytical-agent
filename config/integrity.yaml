@@ -41,3 +41,44 @@ plugins:
     claude_ignore_file: ".claude-ignore"
     rename_lookback: "30.days.ago"
     disabled_rules: []
+  config_registry:
+    enabled: true
+    manifest_path: "config/manifest.yaml"
+    skills_root: "backend/app/skills"
+    scripts_root: "scripts"
+    config_globs:
+      - "pyproject.toml"
+      - "package.json"
+      - ".claude/settings.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - "Dockerfile*"
+      - "Makefile"
+      - ".env.example"
+      - "infra/**/*.yaml"
+      - "infra/**/*.yml"
+      - "infra/**/*.tf"
+      - "config/integrity.yaml"
+    excluded_paths:
+      - "node_modules/**"
+      - "**/__pycache__/**"
+      - "integrity-out/**"
+      - "build/**"
+      - "dist/**"
+    function_search_globs:
+      - "backend/app/api/**/*.py"
+      - "backend/app/main.py"
+    function_decorators:
+      - "router"
+      - "app"
+      - "api_router"
+    function_event_handlers:
+      - "startup"
+      - "shutdown"
+      - "lifespan"
+    schema_drift:
+      enabled: true
+      strict_mode: false
+    removed_escalation:
+      enabled: true
+    disabled_rules: []
