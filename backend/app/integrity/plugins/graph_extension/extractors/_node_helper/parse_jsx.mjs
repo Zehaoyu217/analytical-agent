@@ -119,6 +119,28 @@ function extractEdges(filePath) {
         line: path.node.loc?.start?.line ?? null,
       });
     },
+    VariableDeclarator(path) {
+      const init = path.node.init;
+      if (!init || init.type !== 'CallExpression') return;
+      if (init.callee.type !== 'Identifier' || init.callee.name !== 'lazy') return;
+      const arrow = init.arguments[0];
+      if (!arrow || (arrow.type !== 'ArrowFunctionExpression' && arrow.type !== 'FunctionExpression')) return;
+      const body = arrow.body;
+      const importCall = body.type === 'CallExpression' ? body :
+        (body.type === 'BlockStatement' ? null : null);
+      if (!importCall || importCall.callee.type !== 'Import') return;
+      const arg = importCall.arguments[0];
+      if (arg?.type !== 'StringLiteral') return;
+      const lazyName = path.node.id?.name;
+      if (!lazyName) return;
+      const importedBase = arg.value.split('/').pop();
+      out.edges.push({
+        source: lazyName,
+        target: importedBase,
+        kind: 'lazy',
+        line: path.node.loc?.start?.line ?? null,
+      });
+    },
     ExportDefaultDeclaration(path) {
       const decl = path.node.declaration;
       if (decl?.type === 'CallExpression') {
