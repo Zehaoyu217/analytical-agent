@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sb inject --k 5 --scope claims --max-tokens 800 --prompt-stdin"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "sb_ingest|sb_promote_claim",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sb reindex"
+          }
+        ]
+      }
+    ]
+  }
+}
