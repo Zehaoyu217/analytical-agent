@@ -19,6 +19,51 @@
             "command": "sb reindex"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.py) cd backend && uv run ruff check --fix --quiet \"../$CLAUDE_FILE_PATH\" 2>/dev/null || true ;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.ts|*.tsx) cd frontend && pnpm exec eslint --quiet \"../$CLAUDE_FILE_PATH\" 2>/dev/null || true ;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in docs/*.md|knowledge/*.md|*.md) uv run python -m backend.app.integrity --plugin doc_audit --no-augment 2>/dev/null || true ;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *SKILL.md|*skill.yaml) make skill-check 2>/dev/null || true ;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in scripts/*|*pyproject.toml|*Makefile|.claude/settings.json|*skill.yaml) uv run python -m backend.app.integrity --plugin config_registry --no-augment --check 2>/dev/null || true ;; esac"
+          }
+        ]
       }
     ]
   }
