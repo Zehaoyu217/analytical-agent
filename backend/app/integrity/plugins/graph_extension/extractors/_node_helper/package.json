@@ -1,0 +1,11 @@
+{
+  "name": "graph-extension-jsx-helper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node helper that parses JSX/TSX with @babel/parser and emits component-usage edges as JSON.",
+  "dependencies": {
+    "@babel/parser": "7.25.0",
+    "@babel/traverse": "7.25.0"
+  }
+}
