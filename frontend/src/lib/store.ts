@@ -90,6 +90,7 @@ interface ChatState {
   // injects a plan-only instruction into the system prompt. Backend enforces
   // the gate; this flag only controls the UI affordance + request payload.
   planMode: boolean
+  searchPanelOpen: boolean
 
   createConversation: () => string
   setActiveConversation: (id: string) => void
@@ -117,6 +118,7 @@ interface ChatState {
   updateSettings: (patch: Partial<Settings>) => void
   openSettings: () => void
   openSearch: () => void
+  closeSearch: () => void
   setActiveSection: (section: SectionId) => void
   addArtifact: (artifact: Artifact) => void
   clearArtifacts: () => void
@@ -144,6 +146,7 @@ export const useChatStore = create<ChatState>()(
       artifacts: [] as Artifact[],
       activeSection: 'chat' as SectionId,
       planMode: false,
+      searchPanelOpen: false,
 
       createConversation: () => {
         const id = nanoid()
@@ -320,11 +323,8 @@ export const useChatStore = create<ChatState>()(
         set({ activeSection: 'settings' })
       },
 
-      openSearch: () => {
-        // Global search UI not yet built — navigate to a section that
-        // makes sense until a dedicated search panel lands.
-        set({ activeSection: 'chat' })
-      },
+      openSearch: () => set({ searchPanelOpen: true }),
+      closeSearch: () => set({ searchPanelOpen: false }),
 
       setActiveSection: (section) => set({ activeSection: section }),
 

@@ -3,6 +3,7 @@ import { useBranding, prefetchBranding } from '@/hooks/useBranding'
 import { AnnouncerProvider } from '@/components/a11y/Announcer'
 import { SkipToContent } from '@/components/a11y/SkipToContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
+import { GlobalSearchPanel } from '@/components/search/GlobalSearchPanel'
 import { ShortcutsHelp } from '@/components/shortcuts/ShortcutsHelp'
 import { ThemeProvider, useTheme } from '@/components/layout/ThemeProvider'
 import {
@@ -247,6 +248,7 @@ export default function App() {
               </div>
             </div>
             <CommandPalette />
+            <GlobalSearchPanel />
             <ShortcutsHelp />
           </CommandRegistryProvider>
         </AnnouncerProvider>

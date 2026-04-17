@@ -107,6 +107,14 @@ export interface BrandingConfig {
   ui_spinner_phrases: string[]
 }
 
+export interface SessionSearchResult {
+  session_id: string
+  message_id: string
+  snippet: string
+  role: string
+  timestamp: number
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
@@ -189,5 +197,12 @@ export const backend = {
   slash: {
     list: (): Promise<SlashCommand[]> =>
       request<SlashCommand[]>('GET', '/api/slash'),
+  },
+  sessions: {
+    search: (q: string, limit = 10): Promise<SessionSearchResult[]> =>
+      request<SessionSearchResult[]>(
+        'GET',
+        `/api/sessions/search${qs({ q, limit })}`,
+      ),
   },
 }
