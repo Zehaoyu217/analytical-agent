@@ -8,7 +8,7 @@ configs:
 - id: .claude/settings.json
   type: claude_settings
   path: .claude/settings.json
-  sha: 943f6c637707bf6f99548ea6470aa24f9c94f832
+  sha: ac6befd45655b5f76728e6ccadfe2aaa78f1a025
 - id: .env.example
   type: env_example
   path: .env.example
@@ -16,11 +16,11 @@ configs:
 - id: Makefile
   type: makefile
   path: Makefile
-  sha: aee1d8ba05d107a2be35b91c8dbaf115e61ffe8c
+  sha: 904c00b5017cc7ea0b2eb768fb10b59d5b4d1ac2
 - id: config/integrity.yaml
   type: integrity_yaml
   path: config/integrity.yaml
-  sha: 88186154d7b508198e50c340223647e215ad4b5e
+  sha: cca6081f0c7f880e9e19f6f75a590820e1f6c83a
 - id: infra/docker/docker-compose.prod.yml
   type: infra_yaml
   path: infra/docker/docker-compose.prod.yml

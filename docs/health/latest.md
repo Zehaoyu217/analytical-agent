@@ -5,8 +5,12 @@ _Last run: 2026-04-17_
 ## Summary
 
 - **ERROR**: 0
-- **WARN**: 1186
-- **INFO**: 4
+- **WARN**: 1190
+- **INFO**: 9
+
+## graph_extension
+
+_Clean._
 
 ## graph_lint
 
@@ -17,11 +21,20 @@ _Last run: 2026-04-17_
 
 ## doc_audit
 
-- `doc.dead_code_ref`: 1180
+- `doc.dead_code_ref`: 1184
 
 ## config_registry
 
 - `config.schema_drift`: 2
+
+## hooks_check
+
+_Clean._
+
+## autofix
+
+- `autofix.proposed`: 1
+- `autofix.skipped_noop`: 4
 
 ---
 
