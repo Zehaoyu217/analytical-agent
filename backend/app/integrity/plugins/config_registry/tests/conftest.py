@@ -79,6 +79,10 @@ def tiny_repo(tmp_path: Path) -> Path:
     _write(repo, "config/integrity.yaml",
            "plugins:\n  config_registry:\n    enabled: true\n")
 
+    # Base graph (empty — all routes come from augmented)
+    base_graph = {"nodes": [], "links": []}
+    _write(repo, "graphify/graph.json", json.dumps(base_graph, indent=2))
+
     # Graph (2 live routes + 1 dead route — id no longer in any source)
     graph = {
         "nodes": [

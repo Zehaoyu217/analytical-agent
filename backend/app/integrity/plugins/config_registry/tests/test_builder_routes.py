@@ -36,10 +36,9 @@ def test_route_entry_fields(tiny_repo: Path) -> None:
     assert trace.extractor == "fastapi_routes"
 
 
-def test_absent_graph_yields_empty_with_failure(tmp_path: Path) -> None:
-    empty_repo = tmp_path / "repo"
-    empty_repo.mkdir()
-    graph = GraphSnapshot.load(empty_repo)  # both files absent → empty snapshot
+def test_absent_graph_yields_empty_with_failure() -> None:
+    """Empty snapshot (no routes, no nodes) → empty entries + graph-absent failure."""
+    graph = GraphSnapshot(nodes=[], links=[])
     builder = RoutesBuilder(graph=graph)
     entries, failures = builder.build()
     assert entries == []
