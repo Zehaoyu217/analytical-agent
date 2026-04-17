@@ -41,3 +41,30 @@ def test_cli_unknown_plugin_exits_nonzero(repo: Path):
     result = run_cli(repo, "--plugin", "nonexistent")
     assert result.returncode != 0
     assert "nonexistent" in result.stderr
+
+
+def test_main_runs_only_doc_audit(tmp_path, monkeypatch):
+    # Arrange: empty repo with just a CLAUDE.md and graphify stub
+    (tmp_path / "CLAUDE.md").write_text("# x\n", encoding="utf-8")
+    g = tmp_path / "graphify"
+    g.mkdir()
+    (g / "graph.json").write_text('{"nodes":[],"links":[]}', encoding="utf-8")
+
+    from backend.app.integrity.__main__ import main
+
+    rc = main(["--plugin", "doc_audit", "--repo-root", str(tmp_path)])
+    assert rc == 0
+    assert (tmp_path / "integrity-out" / __import__("datetime").date.today().isoformat() / "doc_audit.json").exists()
+
+
+def test_main_rejects_unknown_plugin(tmp_path):
+    g = tmp_path / "graphify"
+    g.mkdir()
+    (g / "graph.json").write_text('{"nodes":[],"links":[]}', encoding="utf-8")
+
+    from backend.app.integrity.__main__ import main
+
+    import pytest
+
+    with pytest.raises(SystemExit):
+        main(["--plugin", "nonexistent", "--repo-root", str(tmp_path)])

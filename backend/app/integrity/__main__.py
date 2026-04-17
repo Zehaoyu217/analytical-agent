@@ -12,7 +12,7 @@ from .report import write_report
 from .schema import GraphSnapshot
 from .snapshots import prune_older_than, write_snapshot
 
-KNOWN_PLUGINS = ("graph_extension", "graph_lint")
+KNOWN_PLUGINS = ("graph_extension", "graph_lint", "doc_audit")
 
 
 def _build_engine(repo_root: Path, only: str | None, skip_augment: bool) -> IntegrityEngine:
@@ -41,6 +41,20 @@ def _build_engine(repo_root: Path, only: str | None, skip_augment: bool) -> Inte
 
             plugin = replace(plugin, depends_on=())
         engine.register(plugin)
+
+    audit_cfg_enabled = enabled.get("doc_audit", {}).get("enabled", True)
+    want_audit = (only is None or only == "doc_audit") and audit_cfg_enabled
+    if want_audit:
+        from .plugins.doc_audit.plugin import DocAuditPlugin
+
+        audit_plugin = DocAuditPlugin(config=enabled.get("doc_audit", {}))
+        # Drop depends_on when graph_extension isn't registered so the
+        # engine topo-sort doesn't require an unloaded plugin.
+        if not want_extension:
+            from dataclasses import replace
+
+            audit_plugin = replace(audit_plugin, depends_on=())
+        engine.register(audit_plugin)
 
     return engine
 
