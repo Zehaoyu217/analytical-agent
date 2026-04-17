@@ -1,0 +1,73 @@
+# Coverage contract for .claude/settings.json hooks.
+# Plugin D (hooks_check) verifies every rule below is satisfied by a hook
+# in .claude/settings.json, and that every hook either satisfies a rule
+# or is on the `tolerated` allowlist.
+#
+# Rule ids: snake_case, stable. Each rule maps churn-bucket → required hook.
+
+rules:
+  - id: backend_python_changed_runs_ruff
+    description: "Python edits trigger ruff."
+    when:
+      paths:
+        - "backend/app/**/*.py"
+        - "backend/scripts/**/*.py"
+    requires_hook:
+      event: PostToolUse
+      matcher: "Write|Edit|MultiEdit"
+      command_substring: "ruff"
+
+  - id: frontend_changed_runs_eslint
+    description: "TS/TSX edits trigger eslint."
+    when:
+      paths:
+        - "frontend/src/**/*.ts"
+        - "frontend/src/**/*.tsx"
+    requires_hook:
+      event: PostToolUse
+      matcher: "Write|Edit|MultiEdit"
+      command_substring: "eslint"
+
+  - id: docs_changed_runs_doc_audit
+    description: "Markdown edits trigger doc_audit drift detection."
+    when:
+      paths:
+        - "docs/**/*.md"
+        - "knowledge/**/*.md"
+        - "*.md"
+    requires_hook:
+      event: PostToolUse
+      matcher: "Write|Edit|MultiEdit"
+      command_substring: "doc_audit"
+
+  - id: skill_md_changed_runs_skill_check
+    description: "SKILL.md / skill.yaml edits run dependency manifest check."
+    when:
+      paths:
+        - "backend/app/skills/**/SKILL.md"
+        - "backend/app/skills/**/skill.yaml"
+    requires_hook:
+      event: PostToolUse
+      matcher: "Write|Edit|MultiEdit"
+      command_substring: "skill-check"
+
+  - id: manifest_inputs_changed_runs_integrity_config
+    description: "Edits to scripts/configs verify the manifest is in sync."
+    when:
+      paths:
+        - "scripts/**"
+        - "backend/app/skills/**/skill.yaml"
+        - "pyproject.toml"
+        - "package.json"
+        - "Makefile"
+        - ".claude/settings.json"
+    requires_hook:
+      event: PostToolUse
+      matcher: "Write|Edit|MultiEdit"
+      command_substring: "integrity --plugin config_registry"
+
+# Hooks containing any tolerated substring are exempt from hooks.unused.
+# Only add formatters/utility hooks everyone wants but no coverage rule asks for.
+tolerated:
+  - "sb inject"      # superbrain context injection (UserPromptSubmit)
+  - "sb reindex"     # superbrain reindex on ingest
