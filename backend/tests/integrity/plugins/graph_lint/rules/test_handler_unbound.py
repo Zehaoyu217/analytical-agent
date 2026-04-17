@@ -31,7 +31,14 @@ def test_skips_handler_with_routes_to_edge(repo: Path):
         {"id": "x_get_users", "label": "get_users", "file_type": "code",
          "source_file": "backend/app/api/x.py", "kind": "function"},
     ]
-    links = [{"source": "route_get_users", "target": "x_get_users", "relation": "routes_to", "confidence": "EXTRACTED"}]
+    links = [
+        {
+            "source": "route_get_users",
+            "target": "x_get_users",
+            "relation": "routes_to",
+            "confidence": "EXTRACTED",
+        }
+    ]
     ctx = ScanContext(repo_root=repo, graph=GraphSnapshot(nodes=nodes, links=links))
     issues = handler_unbound.run(ctx, {}, date(2026, 4, 17))
     assert issues == []
