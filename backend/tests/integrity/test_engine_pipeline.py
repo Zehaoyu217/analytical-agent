@@ -1,10 +1,13 @@
 import json
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 import pytest
 from backend.app.integrity.engine import IntegrityEngine
 from backend.app.integrity.issue import IntegrityIssue
+from backend.app.integrity.plugins.graph_extension.plugin import GraphExtensionPlugin
+from backend.app.integrity.plugins.graph_lint.plugin import GraphLintPlugin
 from backend.app.integrity.protocol import ScanContext, ScanResult
 
 
@@ -77,3 +80,31 @@ def test_unknown_dependency_raises(repo: Path):
     engine.register(a)
     with pytest.raises(ValueError, match="nonexistent"):
         engine.run()
+
+
+def test_real_pipeline_runs_a_then_b(tmp_path):
+    (tmp_path / "graphify").mkdir()
+    (tmp_path / "graphify" / "graph.json").write_text(json.dumps({
+        "nodes": [{"id": "x_helper", "label": "helper", "file_type": "code",
+                   "source_file": "backend/app/x.py", "kind": "function"}],
+        "links": [],
+    }))
+    (tmp_path / "backend" / "app" / "api").mkdir(parents=True)
+    (tmp_path / "backend" / "app" / "api" / "__init__.py").write_text("")
+    (tmp_path / "backend" / "app" / "api" / "users.py").write_text(
+        "from fastapi import APIRouter\n"
+        "router = APIRouter()\n\n"
+        "@router.get('/users')\n"
+        "def list_users():\n    return []\n"
+    )
+
+    engine = IntegrityEngine(tmp_path)
+    engine.register(GraphExtensionPlugin())
+    engine.register(GraphLintPlugin(today=date(2026, 4, 17)))
+    results = engine.run()
+
+    assert [r.plugin_name for r in results] == ["graph_extension", "graph_lint"]
+    for r in results:
+        assert all(i.rule != "engine.plugin_failed" for i in r.issues), [
+            (i.rule, i.message) for i in r.issues
+        ]
