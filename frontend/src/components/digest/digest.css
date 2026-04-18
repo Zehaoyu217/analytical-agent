@@ -122,32 +122,6 @@
   letter-spacing: 0.04em;
 }
 
-.topbar-digest-btn {
-  position: fixed;
-  top: 10px;
-  right: 12px;
-  z-index: 30;
-  background: #09090b;
-  border: 1px solid #27272a;
-  color: #a1a1aa;
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: border-color 120ms linear, color 120ms linear;
-}
-
-.topbar-digest-btn:hover {
-  border-color: #e0733a;
-  color: #e0733a;
-}
-
-.topbar-digest-btn[data-unread='true'] {
-  color: #e0733a;
-  border-color: #e0733a;
-}
-
 .digest-panel__error {
   margin: 8px 0;
   padding: 6px 8px;

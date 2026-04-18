@@ -1,0 +1,22 @@
+.topbar-btn {
+  position: fixed;
+  right: 12px;
+  z-index: 30;
+  background: #09090b;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: border-color 120ms linear, color 120ms linear;
+}
+
+.topbar-btn:hover,
+.topbar-btn[data-active='true'],
+.topbar-btn[data-unread='true'] {
+  border-color: #e0733a;
+  color: #e0733a;
+}

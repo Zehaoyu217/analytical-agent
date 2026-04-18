@@ -18,6 +18,7 @@ import { IconRail } from '@/components/layout/IconRail'
 import { useChatStore } from '@/lib/store'
 import { useDigestStore } from '@/lib/digest-store'
 import { DigestPanel } from '@/components/digest/DigestPanel'
+import { TopbarButton } from '@/components/ui/TopbarButton'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
 import { PromptsSection } from '@/sections/PromptsSection'
@@ -254,15 +255,15 @@ export default function App() {
                 </ErrorBoundary>
               </div>
             </div>
-            <button
-              type="button"
-              className="topbar-digest-btn"
-              data-unread={digestUnread > 0 ? 'true' : 'false'}
+            <TopbarButton
+              slot={0}
+              label="DIGEST"
+              count={digestUnread}
+              active={digestOpen}
+              unread={digestUnread > 0}
               onClick={() => setDigestOpen((v) => !v)}
-              aria-label="Toggle second-brain digest panel"
-            >
-              DIGEST{digestUnread > 0 ? ` · ${digestUnread}` : ''}
-            </button>
+              ariaLabel="Toggle second-brain digest panel"
+            />
             <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
