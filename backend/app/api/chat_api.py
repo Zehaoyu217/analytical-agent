@@ -644,9 +644,16 @@ def _build_system_prompt(
     session_id: str = "",
 ) -> str:
     """Assemble the full data-scientist system prompt for this turn."""
+    from app.hooks.sb_digest_hook import build_digest_summary
+
     injector = get_pre_turn_injector()
+    extras: dict[str, str] = {}
+    digest_summary = build_digest_summary()
+    if digest_summary:
+        extras["Pending knowledge base digest"] = digest_summary
     inputs = InjectorInputs(
         active_profile_summary=active_profile_summary,
+        extras=extras,
         token_budget=TokenBudget(),
         plan_mode=plan_mode,
         session_id=session_id,
