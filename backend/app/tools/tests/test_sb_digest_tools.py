@@ -260,3 +260,31 @@ def test_sb_digest_propose_rejects_unknown_action(sb_home):
         {"section": "Reconciliation", "action": {"action": "zzz"}}
     )
     assert result == {"ok": False, "error": "invalid_action_type"}
+
+
+# ─────────────────────── sb_stats ─────────────────────────────────
+
+
+def test_sb_stats_delegates(sb_home, monkeypatch):
+    from app.tools import sb_digest_tools
+
+    def fake_collect(cfg):
+        return (
+            {"claims": 42, "unread_stale_digests": 0},
+            {"score": 87, "breakdown": {}},
+        )
+
+    monkeypatch.setattr(sb_digest_tools, "_collect_stats", fake_collect, raising=False)
+    result = sb_digest_tools.sb_stats({})
+    assert result == {
+        "ok": True,
+        "stats": {"claims": 42, "unread_stale_digests": 0},
+        "health": {"score": 87, "breakdown": {}},
+    }
+
+
+def test_sb_stats_disabled(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", False, raising=False)
+    from app.tools.sb_digest_tools import sb_stats
+
+    assert sb_stats({}) == {"ok": False, "error": "second_brain_disabled"}

@@ -279,3 +279,41 @@ def sb_digest_propose(args: dict[str, Any]) -> dict[str, Any]:
     with pending.open("a") as f:
         f.write(json.dumps(record) + "\n")
     return {"ok": True, "pending_id": pending_id, "file": str(pending)}
+
+
+def _collect_stats(cfg):
+    from dataclasses import asdict
+
+    from second_brain.stats.collector import collect_stats
+    from second_brain.stats.health import compute_health
+
+    stats = collect_stats(cfg)
+    health = compute_health(stats)
+    return asdict(stats), asdict(health)
+
+
+def _as_dict(obj: Any) -> dict[str, Any]:
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    try:
+        from dataclasses import asdict, is_dataclass
+
+        if is_dataclass(obj):
+            return asdict(obj)
+    except Exception:  # noqa: BLE001
+        pass
+    return dict(getattr(obj, "__dict__", {}))
+
+
+def sb_stats(_args: dict[str, Any]) -> dict[str, Any]:
+    if not config.SECOND_BRAIN_ENABLED:
+        return _disabled()
+    cfg = _cfg()
+    stats, health = _collect_stats(cfg)
+    return {
+        "ok": True,
+        "stats": _as_dict(stats),
+        "health": _as_dict(health),
+    }
