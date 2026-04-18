@@ -22,6 +22,8 @@ import { HealthPanel } from '@/components/health/HealthPanel'
 import { SkillsPanel } from '@/components/skills/SkillsPanel'
 import { useSkillsStore, countToday } from '@/lib/skills-store'
 import { GraphPanel } from '@/components/graph/GraphPanel'
+import { IngestPanel } from '@/components/ingest/IngestPanel'
+import { useIngestStore, countRecentFailures } from '@/lib/ingest-store'
 import { TopbarButton } from '@/components/ui/TopbarButton'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
@@ -236,6 +238,9 @@ export default function App() {
   const [healthOpen, setHealthOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
   const [graphOpen, setGraphOpen] = useState(false)
+  const [ingestOpen, setIngestOpen] = useState(false)
+  const ingestRecent = useIngestStore((s) => s.recent)
+  const ingestFailures = countRecentFailures(ingestRecent)
   const digestUnread = useDigestStore((s) => s.unread)
   const pendingCount = useDigestStore((s) => s.pending.length)
   const refreshPending = useDigestStore((s) => s.refreshPending)
@@ -314,10 +319,20 @@ export default function App() {
               onClick={() => setGraphOpen((v) => !v)}
               ariaLabel="Toggle knowledge graph panel"
             />
+            <TopbarButton
+              slot={4}
+              label="INGEST"
+              count={ingestFailures}
+              active={ingestOpen}
+              unread={ingestFailures > 0}
+              onClick={() => setIngestOpen((v) => !v)}
+              ariaLabel="Toggle ingest drop-zone panel"
+            />
             <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
             <HealthPanel open={healthOpen} onClose={() => setHealthOpen(false)} />
             <SkillsPanel open={skillsOpen} onClose={() => setSkillsOpen(false)} />
             <GraphPanel open={graphOpen} onClose={() => setGraphOpen(false)} />
+            <IngestPanel open={ingestOpen} onClose={() => setIngestOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />

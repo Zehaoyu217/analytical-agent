@@ -373,4 +373,38 @@ def test_graph_clamps_depth_and_limit(monkeypatch):
     assert captured["limit"] == 200
 
 
+# ─────────────────────── ingest ─────────────────────────────────────
+
+
+def test_ingest_returns_404_when_disabled(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", False, raising=False)
+    resp = _client().post("/api/sb/ingest", json={"path": "/tmp/x.md"})
+    assert resp.status_code == 404
+
+
+def test_ingest_happy_path(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    from app.tools import sb_tools
+
+    captured: dict[str, Any] = {}
+
+    def _fake(args):  # noqa: ANN001
+        captured.update(args)
+        return {"ok": True, "source_id": "src_abc", "folder": "/tmp/src_abc"}
+
+    monkeypatch.setattr(sb_tools, "sb_ingest", _fake, raising=False)
+    resp = _client().post("/api/sb/ingest", json={"path": "/tmp/file.md"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["source_id"] == "src_abc"
+    assert captured == {"path": "/tmp/file.md"}
+
+
+def test_ingest_missing_path_is_422(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    resp = _client().post("/api/sb/ingest", json={})
+    assert resp.status_code == 422
+
+
 _ = Path  # keep import used

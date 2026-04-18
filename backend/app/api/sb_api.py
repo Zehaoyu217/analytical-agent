@@ -44,6 +44,10 @@ class ReadBody(BaseModel):
     date: str
 
 
+class IngestBody(BaseModel):
+    path: str
+
+
 @router.get("/digest/today")
 def digest_today() -> dict[str, Any]:
     _require_enabled()
@@ -404,4 +408,14 @@ def sb_graph(
         limit=max(1, min(limit, 200)),
     )
 
+
+# ── Ingest ─────────────────────────────────────────────────────────
+
+
+@router.post("/ingest")
+def sb_ingest_route(body: IngestBody) -> dict[str, Any]:
+    _require_enabled()
+    from app.tools import sb_tools
+
+    return sb_tools.sb_ingest(body.model_dump())
 
