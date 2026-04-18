@@ -19,6 +19,8 @@ import { useChatStore } from '@/lib/store'
 import { useDigestStore } from '@/lib/digest-store'
 import { DigestPanel } from '@/components/digest/DigestPanel'
 import { HealthPanel } from '@/components/health/HealthPanel'
+import { SkillsPanel } from '@/components/skills/SkillsPanel'
+import { useSkillsStore, countToday } from '@/lib/skills-store'
 import { TopbarButton } from '@/components/ui/TopbarButton'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
@@ -231,10 +233,14 @@ export default function App() {
   const branding = useBranding()
   const [digestOpen, setDigestOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [skillsOpen, setSkillsOpen] = useState(false)
   const digestUnread = useDigestStore((s) => s.unread)
   const pendingCount = useDigestStore((s) => s.pending.length)
   const refreshPending = useDigestStore((s) => s.refreshPending)
   const digestCount = digestUnread + pendingCount
+  const skillEvents = useSkillsStore((s) => s.events)
+  const refreshSkills = useSkillsStore((s) => s.refresh)
+  const skillsTodayCount = countToday(skillEvents)
 
   // Sync browser tab title with branding config.
   useEffect(() => {
@@ -247,6 +253,13 @@ export default function App() {
     const t = window.setInterval(() => void refreshPending(), 30_000)
     return () => window.clearInterval(t)
   }, [refreshPending])
+
+  // Background refresh of skills telemetry so the SKILLS badge stays current.
+  useEffect(() => {
+    void refreshSkills()
+    const t = window.setInterval(() => void refreshSkills(), 30_000)
+    return () => window.clearInterval(t)
+  }, [refreshSkills])
 
   if (monitorMatch) {
     return <MonitorPage sessionId={monitorMatch[1]} />
@@ -283,8 +296,18 @@ export default function App() {
               onClick={() => setHealthOpen((v) => !v)}
               ariaLabel="Toggle second-brain health panel"
             />
+            <TopbarButton
+              slot={2}
+              label="SKILLS"
+              count={skillsTodayCount}
+              active={skillsOpen}
+              unread={skillsTodayCount > 0}
+              onClick={() => setSkillsOpen((v) => !v)}
+              ariaLabel="Toggle skills usage panel"
+            />
             <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
             <HealthPanel open={healthOpen} onClose={() => setHealthOpen(false)} />
+            <SkillsPanel open={skillsOpen} onClose={() => setSkillsOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import dataclasses
 import difflib
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +99,30 @@ def register_core_tools(
                 f"as tabular data: {exc}"
             ) from exc
 
+    def _emit_skill_event(
+        *,
+        name: str,
+        started: float,
+        outcome: str,
+        detail: dict[str, Any],
+    ) -> None:
+        """Best-effort skill-load telemetry — never raises."""
+        from app.telemetry.skills_log import append_skill_event  # noqa: PLC0415
+
+        record = {
+            "timestamp": datetime.now(tz=timezone.utc).isoformat().replace(
+                "+00:00", "Z"
+            ),
+            "actor": f"skill:{name}",
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "outcome": outcome,
+            "detail": detail,
+        }
+        append_skill_event(record)
+
     def _load_skill_body(args: dict[str, Any]) -> dict:
         """Return the SKILL.md body with breadcrumb header and sub-skill catalog.
 
@@ -104,6 +130,7 @@ def register_core_tools(
         of its direct children (system-generated from the registry tree).
         The agent calls skill() on any child name to go deeper.
         """
+        started = time.monotonic()
         name = args.get("name")
         if not name or not isinstance(name, str):
             raise ValueError("skill: 'name' (string) required")
@@ -114,6 +141,12 @@ def register_core_tools(
         if node is None:
             available = registry.list_skills()
             suggestions = _closest_skill_names(name, available)
+            _emit_skill_event(
+                name=name,
+                started=started,
+                outcome="error",
+                detail={"action": "load", "reason": "not_found"},
+            )
             raise KeyError(
                 f"skill: '{name}' not found. "
                 f"{len(available)} skills available. "
@@ -150,6 +183,17 @@ def register_core_tools(
             node.package_path is not None
             and node.package_path.exists()
             and any(node.package_path.iterdir())
+        )
+
+        _emit_skill_event(
+            name=name,
+            started=started,
+            outcome="ok",
+            detail={
+                "action": "load",
+                "depth": node.depth,
+                "has_package": bool(has_package),
+            },
         )
 
         return {
