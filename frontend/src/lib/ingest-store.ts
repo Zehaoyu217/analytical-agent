@@ -19,6 +19,7 @@ interface IngestState {
   submitting: boolean
   error: string | null
   submit: (path: string) => Promise<IngestEvent>
+  submitFile: (file: File) => Promise<IngestEvent>
   clear: () => void
 }
 
@@ -76,6 +77,55 @@ export const useIngestStore = create<IngestState>((set) => ({
       ev = {
         timestamp: Date.now(),
         path: trimmed,
+        outcome: 'error',
+        detail: err instanceof Error ? err.message : 'Unexpected error',
+      }
+      set({ error: ev.detail ?? null })
+    }
+    set((s) => ({
+      submitting: false,
+      recent: [ev, ...s.recent].slice(0, MAX_RECENT),
+    }))
+    return ev
+  },
+
+  async submitFile(file) {
+    set({ submitting: true, error: null })
+    let ev: IngestEvent
+    try {
+      const form = new FormData()
+      form.append('file', file, file.name)
+      const res = await fetch('/api/sb/ingest/upload', {
+        method: 'POST',
+        body: form,
+      })
+      if (res.status === 404) {
+        ev = {
+          timestamp: Date.now(),
+          path: file.name,
+          outcome: 'error',
+          detail: 'knowledge base disabled',
+        }
+      } else {
+        const body = (await res.json()) as IngestResponse
+        ev = body.ok
+          ? {
+              timestamp: Date.now(),
+              path: file.name,
+              outcome: 'ok',
+              detail: body.source_id,
+            }
+          : {
+              timestamp: Date.now(),
+              path: file.name,
+              outcome: 'error',
+              detail: body.error ?? 'unknown error',
+            }
+      }
+    } catch (err: unknown) {
+      ev = {
+        timestamp: Date.now(),
+        path: file.name,
         outcome: 'error',
         detail: err instanceof Error ? err.message : 'Unexpected error',
       }

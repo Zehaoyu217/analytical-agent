@@ -4,7 +4,6 @@ import {
   Puzzle,
   FileText,
   Layers,
-  Code2,
   Activity,
   Settings,
 } from 'lucide-react'
@@ -23,7 +22,6 @@ const TOP_SECTIONS: SectionDef[] = [
   { id: 'skills', icon: Puzzle, label: 'Skills' },
   { id: 'prompts', icon: FileText, label: 'Prompts' },
   { id: 'context', icon: Layers, label: 'Context' },
-  { id: 'devtools', icon: Code2, label: 'DevTools' },
   { id: 'health', icon: Activity, label: 'Health' },
 ]
 

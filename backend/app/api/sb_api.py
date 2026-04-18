@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app import config
@@ -418,6 +418,38 @@ def sb_ingest_route(body: IngestBody) -> dict[str, Any]:
     from app.tools import sb_tools
 
     return sb_tools.sb_ingest(body.model_dump())
+
+
+@router.post("/ingest/upload")
+async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Accept a browser file upload, stage it on disk, and run ingest.
+
+    Browsers deliberately hide real filesystem paths, so the file has to
+    travel as multipart bytes. We stage under a per-day temp dir inside
+    the second_brain inbox, then hand the path to the existing ingest
+    tool — which treats it exactly like a dropped local file.
+    """
+    _require_enabled()
+    import tempfile
+    from app.tools import sb_tools
+
+    raw = await file.read()
+    if not raw:
+        return {"ok": False, "error": "empty file"}
+
+    suffix = Path(file.filename or "upload").suffix or ""
+    stem = Path(file.filename or "upload").stem or "upload"
+    tmp_dir = Path(tempfile.gettempdir()) / "sb-ingest-uploads"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    staged = tempfile.NamedTemporaryFile(
+        dir=tmp_dir, prefix=f"{stem}-", suffix=suffix, delete=False
+    )
+    try:
+        staged.write(raw)
+    finally:
+        staged.close()
+
+    return sb_tools.sb_ingest({"path": staged.name})
 
 
 # ── Drift (graph↔wiki) ──────────────────────────────────────────────

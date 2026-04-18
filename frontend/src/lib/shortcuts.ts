@@ -49,6 +49,7 @@ export const CMD = {
   FOCUS_CHAT: 'focus-chat',
   SHOW_HELP: 'show-help',
   FOCUS_DEVTOOLS: 'focus-devtools',
+  CYCLE_RAIL: 'cycle-rail',
   PREV_CONVERSATION: 'prev-conversation',
   NEXT_CONVERSATION: 'next-conversation',
   GLOBAL_SEARCH: 'global-search',

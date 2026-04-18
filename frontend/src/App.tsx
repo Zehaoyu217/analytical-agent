@@ -13,23 +13,16 @@ import {
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { CMD } from '@/lib/shortcuts'
 import { MonitorPage } from '@/pages/MonitorPage'
-import { SessionLayout } from '@/components/session/SessionLayout'
+import { Cockpit } from '@/components/cockpit/Cockpit'
 import { IconRail } from '@/components/layout/IconRail'
 import { useChatStore } from '@/lib/store'
 import { useDigestStore } from '@/lib/digest-store'
-import { DigestPanel } from '@/components/digest/DigestPanel'
-import { HealthPanel } from '@/components/health/HealthPanel'
-import { SkillsPanel } from '@/components/skills/SkillsPanel'
-import { useSkillsStore, countToday } from '@/lib/skills-store'
-import { GraphPanel } from '@/components/graph/GraphPanel'
-import { IngestPanel } from '@/components/ingest/IngestPanel'
-import { useIngestStore, countRecentFailures } from '@/lib/ingest-store'
-import { TopbarButton } from '@/components/ui/TopbarButton'
+import { useSkillsStore } from '@/lib/skills-store'
+import { useRightRailStore } from '@/lib/right-rail-store'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
 import { PromptsSection } from '@/sections/PromptsSection'
 import { ContextSection } from '@/sections/ContextSection'
-import { DevtoolsSection } from '@/sections/DevtoolsSection'
 import { HealthSection } from '@/sections/HealthSection'
 import { SettingsSection } from '@/sections/SettingsSection'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
@@ -131,13 +124,14 @@ function ShortcutWiring() {
         icon: 'HelpCircle',
       }),
       registerCommand({
-        id: CMD.FOCUS_DEVTOOLS,
-        keys: ['mod+shift+d'],
-        label: 'Open DevTools',
-        description: 'Switch to the DevTools section',
-        category: 'DevTools',
-        action: () => setActiveSection('devtools'),
-        icon: 'Terminal',
+        id: CMD.CYCLE_RAIL,
+        keys: ['mod+\\'],
+        label: 'Cycle right rail',
+        description: 'Cycle right rail mode between trace, graph, digest, ingest',
+        category: 'View',
+        action: () => useRightRailStore.getState().cycleMode(),
+        global: true,
+        icon: 'Columns',
       }),
       registerCommand({
         id: CMD.PREV_CONVERSATION,
@@ -207,7 +201,7 @@ function SectionContent() {
 
   switch (activeSection) {
     case 'chat':
-      return <SessionLayout />
+      return <Cockpit />
     case 'agents':
       return <AgentsSection />
     case 'skills':
@@ -216,14 +210,12 @@ function SectionContent() {
       return <PromptsSection />
     case 'context':
       return <ContextSection />
-    case 'devtools':
-      return <DevtoolsSection />
     case 'health':
       return <HealthSection />
     case 'settings':
       return <SettingsSection />
     default:
-      return <SessionLayout />
+      return <Cockpit />
   }
 }
 
@@ -234,39 +226,24 @@ export default function App() {
   const hash = useHashRoute()
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
   const branding = useBranding()
-  const [digestOpen, setDigestOpen] = useState(false)
-  const [healthOpen, setHealthOpen] = useState(false)
-  const [skillsOpen, setSkillsOpen] = useState(false)
-  const [graphOpen, setGraphOpen] = useState(false)
-  const [ingestOpen, setIngestOpen] = useState(false)
-  const ingestRecent = useIngestStore((s) => s.recent)
-  const ingestFailures = countRecentFailures(ingestRecent)
-  const digestUnread = useDigestStore((s) => s.unread)
-  const pendingCount = useDigestStore((s) => s.pending.length)
   const refreshPending = useDigestStore((s) => s.refreshPending)
-  const digestCount = digestUnread + pendingCount
-  const skillEvents = useSkillsStore((s) => s.events)
   const refreshSkills = useSkillsStore((s) => s.refresh)
-  const skillsTodayCount = countToday(skillEvents)
 
   // Sync browser tab title with branding config.
   useEffect(() => {
     document.title = branding.ui_title
   }, [branding.ui_title])
 
-  // Background refresh of pending proposals so the topbar badge stays current.
+  // Background refresh so HUD badges stay current.
   useEffect(() => {
     void refreshPending()
-    const t = window.setInterval(() => void refreshPending(), 30_000)
-    return () => window.clearInterval(t)
-  }, [refreshPending])
-
-  // Background refresh of skills telemetry so the SKILLS badge stays current.
-  useEffect(() => {
     void refreshSkills()
-    const t = window.setInterval(() => void refreshSkills(), 30_000)
+    const t = window.setInterval(() => {
+      void refreshPending()
+      void refreshSkills()
+    }, 30_000)
     return () => window.clearInterval(t)
-  }, [refreshSkills])
+  }, [refreshPending, refreshSkills])
 
   if (monitorMatch) {
     return <MonitorPage sessionId={monitorMatch[1]} />
@@ -287,52 +264,6 @@ export default function App() {
                 </ErrorBoundary>
               </div>
             </div>
-            <TopbarButton
-              slot={0}
-              label="DIGEST"
-              count={digestCount}
-              active={digestOpen}
-              unread={digestCount > 0}
-              onClick={() => setDigestOpen((v) => !v)}
-              ariaLabel="Toggle second-brain digest panel"
-            />
-            <TopbarButton
-              slot={1}
-              label="HEALTH"
-              active={healthOpen}
-              onClick={() => setHealthOpen((v) => !v)}
-              ariaLabel="Toggle second-brain health panel"
-            />
-            <TopbarButton
-              slot={2}
-              label="SKILLS"
-              count={skillsTodayCount}
-              active={skillsOpen}
-              unread={skillsTodayCount > 0}
-              onClick={() => setSkillsOpen((v) => !v)}
-              ariaLabel="Toggle skills usage panel"
-            />
-            <TopbarButton
-              slot={3}
-              label="GRAPH"
-              active={graphOpen}
-              onClick={() => setGraphOpen((v) => !v)}
-              ariaLabel="Toggle knowledge graph panel"
-            />
-            <TopbarButton
-              slot={4}
-              label="INGEST"
-              count={ingestFailures}
-              active={ingestOpen}
-              unread={ingestFailures > 0}
-              onClick={() => setIngestOpen((v) => !v)}
-              ariaLabel="Toggle ingest drop-zone panel"
-            />
-            <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
-            <HealthPanel open={healthOpen} onClose={() => setHealthOpen(false)} />
-            <SkillsPanel open={skillsOpen} onClose={() => setSkillsOpen(false)} />
-            <GraphPanel open={graphOpen} onClose={() => setGraphOpen(false)} />
-            <IngestPanel open={ingestOpen} onClose={() => setIngestOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />

@@ -7,13 +7,14 @@ import './digest.css'
 interface DigestPanelProps {
   open: boolean
   onClose: () => void
+  embedded?: boolean
 }
 
 type Tab = 'today' | 'pending'
 
 const REFRESH_INTERVAL_MS = 10_000
 
-export function DigestPanel({ open, onClose }: DigestPanelProps) {
+export function DigestPanel({ open, onClose, embedded = false }: DigestPanelProps) {
   const date = useDigestStore((s) => s.date)
   const entries = useDigestStore((s) => s.entries)
   const unread = useDigestStore((s) => s.unread)
@@ -52,13 +53,18 @@ export function DigestPanel({ open, onClose }: DigestPanelProps) {
   }
 
   return (
-    <aside className="digest-panel" aria-label="Second-brain digest">
-      <DigestHeader
-        date={date}
-        unread={unread}
-        onMarkRead={() => void markRead()}
-        onClose={onClose}
-      />
+    <aside
+      className={'digest-panel' + (embedded ? ' digest-panel--embedded' : '')}
+      aria-label="Second-brain digest"
+    >
+      {!embedded && (
+        <DigestHeader
+          date={date}
+          unread={unread}
+          onMarkRead={() => void markRead()}
+          onClose={onClose}
+        />
+      )}
       <div className="digest-tabs" role="tablist">
         <button
           type="button"

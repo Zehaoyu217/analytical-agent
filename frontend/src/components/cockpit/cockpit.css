@@ -1,0 +1,303 @@
+.cockpit {
+  display: grid;
+  grid-template-rows: 28px 1fr;
+  height: 100%;
+  background: #09090b;
+  color: #e5e5e5;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.cockpit__body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cockpit__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cockpit__rail {
+  border-left: 1px solid #27272a;
+  background: #0c0c0e;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+  .cockpit__body { grid-template-columns: 1fr; }
+  .cockpit__rail { display: none; }
+}
+
+.cockpit-hud {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 12px;
+  background: #0c0c0e;
+  border-bottom: 1px solid #27272a;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #71717a;
+  position: relative;
+  height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cockpit-hud__session {
+  color: #e0733a;
+  letter-spacing: 0.12em;
+  background: transparent;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.cockpit-hud__session:hover { filter: brightness(1.15); }
+
+.cockpit-hud__value { color: #e5e5e5; }
+.cockpit-hud__dim { color: #3f3f46; }
+.cockpit-hud__ok { color: #22c55e; }
+.cockpit-hud__warn { color: #f59e0b; }
+.cockpit-hud__err { color: #ef4444; }
+.cockpit-hud__accent-soft { color: #f2a277; }
+
+.cockpit-hud__chips {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.cockpit-hud__chip {
+  background: transparent;
+  border: 1px solid #3f3f46;
+  color: #a1a1aa;
+  padding: 2px 8px;
+  font: inherit;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color 120ms linear, color 120ms linear;
+}
+.cockpit-hud__chip:hover { color: #e5e5e5; }
+.cockpit-hud__chip[data-active='true'] {
+  border-color: #e0733a;
+  color: #e0733a;
+}
+
+.cockpit-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 260px;
+  background: #0c0c0e;
+  border: 1px solid #27272a;
+  font-size: 10px;
+  z-index: 50;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+}
+.cockpit-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font: inherit;
+  cursor: pointer;
+}
+.cockpit-dropdown__item:hover { background: #18181b; color: #e5e5e5; }
+.cockpit-dropdown__item--new { color: #e5e5e5; letter-spacing: 0.1em; text-transform: uppercase; }
+.cockpit-dropdown__item--active { color: #e0733a; }
+.cockpit-dropdown__sep { border-top: 1px solid #27272a; }
+.cockpit-dropdown__empty { padding: 10px 12px; color: #52525b; }
+.cockpit-dropdown__short { font-variant-numeric: tabular-nums; color: #71717a; }
+.cockpit-dropdown__title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cockpit-shortcuts {
+  display: flex;
+  gap: 16px;
+  padding: 0 36px 8px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #52525b;
+  user-select: none;
+}
+
+.cockpit-trace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.cockpit-trace__tabs {
+  display: flex;
+  border-bottom: 1px solid #27272a;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+.cockpit-trace__tab {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  padding: 8px 14px;
+  font: inherit;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 120ms linear, border-color 120ms linear;
+}
+.cockpit-trace__tab:hover { color: #e5e5e5; }
+.cockpit-trace__tab[data-active='true'] {
+  color: #e0733a;
+  border-bottom-color: #e0733a;
+}
+.cockpit-trace__count {
+  margin-left: auto;
+  padding: 8px 12px;
+  color: #3f3f46;
+}
+
+.cockpit-trace__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: #a1a1aa;
+}
+
+.cockpit-trace__row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.cockpit-trace__row-time { color: #71717a; font-variant-numeric: tabular-nums; }
+.cockpit-trace__row-kind { color: #f2a277; }
+.cockpit-trace__row-dur { color: #3f3f46; margin-left: auto; }
+.cockpit-trace__row-status--error { color: #ef4444; }
+.cockpit-trace__row-status--ok { color: #22c55e; }
+
+.cockpit-trace__streaming {
+  margin-top: 12px;
+  padding: 6px 8px;
+  border: 1px dashed #27272a;
+  color: #e0733a;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.cockpit-trace__empty {
+  color: #52525b;
+  font-size: 10px;
+}
+
+.cockpit-trace__footer {
+  border-top: 1px solid #27272a;
+  padding: 6px 12px;
+  font-size: 9px;
+  color: #3f3f46;
+  letter-spacing: 0.1em;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cockpit-summon {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.cockpit-summon__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #27272a;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+.cockpit-summon__back {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font: inherit;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.cockpit-summon__back:hover { color: #e5e5e5; }
+.cockpit-summon__label { color: #e0733a; }
+.cockpit-summon__hidden-note { margin-left: auto; color: #3f3f46; }
+.cockpit-summon__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.cockpit-raw {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 9px;
+  line-height: 1.5;
+  color: #a1a1aa;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cockpit-context {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 10px;
+  color: #a1a1aa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cockpit-context__turn-role {
+  color: #e0733a;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.cockpit-context__turn-body {
+  padding-left: 8px;
+  border-left: 1px solid #27272a;
+  color: #a1a1aa;
+}
+.cockpit-context__tools {
+  padding-top: 8px;
+  border-top: 1px solid #27272a;
+}
+.cockpit-context__tools-head {
+  color: #71717a;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 9px;
+  margin-bottom: 4px;
+}

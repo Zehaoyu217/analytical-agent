@@ -50,6 +50,7 @@ describe('IngestPanel', () => {
     global.fetch = fetchSpy
 
     render(<IngestPanel open onClose={() => {}} />)
+    fireEvent.click(screen.getByTestId('ingest-mode-url'))
     const input = screen.getByTestId('ingest-input') as HTMLInputElement
     fireEvent.change(input, { target: { value: '/tmp/demo.md' } })
     fireEvent.click(screen.getByTestId('ingest-submit'))
@@ -74,6 +75,7 @@ describe('IngestPanel', () => {
       new Response('x', { status: 404 }),
     ) as typeof fetch
     render(<IngestPanel open onClose={() => {}} />)
+    fireEvent.click(screen.getByTestId('ingest-mode-url'))
     const input = screen.getByTestId('ingest-input') as HTMLInputElement
     fireEvent.change(input, { target: { value: '/tmp/x' } })
     fireEvent.click(screen.getByTestId('ingest-submit'))

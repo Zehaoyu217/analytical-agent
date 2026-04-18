@@ -5,12 +5,13 @@ import './graph.css'
 interface GraphPanelProps {
   open: boolean
   onClose: () => void
+  embedded?: boolean
 }
 
 const CANVAS_WIDTH = 330
 const CANVAS_HEIGHT = 420
 
-export function GraphPanel({ open, onClose }: GraphPanelProps) {
+export function GraphPanel({ open, onClose, embedded = false }: GraphPanelProps) {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const note = useGraphStore((s) => s.note)
@@ -54,7 +55,10 @@ export function GraphPanel({ open, onClose }: GraphPanelProps) {
   const isEmpty = nodes.length === 0
 
   return (
-    <aside className="graph-panel" aria-label="Second-brain graph viz">
+    <aside
+      className={'graph-panel' + (embedded ? ' graph-panel--embedded' : '')}
+      aria-label="Second-brain graph viz"
+    >
       <div className="graph-panel__header">
         <div>
           <div className="graph-panel__title">GRAPH</div>
