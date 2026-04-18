@@ -16,6 +16,8 @@ import { MonitorPage } from '@/pages/MonitorPage'
 import { SessionLayout } from '@/components/session/SessionLayout'
 import { IconRail } from '@/components/layout/IconRail'
 import { useChatStore } from '@/lib/store'
+import { useDigestStore } from '@/lib/digest-store'
+import { DigestPanel } from '@/components/digest/DigestPanel'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
 import { PromptsSection } from '@/sections/PromptsSection'
@@ -225,6 +227,8 @@ export default function App() {
   const hash = useHashRoute()
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
   const branding = useBranding()
+  const [digestOpen, setDigestOpen] = useState(false)
+  const digestUnread = useDigestStore((s) => s.unread)
 
   // Sync browser tab title with branding config.
   useEffect(() => {
@@ -250,6 +254,16 @@ export default function App() {
                 </ErrorBoundary>
               </div>
             </div>
+            <button
+              type="button"
+              className="topbar-digest-btn"
+              data-unread={digestUnread > 0 ? 'true' : 'false'}
+              onClick={() => setDigestOpen((v) => !v)}
+              aria-label="Toggle second-brain digest panel"
+            >
+              DIGEST{digestUnread > 0 ? ` · ${digestUnread}` : ''}
+            </button>
+            <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />
