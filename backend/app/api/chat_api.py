@@ -480,6 +480,106 @@ _SB_PROMOTE_CLAIM = ToolSchema(
     },
 )
 
+_SB_DIGEST_TODAY = ToolSchema(
+    name="sb_digest_today",
+    description=(
+        "Return today's Second-Brain digest summary (date, entry_count, unread, "
+        "structured entries). Use to see pending KB decisions."
+    ),
+    input_schema={"type": "object", "properties": {}, "required": []},
+)
+
+_SB_DIGEST_LIST = ToolSchema(
+    name="sb_digest_list",
+    description="List recent digests newest-first with entry and applied counts.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "limit": {
+                "type": "integer",
+                "default": 10,
+                "minimum": 1,
+                "maximum": 50,
+            },
+        },
+        "required": [],
+    },
+)
+
+_SB_DIGEST_SHOW = ToolSchema(
+    name="sb_digest_show",
+    description="Return the markdown + structured entries for a specific digest date.",
+    input_schema={
+        "type": "object",
+        "properties": {"date": {"type": "string", "description": "YYYY-MM-DD"}},
+        "required": ["date"],
+    },
+)
+
+_SB_DIGEST_APPLY = ToolSchema(
+    name="sb_digest_apply",
+    description=(
+        "Apply one or more digest entries by id. ``ids`` may be a list or the "
+        "string 'all'."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "date": {"type": "string"},
+            "ids": {
+                "oneOf": [
+                    {"type": "array", "items": {"type": "string"}},
+                    {"type": "string", "enum": ["all"]},
+                ],
+            },
+        },
+        "required": ["ids"],
+    },
+)
+
+_SB_DIGEST_SKIP = ToolSchema(
+    name="sb_digest_skip",
+    description="Skip a digest entry (suppress from future digests for ttl_days).",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "date": {"type": "string"},
+            "id": {"type": "string"},
+            "ttl_days": {
+                "type": "integer",
+                "default": 30,
+                "minimum": 1,
+                "maximum": 365,
+            },
+        },
+        "required": ["id"],
+    },
+)
+
+_SB_DIGEST_PROPOSE = ToolSchema(
+    name="sb_digest_propose",
+    description=(
+        "Propose a KB action to be merged into the next digest build. "
+        "Section is the heading; action is a dict with one of: upgrade_confidence, "
+        "resolve_contradiction, promote_wiki_to_claim, backlink_claim_to_wiki, "
+        "add_taxonomy_root, re_abstract_batch, drop_edge, keep."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "section": {"type": "string"},
+            "action": {"type": "object"},
+        },
+        "required": ["section", "action"],
+    },
+)
+
+_SB_STATS = ToolSchema(
+    name="sb_stats",
+    description="Return Second-Brain KB stats and health score (breakdown included).",
+    input_schema={"type": "object", "properties": {}, "required": []},
+)
+
 _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _EXECUTE_PYTHON,
     _WRITE_WORKING,
@@ -497,6 +597,13 @@ _CHAT_TOOLS: tuple[ToolSchema, ...] = (
     _SB_REASON,
     _SB_INGEST,
     _SB_PROMOTE_CLAIM,
+    _SB_DIGEST_TODAY,
+    _SB_DIGEST_LIST,
+    _SB_DIGEST_SHOW,
+    _SB_DIGEST_APPLY,
+    _SB_DIGEST_SKIP,
+    _SB_DIGEST_PROPOSE,
+    _SB_STATS,
 )
 
 # Read-only / non-mutating tools. Plan Mode narrows the tool menu to this set
@@ -969,6 +1076,15 @@ def _stream_agent_loop(
             dispatcher.register("sb_reason", _sb.sb_reason)
             dispatcher.register("sb_ingest", _sb.sb_ingest)
             dispatcher.register("sb_promote_claim", _sb.sb_promote_claim)
+
+            from app.tools import sb_digest_tools as _sbd
+            dispatcher.register("sb_digest_today", _sbd.sb_digest_today)
+            dispatcher.register("sb_digest_list", _sbd.sb_digest_list)
+            dispatcher.register("sb_digest_show", _sbd.sb_digest_show)
+            dispatcher.register("sb_digest_apply", _sbd.sb_digest_apply)
+            dispatcher.register("sb_digest_skip", _sbd.sb_digest_skip)
+            dispatcher.register("sb_digest_propose", _sbd.sb_digest_propose)
+            dispatcher.register("sb_stats", _sbd.sb_stats)
 
             loop = AgentLoop(
             dispatcher,
