@@ -1,7 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchContext, fetchSessionContext } from '../lib/api'
 import { useDevtoolsStore } from '../stores/devtools'
 import { useChatStore } from '../lib/store'
+
+interface KbRecallState {
+  hits: Array<{ id: string }>
+  skippedReason: string | null
+  available: boolean
+}
 
 const LAYER_COLORS: Record<string, string> = {
   system: '#ef4444',
@@ -42,6 +48,48 @@ export function ContextInspector() {
       clearInterval(interval)
     }
   }, [activeSessionId, setContextSnapshot])
+
+  const [kbRecall, setKbRecall] = useState<KbRecallState>({
+    hits: [],
+    skippedReason: null,
+    available: false,
+  })
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setKbRecall({ hits: [], skippedReason: null, available: false })
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `/api/sb/memory/session/${encodeURIComponent(activeSessionId)}`,
+        )
+        if (cancelled) return
+        if (res.status === 404) {
+          setKbRecall({ hits: [], skippedReason: null, available: false })
+          return
+        }
+        const body = (await res.json()) as {
+          hits?: Array<{ id: string }>
+          skipped_reason?: string | null
+        }
+        setKbRecall({
+          hits: body.hits ?? [],
+          skippedReason: body.skipped_reason ?? null,
+          available: true,
+        })
+      } catch {
+        if (!cancelled) {
+          setKbRecall({ hits: [], skippedReason: null, available: false })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeSessionId])
 
   if (!contextSnapshot) {
     return (
@@ -138,6 +186,62 @@ export function ContextInspector() {
               </div>
             </div>
           ))}
+
+          {kbRecall.available && (
+            <div
+              data-testid="kb-recall-section"
+              style={{
+                background: '#14141f',
+                border: '1px solid #1c1c24',
+                borderLeft: '3px solid #e0733a',
+                borderRadius: 4,
+                padding: 8,
+                marginBottom: 6,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                }}
+              >
+                <span style={{ color: '#e0733a', fontWeight: 600, letterSpacing: 1 }}>
+                  KB RECALL
+                </span>
+                <span style={{ color: '#4a4a5a' }}>{kbRecall.hits.length} hit{kbRecall.hits.length === 1 ? '' : 's'}</span>
+              </div>
+              {kbRecall.hits.length === 0 ? (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 9,
+                    color: '#4a4a5a',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {kbRecall.skippedReason ? `no recall · ${kbRecall.skippedReason}` : 'no recall'}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 9,
+                    color: '#94a3b8',
+                    lineHeight: 1.5,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {kbRecall.hits.map((h, i) => (
+                    <div key={h.id}>
+                      {i === kbRecall.hits.length - 1 ? '└' : '├'} {h.id}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: compaction history */}

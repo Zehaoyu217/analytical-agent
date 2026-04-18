@@ -120,6 +120,50 @@ def test_digest_build_emits(monkeypatch):
     assert body["entries"] == 3
 
 
+# ─────────────────────── memory recall ──────────────────────────────
+
+
+def test_memory_session_returns_404_when_disabled(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", False, raising=False)
+    resp = _client().get("/api/sb/memory/session/s_123")
+    assert resp.status_code == 404
+
+
+def test_memory_session_prompt_override(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+
+    class _Injection:
+        block = "KB: claim_foo – foo is bar."
+        hit_ids = ["clm_foo"]
+        skipped_reason = None
+
+    monkeypatch.setattr(sb_api, "_sb_cfg", lambda: object(), raising=False)
+    monkeypatch.setattr(sb_api, "_load_habits", lambda _cfg: object(), raising=False)
+    monkeypatch.setattr(
+        sb_api,
+        "_build_injection",
+        lambda _cfg, _habits, prompt: _Injection() if prompt else _Injection(),
+        raising=False,
+    )
+    resp = _client().get("/api/sb/memory/session/s_xyz?prompt=hello+world")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["hits"] == [{"id": "clm_foo"}]
+    assert body["block"].startswith("KB:")
+
+
+def test_memory_session_no_prompt_reports_skipped(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    monkeypatch.setattr(sb_api, "_last_user_prompt_for", lambda _sid: None, raising=False)
+    resp = _client().get("/api/sb/memory/session/missing_session")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["hits"] == []
+    assert body["skipped_reason"] == "no_user_prompt"
+
+
 def test_digest_build_empty(monkeypatch):
     monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
 

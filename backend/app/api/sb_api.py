@@ -134,3 +134,50 @@ def digest_build() -> dict[str, Any]:
     result = _run_build(cfg, habits)
     entries = list(getattr(result, "entries", []) or [])
     return {"ok": True, "emitted": len(entries) > 0, "entries": len(entries)}
+
+
+# ── KB recall (devtools memory layer) ───────────────────────────────
+
+
+def _last_user_prompt_for(session_id: str) -> str | None:
+    """Return the most recent user-role message text for ``session_id``.
+
+    Returns ``None`` if the session is missing or has no user messages.
+    Session lookup uses :class:`app.storage.session_db.SessionDB` so the
+    route can be tested without touching the real DB (monkeypatch this
+    helper directly).
+    """
+    try:
+        from app.harness.wiring import get_session_db
+    except Exception:  # noqa: BLE001
+        return None
+    session = get_session_db().get_session(session_id, include_messages=True)
+    if session is None:
+        return None
+    for msg in reversed(session.messages):
+        if msg.role == "user" and msg.content:
+            return msg.content
+    return None
+
+
+def _build_injection(cfg, habits, prompt):  # noqa: ANN001, ANN202
+    from second_brain.inject.runner import build_injection
+
+    return build_injection(cfg, habits, prompt)
+
+
+@router.get("/memory/session/{session_id}")
+def sb_memory_session(session_id: str, prompt: str | None = None) -> dict[str, Any]:
+    _require_enabled()
+    resolved_prompt = prompt if prompt else _last_user_prompt_for(session_id)
+    if not resolved_prompt:
+        return {"ok": True, "hits": [], "block": "", "skipped_reason": "no_user_prompt"}
+    cfg = _sb_cfg()
+    habits = _load_habits(cfg)
+    result = _build_injection(cfg, habits, resolved_prompt)
+    return {
+        "ok": True,
+        "hits": [{"id": h} for h in getattr(result, "hit_ids", []) or []],
+        "block": getattr(result, "block", "") or "",
+        "skipped_reason": getattr(result, "skipped_reason", None),
+    }
