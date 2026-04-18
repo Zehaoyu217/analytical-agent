@@ -96,7 +96,7 @@ export function GraphPanel({ open, onClose }: GraphPanelProps) {
         </button>
       </div>
 
-      {error && <div className="graph-panel__empty">{error}</div>}
+      {error && <div className="graph-panel__empty">error: {error}</div>}
 
       {isEmpty ? (
         <div className="graph-panel__empty">

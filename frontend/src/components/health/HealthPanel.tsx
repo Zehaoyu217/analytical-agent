@@ -55,9 +55,10 @@ export function HealthPanel({ open, onClose }: HealthPanelProps) {
         </button>
       </div>
       {error && <div className="health-panel__empty">{error}</div>}
-      {isEmpty ? (
+      {isEmpty && (
         <div className="health-panel__empty">knowledge base disabled</div>
-      ) : (
+      )}
+      {!isEmpty && (
         <>
           {health && (
             <div className="health-panel__score">
@@ -89,73 +90,67 @@ export function HealthPanel({ open, onClose }: HealthPanelProps) {
               ))}
             </>
           )}
-          <div
-            className="health-panel__section-title"
-            data-testid="health-digest-build-title"
-          >
-            Digest Build · today
+        </>
+      )}
+      <div
+        className="health-panel__section-title"
+        data-testid="health-digest-build-title"
+      >
+        Digest Build · today
+      </div>
+      {todayCost === null ? (
+        <div className="health-panel__empty health-panel__empty--inline">
+          no build yet today
+        </div>
+      ) : (
+        <>
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">duration</span>
+            <span className="health-panel__row-val">
+              {todayCost.duration_ms}ms
+            </span>
           </div>
-          {todayCost === null ? (
-            <div className="health-panel__empty health-panel__empty--inline">
-              no build yet today
-            </div>
-          ) : (
-            <>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">duration</span>
-                <span className="health-panel__row-val">
-                  {todayCost.duration_ms}ms
-                </span>
-              </div>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">entries</span>
-                <span className="health-panel__row-val">
-                  {todayCost.entries}
-                </span>
-              </div>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">outcome</span>
-                <span
-                  className="health-panel__row-val"
-                  data-outcome={todayCost.outcome}
-                >
-                  {todayCost.outcome}
-                </span>
-              </div>
-            </>
-          )}
-          <div
-            className="health-panel__section-title"
-            data-testid="health-drift-title"
-          >
-            Drift · today
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">entries</span>
+            <span className="health-panel__row-val">{todayCost.entries}</span>
           </div>
-          {drift === null ? (
-            <div className="health-panel__empty health-panel__empty--inline">
-              no drift scan yet
-            </div>
-          ) : (
-            <>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">orphan claims</span>
-                <span className="health-panel__row-val">
-                  {drift.orphan_claims}
-                </span>
-              </div>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">orphan backlinks</span>
-                <span className="health-panel__row-val">
-                  {drift.orphan_backlinks}
-                </span>
-              </div>
-              <div className="health-panel__row">
-                <span className="health-panel__row-key">stale claims</span>
-                <span className="health-panel__row-val">
-                  {drift.stale_claims}
-                </span>
-              </div>
-            </>
-          )}
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">outcome</span>
+            <span
+              className="health-panel__row-val"
+              data-outcome={todayCost.outcome}
+            >
+              {todayCost.outcome}
+            </span>
+          </div>
+        </>
+      )}
+      <div
+        className="health-panel__section-title"
+        data-testid="health-drift-title"
+      >
+        Drift · today
+      </div>
+      {drift === null ? (
+        <div className="health-panel__empty health-panel__empty--inline">
+          no drift scan yet
+        </div>
+      ) : (
+        <>
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">orphan claims</span>
+            <span className="health-panel__row-val">{drift.orphan_claims}</span>
+          </div>
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">orphan backlinks</span>
+            <span className="health-panel__row-val">
+              {drift.orphan_backlinks}
+            </span>
+          </div>
+          <div className="health-panel__row">
+            <span className="health-panel__row-key">stale claims</span>
+            <span className="health-panel__row-val">{drift.stale_claims}</span>
+          </div>
         </>
       )}
     </aside>
