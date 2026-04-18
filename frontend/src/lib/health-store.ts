@@ -14,6 +14,14 @@ export interface DigestBuildSummary {
   emitted: boolean
 }
 
+export interface DriftSummary {
+  total: number
+  orphan_claims: number
+  orphan_backlinks: number
+  stale_claims: number
+  timestamp: string
+}
+
 interface DigestCostsResponse {
   ok: boolean
   record: {
@@ -23,12 +31,22 @@ interface DigestCostsResponse {
   } | null
 }
 
+interface DriftResponse {
+  ok: boolean
+  report: {
+    timestamp?: string
+    total?: number
+    by_kind?: Record<string, number>
+  } | null
+}
+
 interface HealthState {
   loading: boolean
   error: string | null
   stats: Record<string, unknown> | null
   health: HealthSummary | null
   todayCost: DigestBuildSummary | null
+  drift: DriftSummary | null
   refresh: () => Promise<void>
 }
 
@@ -38,17 +56,25 @@ export const useHealthStore = create<HealthState>((set) => ({
   stats: null,
   health: null,
   todayCost: null,
+  drift: null,
 
   async refresh() {
     set({ loading: true, error: null })
     try {
-      const [statsRes, costsRes] = await Promise.all([
+      const [statsRes, costsRes, driftRes] = await Promise.all([
         fetch('/api/sb/stats'),
         fetch('/api/sb/digest/costs'),
+        fetch('/api/sb/drift'),
       ])
 
       if (statsRes.status === 404) {
-        set({ loading: false, stats: null, health: null, todayCost: null })
+        set({
+          loading: false,
+          stats: null,
+          health: null,
+          todayCost: null,
+          drift: null,
+        })
         return
       }
       if (!statsRes.ok) {
@@ -73,11 +99,28 @@ export const useHealthStore = create<HealthState>((set) => ({
         }
       }
 
+      let drift: DriftSummary | null = null
+      if (driftRes.ok) {
+        const body = (await driftRes.json()) as DriftResponse
+        const rep = body.report
+        if (rep && typeof rep.total === 'number') {
+          const by = rep.by_kind ?? {}
+          drift = {
+            total: rep.total,
+            orphan_claims: by.orphan_claim ?? 0,
+            orphan_backlinks: by.orphan_backlink ?? 0,
+            stale_claims: by.stale_claim ?? 0,
+            timestamp: rep.timestamp ?? '',
+          }
+        }
+      }
+
       set({
         loading: false,
         stats: data.stats ?? null,
         health: data.health ?? null,
         todayCost,
+        drift,
       })
     } catch (err: unknown) {
       set({

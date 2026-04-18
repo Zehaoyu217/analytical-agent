@@ -407,4 +407,58 @@ def test_ingest_missing_path_is_422(monkeypatch):
     assert resp.status_code == 422
 
 
+# ─────────────────────── drift ──────────────────────────────────────
+
+
+def test_drift_returns_404_when_disabled(monkeypatch):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", False, raising=False)
+    resp = _client().get("/api/sb/drift")
+    assert resp.status_code == 404
+
+
+def test_drift_returns_null_when_snapshot_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    monkeypatch.setattr(sb_api, "_drift_dir", lambda: tmp_path, raising=False)
+    resp = _client().get("/api/sb/drift?date=2026-04-18")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["report"] is None
+
+
+def test_drift_returns_parsed_report(monkeypatch, tmp_path):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    monkeypatch.setattr(sb_api, "_drift_dir", lambda: tmp_path, raising=False)
+    payload = {
+        "timestamp": "2026-04-18T00:00:00Z",
+        "total": 1,
+        "by_kind": {"orphan_claim": 1},
+        "findings": [
+            {
+                "kind": "orphan_claim",
+                "subject_id": "clm_x",
+                "detail": {"wiki_path": "missing.md"},
+            }
+        ],
+    }
+    (tmp_path / "2026-04-18.json").write_text(json.dumps(payload), encoding="utf-8")
+    resp = _client().get("/api/sb/drift?date=2026-04-18")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["report"] == payload
+
+
+def test_drift_handles_malformed_json(monkeypatch, tmp_path):
+    monkeypatch.setattr(app_config, "SECOND_BRAIN_ENABLED", True, raising=False)
+    monkeypatch.setattr(sb_api, "_drift_dir", lambda: tmp_path, raising=False)
+    (tmp_path / "2026-04-18.json").write_text("{not json", encoding="utf-8")
+    resp = _client().get("/api/sb/drift?date=2026-04-18")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["report"] is None
+    assert body["error"] == "malformed_report"
+
+
 _ = Path  # keep import used

@@ -10,6 +10,7 @@ function seed(partial: Partial<ReturnType<typeof useHealthStore.getState>>) {
     stats: null,
     health: null,
     todayCost: null,
+    drift: null,
     ...partial,
   })
 }
@@ -67,5 +68,29 @@ describe('HealthPanel', () => {
     expect(screen.getByText('1234ms')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByText('ok')).toBeInTheDocument()
+  })
+
+  it('shows muted drift section when no snapshot', () => {
+    seed({ health: { score: 80 } })
+    render(<HealthPanel open onClose={() => {}} />)
+    expect(screen.getByText(/drift · today/i)).toBeInTheDocument()
+    expect(screen.getByText(/no drift scan yet/i)).toBeInTheDocument()
+  })
+
+  it('renders drift counts when snapshot is present', () => {
+    seed({
+      health: { score: 80 },
+      drift: {
+        total: 5,
+        orphan_claims: 2,
+        orphan_backlinks: 1,
+        stale_claims: 2,
+        timestamp: '2026-04-18T00:00:00Z',
+      },
+    })
+    render(<HealthPanel open onClose={() => {}} />)
+    expect(screen.getByText(/orphan claims/i)).toBeInTheDocument()
+    expect(screen.getByText(/orphan backlinks/i)).toBeInTheDocument()
+    expect(screen.getByText(/stale claims/i)).toBeInTheDocument()
   })
 })

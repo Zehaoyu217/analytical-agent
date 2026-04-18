@@ -419,3 +419,34 @@ def sb_ingest_route(body: IngestBody) -> dict[str, Any]:
 
     return sb_tools.sb_ingest(body.model_dump())
 
+
+# ── Drift (graph↔wiki) ──────────────────────────────────────────────
+
+
+def _drift_dir() -> Path:
+    """Telemetry dir for drift snapshots — overridable in tests."""
+    return Path(getattr(config, "DRIFT_TELEMETRY_DIR", None)
+                or Path(__file__).resolve().parents[3] / "telemetry" / "drift")
+
+
+def _drift_path(day: date_t) -> Path:
+    return _drift_dir() / f"{day.isoformat()}.json"
+
+
+@router.get("/drift")
+def sb_drift(date: str | None = None) -> dict[str, Any]:
+    """Return the drift snapshot for ``date`` (default: today).
+
+    Returns ``{"ok": True, "report": null}`` when no snapshot exists so
+    the UI can render an empty state without special-casing 404.
+    """
+    _require_enabled()
+    day = date_t.fromisoformat(date) if date else date_t.today()
+    path = _drift_path(day)
+    if not path.exists():
+        return {"ok": True, "report": None}
+    try:
+        return {"ok": True, "report": json.loads(path.read_text(encoding="utf-8"))}
+    except json.JSONDecodeError:
+        return {"ok": True, "report": None, "error": "malformed_report"}
+
