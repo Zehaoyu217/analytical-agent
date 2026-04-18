@@ -189,3 +189,54 @@ def sb_digest_apply(args: dict[str, Any]) -> dict[str, Any]:
         "skipped": list(result.skipped),
         "failed": list(result.failed),
     }
+
+
+def _load_skip_registry():
+    from second_brain.digest.skip import SkipRegistry
+
+    return SkipRegistry
+
+
+_SkipRegistry = None  # late-bound; tests may monkeypatch
+
+
+def _read_skip_map(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
+
+
+def sb_digest_skip(args: dict[str, Any]) -> dict[str, Any]:
+    if not config.SECOND_BRAIN_ENABLED:
+        return _disabled()
+    entry_id = str(args.get("id", "")).strip()
+    if not entry_id:
+        return {"ok": False, "error": "id required"}
+    ttl = int(args.get("ttl_days", 30))
+    day = _parse_date(args.get("date"))
+    cfg = _cfg()
+    registry_cls = _SkipRegistry or _load_skip_registry()
+    registry = registry_cls(cfg)
+    before = _read_skip_map(registry.path)
+    ok = registry.skip_by_id(digest_date=day, entry_id=entry_id, ttl_days=ttl)
+    if not ok:
+        return {"ok": False, "error": "entry_not_found", "id": entry_id}
+    after = _read_skip_map(registry.path)
+    new_sigs = {k: v for k, v in after.items() if k not in before}
+    if new_sigs:
+        sig, expires = next(iter(new_sigs.items()))
+    else:
+        # Entry already skipped earlier — surface the preserved value if we can.
+        sig, expires = "", ""
+    return {
+        "ok": True,
+        "skipped": True,
+        "signature": sig,
+        "expires_at": expires,
+    }

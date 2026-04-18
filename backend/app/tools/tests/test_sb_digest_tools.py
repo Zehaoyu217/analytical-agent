@@ -169,3 +169,60 @@ def test_sb_digest_apply_invalid_args(sb_home):
     from app.tools.sb_digest_tools import sb_digest_apply
 
     assert sb_digest_apply({"ids": []})["ok"] is False
+
+
+# ─────────────────────── sb_digest_skip ───────────────────────────
+
+
+def test_sb_digest_skip_uses_registry(sb_home, monkeypatch):
+    from app.tools import sb_digest_tools
+
+    captured: dict[str, object] = {}
+
+    class FakeRegistry:
+        def __init__(self, cfg):
+            captured["cfg"] = cfg
+            # Simulate the real registry surface: a signatures dict at self.path.
+            self.path = sb_home / ".sb" / "digest_skips.json"
+            self.path.write_text("{}")
+
+        def skip_by_id(self, *, digest_date, entry_id, ttl_days):
+            captured["date"] = digest_date
+            captured["id"] = entry_id
+            captured["ttl"] = ttl_days
+            # Emulate side effect: write a signature into the file.
+            self.path.write_text(
+                json.dumps({"sig_abc": "2099-01-01"})
+            )
+            return True
+
+    monkeypatch.setattr(sb_digest_tools, "_SkipRegistry", FakeRegistry, raising=False)
+    result = sb_digest_tools.sb_digest_skip({"id": "r01", "ttl_days": 30})
+    assert result["ok"] is True
+    assert result["skipped"] is True
+    assert result["signature"] == "sig_abc"
+    assert result["expires_at"] == "2099-01-01"
+    assert captured["ttl"] == 30
+    assert captured["id"] == "r01"
+
+
+def test_sb_digest_skip_missing_id(sb_home):
+    from app.tools.sb_digest_tools import sb_digest_skip
+
+    assert sb_digest_skip({})["ok"] is False
+
+
+def test_sb_digest_skip_entry_not_found(sb_home, monkeypatch):
+    from app.tools import sb_digest_tools
+
+    class FakeRegistry:
+        def __init__(self, cfg):
+            self.path = sb_home / ".sb" / "digest_skips.json"
+
+        def skip_by_id(self, *, digest_date, entry_id, ttl_days):
+            return False
+
+    monkeypatch.setattr(sb_digest_tools, "_SkipRegistry", FakeRegistry, raising=False)
+    result = sb_digest_tools.sb_digest_skip({"id": "nope"})
+    assert result["ok"] is False
+    assert result["error"] == "entry_not_found"
