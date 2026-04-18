@@ -1,0 +1,131 @@
+.digest-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  background: #09090b;
+  color: #e5e5e5;
+  border-left: 1px solid #27272a;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-y: auto;
+  padding: 12px 14px 24px;
+  z-index: 40;
+}
+
+.digest-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #27272a;
+}
+
+.digest-header__title {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e0733a;
+}
+
+.digest-header__meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #71717a;
+}
+
+.digest-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.digest-header__actions button,
+.digest-entry__actions button {
+  background: transparent;
+  border: 1px solid #27272a;
+  color: #e5e5e5;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 120ms linear, color 120ms linear;
+}
+
+.digest-header__actions button:hover,
+.digest-entry__actions button:hover {
+  border-color: #e0733a;
+  color: #e0733a;
+}
+
+.digest-header__close {
+  min-width: 24px;
+  padding: 2px 6px !important;
+}
+
+.digest-section {
+  padding: 10px 0 6px;
+  border-top: 1px solid #18181b;
+}
+
+.digest-section:first-of-type {
+  border-top: none;
+  padding-top: 12px;
+}
+
+.digest-section__title {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.digest-entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  padding: 4px 0;
+  align-items: baseline;
+}
+
+.digest-entry.applied {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.digest-entry__id {
+  color: #e0733a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.digest-entry__line {
+  color: #e5e5e5;
+  word-break: break-word;
+}
+
+.digest-entry__actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.digest-panel__empty {
+  padding: 32px 0;
+  text-align: center;
+  color: #71717a;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.digest-panel__error {
+  margin: 8px 0;
+  padding: 6px 8px;
+  border: 1px solid #7f1d1d;
+  color: #fca5a5;
+  font-size: 11px;
+}
