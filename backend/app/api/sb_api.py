@@ -73,3 +73,9 @@ def digest_read(body: ReadBody) -> dict[str, Any]:
         existing.append(body.date)
     marks.write_text("\n".join(existing) + "\n")
     return {"ok": True, "date": body.date}
+
+
+@router.get("/stats")
+def sb_stats() -> dict[str, Any]:
+    _require_enabled()
+    return sb_digest_tools.sb_stats({})

@@ -18,6 +18,7 @@ import { IconRail } from '@/components/layout/IconRail'
 import { useChatStore } from '@/lib/store'
 import { useDigestStore } from '@/lib/digest-store'
 import { DigestPanel } from '@/components/digest/DigestPanel'
+import { HealthPanel } from '@/components/health/HealthPanel'
 import { TopbarButton } from '@/components/ui/TopbarButton'
 import { AgentsSection } from '@/sections/AgentsSection'
 import { SkillsSection } from '@/sections/SkillsSection'
@@ -229,6 +230,7 @@ export default function App() {
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
   const branding = useBranding()
   const [digestOpen, setDigestOpen] = useState(false)
+  const [healthOpen, setHealthOpen] = useState(false)
   const digestUnread = useDigestStore((s) => s.unread)
 
   // Sync browser tab title with branding config.
@@ -264,7 +266,15 @@ export default function App() {
               onClick={() => setDigestOpen((v) => !v)}
               ariaLabel="Toggle second-brain digest panel"
             />
+            <TopbarButton
+              slot={1}
+              label="HEALTH"
+              active={healthOpen}
+              onClick={() => setHealthOpen((v) => !v)}
+              ariaLabel="Toggle second-brain health panel"
+            />
             <DigestPanel open={digestOpen} onClose={() => setDigestOpen(false)} />
+            <HealthPanel open={healthOpen} onClose={() => setHealthOpen(false)} />
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />
