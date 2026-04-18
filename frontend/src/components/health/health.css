@@ -103,3 +103,15 @@
   font-size: 11px;
   letter-spacing: 0.04em;
 }
+
+.health-panel__empty--inline {
+  padding: 6px 0 2px;
+  text-align: left;
+}
+
+.health-panel__row-val[data-outcome='error'] {
+  color: #ef4444;
+}
+.health-panel__row-val[data-outcome='ok'] {
+  color: #e5e5e5;
+}

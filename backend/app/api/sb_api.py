@@ -7,12 +7,17 @@ underlying tools already use.
 """
 from __future__ import annotations
 
+import json
+import time
+from datetime import date as date_t
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import config
+from app.telemetry.sidecar import write_meta
 from app.tools import sb_digest_tools
 
 router = APIRouter(prefix="/api/sb", tags=["second-brain"])
@@ -126,14 +131,72 @@ def digest_pending() -> dict[str, Any]:
     return {"ok": True, "count": len(proposals), "proposals": proposals}
 
 
+def _write_build_meta(
+    cfg: Any,
+    *,
+    started: float,
+    outcome: str,
+    entries: int,
+    emitted: bool,
+) -> None:
+    """Persist per-build telemetry sidecar.
+
+    Writes to ``{cfg.digests_dir}/YYYY-MM-DD.meta.json``. Failures are
+    swallowed — telemetry must never mask a real request outcome.
+    """
+    try:
+        today = date_t.today().isoformat()
+        record = {
+            "timestamp": datetime.now(tz=timezone.utc).isoformat().replace(
+                "+00:00", "Z"
+            ),
+            "actor": "digest.build",
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "outcome": outcome,
+            "detail": {"entries": entries, "emitted": emitted, "date": today},
+        }
+        write_meta(cfg.digests_dir / f"{today}.meta.json", record)
+    except Exception:  # noqa: BLE001 — telemetry is best-effort
+        pass
+
+
 @router.post("/digest/build")
 def digest_build() -> dict[str, Any]:
     _require_enabled()
     cfg = _sb_cfg()
-    habits = _load_habits(cfg)
-    result = _run_build(cfg, habits)
+    started = time.monotonic()
+    try:
+        habits = _load_habits(cfg)
+        result = _run_build(cfg, habits)
+    except Exception as exc:  # noqa: BLE001
+        _write_build_meta(
+            cfg, started=started, outcome="error", entries=0, emitted=False
+        )
+        raise HTTPException(status_code=500, detail=f"digest_build_failed: {exc}")
     entries = list(getattr(result, "entries", []) or [])
-    return {"ok": True, "emitted": len(entries) > 0, "entries": len(entries)}
+    emitted = len(entries) > 0
+    _write_build_meta(
+        cfg, started=started, outcome="ok", entries=len(entries), emitted=emitted
+    )
+    return {"ok": True, "emitted": emitted, "entries": len(entries)}
+
+
+@router.get("/digest/costs")
+def digest_costs(date: str | None = None) -> dict[str, Any]:
+    """Return today's digest-build sidecar, or ``record: null`` when absent."""
+    _require_enabled()
+    day = date_t.fromisoformat(date) if date else date_t.today()
+    cfg = _sb_cfg()
+    meta = cfg.digests_dir / f"{day.isoformat()}.meta.json"
+    if not meta.exists():
+        return {"ok": True, "record": None}
+    try:
+        return {"ok": True, "record": json.loads(meta.read_text())}
+    except json.JSONDecodeError:
+        return {"ok": True, "record": None, "error": "malformed_meta"}
 
 
 # ── KB recall (devtools memory layer) ───────────────────────────────

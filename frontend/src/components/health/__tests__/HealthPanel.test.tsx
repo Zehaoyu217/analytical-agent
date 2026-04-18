@@ -9,6 +9,7 @@ function seed(partial: Partial<ReturnType<typeof useHealthStore.getState>>) {
     error: null,
     stats: null,
     health: null,
+    todayCost: null,
     ...partial,
   })
 }
@@ -43,5 +44,28 @@ describe('HealthPanel', () => {
     expect(screen.getByText('B')).toBeInTheDocument()
     expect(screen.getByText('coverage')).toBeInTheDocument()
     expect(screen.getByText('claims')).toBeInTheDocument()
+  })
+
+  it('shows muted digest build section when no record today', () => {
+    seed({ health: { score: 80 } })
+    render(<HealthPanel open onClose={() => {}} />)
+    expect(screen.getByText(/digest build · today/i)).toBeInTheDocument()
+    expect(screen.getByText(/no build yet today/i)).toBeInTheDocument()
+  })
+
+  it('renders digest build summary when todayCost is present', () => {
+    seed({
+      health: { score: 80 },
+      todayCost: {
+        duration_ms: 1234,
+        outcome: 'ok',
+        entries: 12,
+        emitted: true,
+      },
+    })
+    render(<HealthPanel open onClose={() => {}} />)
+    expect(screen.getByText('1234ms')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByText('ok')).toBeInTheDocument()
   })
 })

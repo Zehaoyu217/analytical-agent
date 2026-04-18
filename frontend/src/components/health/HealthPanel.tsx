@@ -21,6 +21,7 @@ function formatValue(v: unknown): string {
 export function HealthPanel({ open, onClose }: HealthPanelProps) {
   const stats = useHealthStore((s) => s.stats)
   const health = useHealthStore((s) => s.health)
+  const todayCost = useHealthStore((s) => s.todayCost)
   const error = useHealthStore((s) => s.error)
   const refresh = useHealthStore((s) => s.refresh)
 
@@ -35,7 +36,7 @@ export function HealthPanel({ open, onClose }: HealthPanelProps) {
 
   if (!open) return null
 
-  const isEmpty = stats === null && health === null
+  const isEmpty = stats === null && health === null && todayCost === null
   const components = health?.components ?? health?.breakdown ?? undefined
 
   return (
@@ -84,6 +85,41 @@ export function HealthPanel({ open, onClose }: HealthPanelProps) {
                   <span className="health-panel__row-val">{formatValue(v)}</span>
                 </div>
               ))}
+            </>
+          )}
+          <div
+            className="health-panel__section-title"
+            data-testid="health-digest-build-title"
+          >
+            Digest Build · today
+          </div>
+          {todayCost === null ? (
+            <div className="health-panel__empty health-panel__empty--inline">
+              no build yet today
+            </div>
+          ) : (
+            <>
+              <div className="health-panel__row">
+                <span className="health-panel__row-key">duration</span>
+                <span className="health-panel__row-val">
+                  {todayCost.duration_ms}ms
+                </span>
+              </div>
+              <div className="health-panel__row">
+                <span className="health-panel__row-key">entries</span>
+                <span className="health-panel__row-val">
+                  {todayCost.entries}
+                </span>
+              </div>
+              <div className="health-panel__row">
+                <span className="health-panel__row-key">outcome</span>
+                <span
+                  className="health-panel__row-val"
+                  data-outcome={todayCost.outcome}
+                >
+                  {todayCost.outcome}
+                </span>
+              </div>
             </>
           )}
         </>
