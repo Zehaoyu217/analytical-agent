@@ -1,8 +1,8 @@
 import { useChatStore } from '@/lib/store'
 import { useRightRailStore, type TraceTab } from '@/lib/right-rail-store'
-import { TimelineMode } from './trace/TimelineMode'
-import { ContextMode } from './trace/ContextMode'
-import { RawMode } from './trace/RawMode'
+import { TimelineMode } from '@/components/dock/progress/modes/TimelineMode'
+import { ContextMode } from '@/components/dock/progress/modes/ContextMode'
+import { RawMode } from '@/components/dock/progress/modes/RawMode'
 
 interface TabDef {
   id: TraceTab
