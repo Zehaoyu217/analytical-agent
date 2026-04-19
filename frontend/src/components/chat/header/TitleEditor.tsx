@@ -3,9 +3,10 @@ import { useChatStore } from '@/lib/store'
 
 interface TitleEditorProps {
   conversationId: string
+  triggerSignal?: number
 }
 
-export function TitleEditor({ conversationId }: TitleEditorProps) {
+export function TitleEditor({ conversationId, triggerSignal }: TitleEditorProps) {
   const title = useChatStore(
     (s) => s.conversations.find((c) => c.id === conversationId)?.title ?? '',
   )
@@ -24,6 +25,12 @@ export function TitleEditor({ conversationId }: TitleEditorProps) {
       inputRef.current?.select()
     }
   }, [editing])
+
+  useEffect(() => {
+    if (triggerSignal !== undefined && triggerSignal > 0) {
+      setEditing(true)
+    }
+  }, [triggerSignal])
 
   const commit = () => {
     update(conversationId, draft)
