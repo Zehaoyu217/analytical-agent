@@ -35,6 +35,14 @@ export interface Message {
   artifactIds?: string[]
 }
 
+export interface AttachedFile {
+  id: string
+  name: string
+  size: number
+  mimeType: string
+  contextRefId?: string
+}
+
 export interface Conversation {
   id: string
   title: string
@@ -42,6 +50,9 @@ export interface Conversation {
   createdAt: number
   updatedAt: number
   sessionId?: string
+  model?: string
+  extendedThinking?: boolean
+  attachedFiles?: AttachedFile[]
 }
 
 export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
@@ -107,6 +118,11 @@ interface ChatState {
   createConversation: () => string
   setActiveConversation: (id: string) => void
   clearActiveConversation: () => void
+  updateConversationModel: (id: string, modelId: string) => void
+  setConversationExtendedThinking: (id: string, enabled: boolean) => void
+  addAttachedFile: (conversationId: string, file: AttachedFile) => void
+  removeAttachedFile: (conversationId: string, fileId: string) => void
+  clearAttachedFiles: (conversationId: string) => void
   addMessage: (conversationId: string, msg: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (conversationId: string, messageId: string, patch: Partial<Message>) => void
   setConversationSessionId: (conversationId: string, sessionId: string) => void
@@ -178,6 +194,49 @@ export const useChatStore = create<ChatState>()(
       },
 
       setActiveConversation: (id) => set({ activeConversationId: id }),
+
+      updateConversationModel: (id, modelId) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, model: modelId, updatedAt: Date.now() } : c,
+          ),
+        })),
+
+      setConversationExtendedThinking: (id, enabled) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, extendedThinking: enabled, updatedAt: Date.now() } : c,
+          ),
+        })),
+
+      addAttachedFile: (conversationId, file) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === conversationId
+              ? { ...c, attachedFiles: [...(c.attachedFiles ?? []), file], updatedAt: Date.now() }
+              : c,
+          ),
+        })),
+
+      removeAttachedFile: (conversationId, fileId) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === conversationId
+              ? {
+                  ...c,
+                  attachedFiles: (c.attachedFiles ?? []).filter((f) => f.id !== fileId),
+                  updatedAt: Date.now(),
+                }
+              : c,
+          ),
+        })),
+
+      clearAttachedFiles: (conversationId) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === conversationId ? { ...c, attachedFiles: [], updatedAt: Date.now() } : c,
+          ),
+        })),
 
       clearActiveConversation: () =>
         set((state) => {
