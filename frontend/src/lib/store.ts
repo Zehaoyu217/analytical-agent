@@ -124,6 +124,7 @@ interface ChatState {
   removeAttachedFile: (conversationId: string, fileId: string) => void
   clearAttachedFiles: (conversationId: string) => void
   updateConversationTitle: (id: string, title: string) => void
+  forkConversation: (conversationId: string, throughMessageId?: string) => string
   addMessage: (conversationId: string, msg: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (conversationId: string, messageId: string, patch: Partial<Message>) => void
   setConversationSessionId: (conversationId: string, sessionId: string) => void
@@ -159,7 +160,7 @@ const DEFAULT_CONVERSATION_TITLE = 'New Conversation'
 
 export const useChatStore = create<ChatState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       conversations: [],
       activeConversationId: null,
       sidebarOpen: true,
@@ -249,6 +250,35 @@ export const useChatStore = create<ChatState>()(
             ),
           }
         }),
+
+      forkConversation: (conversationId, throughMessageId) => {
+        const src = get().conversations.find((c) => c.id === conversationId)
+        if (!src) return ''
+        const cutIndex = throughMessageId
+          ? src.messages.findIndex((m) => m.id === throughMessageId)
+          : src.messages.length - 1
+        const copied =
+          cutIndex >= 0 ? src.messages.slice(0, cutIndex + 1).map((m) => ({ ...m })) : []
+        const newId = nanoid()
+        set((state) => ({
+          conversations: [
+            ...state.conversations,
+            {
+              id: newId,
+              title: `${src.title} (fork)`,
+              messages: copied,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              sessionId: undefined,
+              model: src.model,
+              extendedThinking: src.extendedThinking,
+              attachedFiles: [],
+            },
+          ],
+          activeConversationId: newId,
+        }))
+        return newId
+      },
 
       clearActiveConversation: () =>
         set((state) => {
