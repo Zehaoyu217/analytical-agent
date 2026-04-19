@@ -29,6 +29,7 @@ import { GraphPanel } from '@/components/graph/GraphPanel'
 import { DigestPanel } from '@/components/digest/DigestPanel'
 import { IngestPanel } from '@/components/ingest/IngestPanel'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
+import { ArtifactViewer } from '@/components/artifact/ArtifactViewer'
 
 interface SectionShortcut {
   id: string
@@ -334,6 +335,7 @@ export default function App() {
             <CommandPalette />
             <GlobalSearchPanel />
             <ShortcutsHelp />
+            <ArtifactViewer />
           </CommandRegistryProvider>
         </AnnouncerProvider>
       </ThemeProvider>
