@@ -46,7 +46,17 @@ export interface Conversation {
 
 export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
 export type RightPanelTab = 'artifacts' | 'scratchpad' | 'tools'
-export type SectionId = 'chat' | 'agents' | 'skills' | 'prompts' | 'context' | 'health' | 'settings'
+export type SectionId =
+  | 'chat'
+  | 'agents'
+  | 'skills'
+  | 'prompts'
+  | 'context'
+  | 'health'
+  | 'graph'
+  | 'digest'
+  | 'ingest'
+  | 'settings'
 
 export interface Settings {
   model: string

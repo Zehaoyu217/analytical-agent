@@ -25,6 +25,9 @@ import { PromptsSection } from '@/sections/PromptsSection'
 import { ContextSection } from '@/sections/ContextSection'
 import { HealthSection } from '@/sections/HealthSection'
 import { SettingsSection } from '@/sections/SettingsSection'
+import { GraphPanel } from '@/components/graph/GraphPanel'
+import { DigestPanel } from '@/components/digest/DigestPanel'
+import { IngestPanel } from '@/components/ingest/IngestPanel'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 
 function useHashRoute(): string {
@@ -198,6 +201,8 @@ function ShortcutWiring() {
 
 function SectionContent() {
   const activeSection = useChatStore((s) => s.activeSection)
+  const setActiveSection = useChatStore((s) => s.setActiveSection)
+  const backToChat = () => setActiveSection('chat')
 
   switch (activeSection) {
     case 'chat':
@@ -212,6 +217,12 @@ function SectionContent() {
       return <ContextSection />
     case 'health':
       return <HealthSection />
+    case 'graph':
+      return <GraphPanel open onClose={backToChat} embedded={false} />
+    case 'digest':
+      return <DigestPanel open onClose={backToChat} embedded={false} />
+    case 'ingest':
+      return <IngestPanel open onClose={backToChat} embedded={false} />
     case 'settings':
       return <SettingsSection />
     default:
