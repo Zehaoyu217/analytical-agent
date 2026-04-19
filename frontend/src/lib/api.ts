@@ -203,6 +203,8 @@ export interface StreamChatOptions {
    * payload so the two sides stay in sync.
    */
   planMode?: boolean
+  model?: string
+  extendedThinking?: boolean
   signal?: AbortSignal
 }
 
@@ -233,6 +235,8 @@ export async function* streamChatMessage(
       session_id: sessionId,
       dataset_path: options.datasetPath ?? null,
       plan_mode: options.planMode ?? false,
+      ...(options.model ? { model: options.model } : {}),
+      ...(options.extendedThinking ? { extended_thinking: true } : {}),
     }),
     signal: options.signal,
   })
