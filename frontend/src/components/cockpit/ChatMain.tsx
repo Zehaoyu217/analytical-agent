@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useChatStore } from '@/lib/store'
 import { ChatWindow } from '@/components/chat/ChatWindow'
-import { ChatInput } from '@/components/chat/ChatInput'
+import { Composer } from '@/components/chat/composer/Composer'
 
 export function ChatMain() {
   const conversations = useChatStore((s) => s.conversations)
@@ -36,7 +36,7 @@ export function ChatMain() {
   return (
     <>
       <ChatWindow conversationId={activeConversationId} />
-      <ChatInput conversationId={activeConversationId} />
+      <Composer conversationId={activeConversationId} />
       <div className="cockpit-shortcuts" aria-hidden="true">
         <span>⌘L focus</span>
         <span>⌘K palette</span>
