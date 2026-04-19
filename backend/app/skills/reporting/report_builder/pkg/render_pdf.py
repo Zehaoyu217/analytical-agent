@@ -8,7 +8,7 @@ from app.skills.reporting.report_builder.pkg.build import ReportSpec, Template
 from app.skills.reporting.report_builder.pkg.render_html import render_html
 
 
-class PDFBackendUnavailable(RuntimeError):
+class PDFBackendUnavailable(RuntimeError):  # noqa: N818 — keep existing public name
     """Raised when weasyprint (or its system deps) are missing."""
 
 

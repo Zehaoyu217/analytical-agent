@@ -29,7 +29,7 @@ function resetUi(): void {
     progressExpanded: [],
     artifactView: 'grid',
     recentCommandIds: [],
-    traceTab: 'timeline',
+    traceTab: 'context',
   })
   useChatStore.setState({
     toolCallLog: [],

@@ -3,11 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.builders.routes import (
-    RouteEntry,
+from app.integrity.plugins.config_registry.builders.routes import (
     RoutesBuilder,
 )
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.schema import GraphSnapshot
 
 
 def test_re_exports_three_routes(tiny_repo: Path) -> None:

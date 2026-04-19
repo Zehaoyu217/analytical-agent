@@ -49,7 +49,7 @@ stripped of the original `tool_calls` array.
 
 **Fix:** Added `tool_calls: tuple[ToolCall, ...] = field(default_factory=tuple)` to
 `Message`, updated all loop paths to pass `tool_calls=tuple(resp.tool_calls)` on the
-assistant message, and updated `OpenRouterClient._payload` to serialize it:
+assistant message, and updated the `OpenRouterClient` payload serializer (see `backend/app/harness/clients/openrouter_client.py`) to emit it:
 
 ```python
 {"role": "assistant", "content": null, "tool_calls": [{...}]}

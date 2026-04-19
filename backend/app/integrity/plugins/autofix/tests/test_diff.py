@@ -1,11 +1,12 @@
 """Tests for the Diff dataclass — the core unit of autofix proposals."""
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.plugins.autofix.diff import Diff, IssueRef
+from app.integrity.plugins.autofix.diff import Diff, IssueRef
 
 
 def _ref() -> IssueRef:
@@ -25,7 +26,7 @@ def test_diff_is_frozen() -> None:
         rationale="x",
         source_issues=(_ref(),),
     )
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         d.path = Path("other.md")  # type: ignore[misc]
 
 

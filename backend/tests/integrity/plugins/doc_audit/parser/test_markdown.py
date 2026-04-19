@@ -33,8 +33,8 @@ def test_parse_doc_extracts_headings_and_links(tmp_path: Path):
 
     assert parsed.rel_path == "sample.md"
     assert parsed.front_matter == {"status": "accepted"}
-    assert any(h.text == "Top Heading" and h.slug == "top-heading" and h.level == 1 for h in parsed.headings)
-    assert any(h.text == "Sub Heading" and h.slug == "sub-heading" and h.level == 2 for h in parsed.headings)
+    assert any(h.text == "Top Heading" and h.slug == "top-heading" and h.level == 1 for h in parsed.headings)  # noqa: E501
+    assert any(h.text == "Sub Heading" and h.slug == "sub-heading" and h.level == 2 for h in parsed.headings)  # noqa: E501
 
     targets = [(link.target, link.anchor) for link in parsed.links]
     assert ("other.md", None) in targets

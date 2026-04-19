@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date as _date
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -77,7 +78,7 @@ class _ShimSection:
         self._fs = fs
         self.body_html = body_html
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self._fs, name)
 
 
@@ -86,5 +87,5 @@ class _ShimSpec:
         self._spec = spec
         self.findings = findings
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self._spec, name)

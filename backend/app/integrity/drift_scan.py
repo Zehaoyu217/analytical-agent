@@ -14,10 +14,11 @@ gracefully: ``DriftReport(total=0, findings=[])``.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Protocol
+from typing import Any, Protocol
 
 
 class _CfgLike(Protocol):
@@ -99,7 +100,6 @@ def _read_frontmatter(path: Path) -> dict[str, Any]:
 
     # Fallback parser
     result: dict[str, Any] = {}
-    current_key: str | None = None
     current_list: list[str] | None = None
     for line in body_lines:
         if not line.strip():
@@ -112,12 +112,10 @@ def _read_frontmatter(path: Path) -> dict[str, Any]:
             key = key.strip()
             val = val.strip()
             if val == "":
-                current_key = key
                 current_list = []
                 result[key] = current_list
             else:
                 result[key] = val
-                current_key = None
                 current_list = None
     return result
 
@@ -134,7 +132,7 @@ def _parse_timestamp(value: Any) -> datetime | None:
     else:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -156,7 +154,7 @@ def scan_drift(
 
     Never raises — returns an empty report on any IO failure.
     """
-    timestamp = datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    timestamp = datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
     try:
         claims_dir = Path(getattr(cfg, "claims_dir", ""))

@@ -1,12 +1,11 @@
 """Tests for __main__.py wiring of config_registry plugin."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.__main__ import KNOWN_PLUGINS, _build_engine, main
+from app.integrity.__main__ import KNOWN_PLUGINS, _build_engine, main
 
 
 def test_known_plugins_includes_config_registry() -> None:

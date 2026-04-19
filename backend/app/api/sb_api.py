@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import UTC, datetime
 from datetime import date as date_t
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -94,25 +94,25 @@ def sb_stats() -> dict[str, Any]:
 # ── Seams for digest pending / build (monkeypatched in tests) ──────
 
 
-def _sb_cfg():  # noqa: ANN202
+def _sb_cfg() -> Any:
     from second_brain.config import Config
 
     return Config.load()
 
 
-def _read_pending(cfg):  # noqa: ANN001, ANN202
+def _read_pending(cfg: Any) -> Any:
     from second_brain.digest.pending import read_pending
 
     return read_pending(cfg)
 
 
-def _load_habits(cfg):  # noqa: ANN001, ANN202
+def _load_habits(cfg: Any) -> Any:
     from second_brain.habits.loader import load_habits
 
     return load_habits(cfg)
 
 
-def _run_build(cfg, habits):  # noqa: ANN001, ANN202
+def _run_build(cfg: Any, habits: Any) -> Any:
     from datetime import date
 
     from second_brain.digest.builder import DigestBuilder
@@ -152,7 +152,7 @@ def _write_build_meta(
     try:
         today = date_t.today().isoformat()
         record = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat().replace(
+            "timestamp": datetime.now(tz=UTC).isoformat().replace(
                 "+00:00", "Z"
             ),
             "actor": "digest.build",
@@ -180,7 +180,7 @@ def digest_build() -> dict[str, Any]:
         _write_build_meta(
             cfg, started=started, outcome="error", entries=0, emitted=False
         )
-        raise HTTPException(status_code=500, detail=f"digest_build_failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"digest_build_failed: {exc}") from exc
     entries = list(getattr(result, "entries", []) or [])
     emitted = len(entries) > 0
     _write_build_meta(
@@ -228,7 +228,7 @@ def _last_user_prompt_for(session_id: str) -> str | None:
     return None
 
 
-def _build_injection(cfg, habits, prompt):  # noqa: ANN001, ANN202
+def _build_injection(cfg: Any, habits: Any, prompt: str | None) -> Any:
     from second_brain.inject.runner import build_injection
 
     return build_injection(cfg, habits, prompt)
@@ -421,7 +421,7 @@ def sb_ingest_route(body: IngestBody) -> dict[str, Any]:
 
 
 @router.post("/ingest/upload")
-async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:
+async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008 — FastAPI dependency idiom
     """Accept a browser file upload, stage it on disk, and run ingest.
 
     Browsers deliberately hide real filesystem paths, so the file has to
@@ -431,6 +431,7 @@ async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:
     """
     _require_enabled()
     import tempfile
+
     from app.tools import sb_tools
 
     raw = await file.read()
@@ -441,13 +442,10 @@ async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:
     stem = Path(file.filename or "upload").stem or "upload"
     tmp_dir = Path(tempfile.gettempdir()) / "sb-ingest-uploads"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    staged = tempfile.NamedTemporaryFile(
+    with tempfile.NamedTemporaryFile(
         dir=tmp_dir, prefix=f"{stem}-", suffix=suffix, delete=False
-    )
-    try:
+    ) as staged:
         staged.write(raw)
-    finally:
-        staged.close()
 
     return sb_tools.sb_ingest({"path": staged.name})
 

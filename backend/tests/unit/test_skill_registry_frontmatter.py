@@ -16,7 +16,7 @@ def _write_skill(
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
-        f"---\nname: {name}\ndescription: {description}\nversion: '{version}'\n---\n# {name}\n\nBody.\n"
+        f"---\nname: {name}\ndescription: {description}\nversion: '{version}'\n---\n# {name}\n\nBody.\n"  # noqa: E501
     )
     (skill_dir / "skill.yaml").write_text(
         "dependencies:\n  requires: []\n  used_by: []\n  packages: []\nerrors: {}\n"

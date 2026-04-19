@@ -713,7 +713,7 @@ class AgentLoop:
             # Agent exhausted the step budget without writing a final response.
             # Force one synthesis call so the user always gets text back.
             if not final_text.strip() and messages:
-                yield StreamEvent(type="turn_start", payload={"session_id": session_id, "step": steps + 1})
+                yield StreamEvent(type="turn_start", payload={"session_id": session_id, "step": steps + 1})  # noqa: E501
                 try:
                     synth_msgs = _build_synthesis_messages(user_message, messages)
                     synth_req = CompletionRequest(

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.autofix.fixers.claude_md_link import propose
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.fixers.claude_md_link import propose
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
 
 
 def _artifacts_with_unindexed(*paths: str) -> SiblingArtifacts:
@@ -21,7 +21,7 @@ def _artifacts_with_unindexed(*paths: str) -> SiblingArtifacts:
 
 
 def test_no_unindexed_returns_empty(tmp_path: Path) -> None:
-    (tmp_path / "CLAUDE.md").write_text("# T\n\n## Deeper Context\n\n- [Existing](docs/existing.md)\n")
+    (tmp_path / "CLAUDE.md").write_text("# T\n\n## Deeper Context\n\n- [Existing](docs/existing.md)\n")  # noqa: E501
     artifacts = SiblingArtifacts(
         doc_audit={"plugin": "doc_audit", "issues": []},
         config_registry={}, graph_lint={}, aggregate={}, failures={},

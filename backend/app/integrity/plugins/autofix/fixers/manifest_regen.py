@@ -17,7 +17,7 @@ MANIFEST_REL = Path("config/manifest.yaml")
 
 
 def _regenerate_manifest_text(repo_root: Path) -> str:
-    from backend.app.integrity.plugins.config_registry.manifest import (
+    from app.integrity.plugins.config_registry.manifest import (
         emit_manifest_text,
     )
     return emit_manifest_text(repo_root)

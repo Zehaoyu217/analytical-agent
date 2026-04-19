@@ -7,6 +7,7 @@ coordination is not attempted here.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -22,7 +23,7 @@ class JsonStoreError(RuntimeError):
     """Raised when a JSON file cannot be read or parsed into the target model."""
 
 
-def read_json(path: Path, model: type[M], default: M | None = None) -> M:
+def read_json(path: Path, model: type[M], default: M | None = None) -> M:  # noqa: UP047 — TypeVar generic keeps older call sites intact
     """Read `path` and validate it against `model`.
 
     If the file does not exist, return `default` when provided, otherwise raise
@@ -63,8 +64,6 @@ def write_json_atomic(path: Path, model: BaseModel) -> None:
         os.replace(tmp_name, path)
     except Exception:
         # Best-effort cleanup — the tmp file may or may not exist at this point.
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
         raise

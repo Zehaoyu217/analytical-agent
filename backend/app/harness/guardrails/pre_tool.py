@@ -44,13 +44,12 @@ def pre_tool_gate(
                 message="code references `df` but no dataset is loaded in the session",
             ))
 
-    if call.name == "promote_finding":
-        if not _validate_passed_in_trace(turn_trace):
-            findings.append(GuardrailFinding(
-                code="promote_without_validate",
-                severity=Severity.FAIL,
-                message="promote_finding requires a prior stat_validate PASS in the turn",
-            ))
+    if call.name == "promote_finding" and not _validate_passed_in_trace(turn_trace):
+        findings.append(GuardrailFinding(
+            code="promote_without_validate",
+            severity=Severity.FAIL,
+            message="promote_finding requires a prior stat_validate PASS in the turn",
+        ))
 
     if call.name == "time_series.lag_correlate":
         accept = bool(call.arguments.get("accept_non_stationary", False))

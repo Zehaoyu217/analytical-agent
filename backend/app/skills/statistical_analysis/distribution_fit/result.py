@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 from app.skills.statistical_analysis.distribution_fit.fit_one import FitCandidate
 
@@ -15,8 +16,8 @@ class FitResult:
     outlier_threshold: float
     outlier_indices: tuple[int, ...] = field(default_factory=tuple)
 
-    def to_dict(self) -> dict:
-        d = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "best": asdict(self.best),
             "ranked": [asdict(c) for c in self.ranked],
             "hill_alpha": self.hill_alpha,

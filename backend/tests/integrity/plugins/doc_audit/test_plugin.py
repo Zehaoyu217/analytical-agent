@@ -88,7 +88,7 @@ def test_plugin_skips_disabled_rules(tmp_path: Path):
     assert called["count"] == 0
 
 
-from collections import Counter
+from collections import Counter  # noqa: E402
 
 
 def test_full_plugin_against_tiny_repo(tiny_repo, today_fixed):

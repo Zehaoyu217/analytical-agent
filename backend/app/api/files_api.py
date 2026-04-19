@@ -165,10 +165,7 @@ def read_file(
             encoding="utf-8",
         )
     except UnicodeDecodeError:
-        if include_binary_content:
-            encoded = base64.b64encode(data).decode("ascii")
-        else:
-            encoded = ""
+        encoded = base64.b64encode(data).decode("ascii") if include_binary_content else ""
         return FileReadResponse(
             path=rel_path,
             size=size,

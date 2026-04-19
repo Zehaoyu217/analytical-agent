@@ -4,13 +4,13 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.manifest import empty_manifest
-from backend.app.integrity.plugins.config_registry.rules.removed import (
+from app.integrity.plugins.config_registry.manifest import empty_manifest
+from app.integrity.plugins.config_registry.rules.removed import (
     build_dep_index,
     run,
 )
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 
 def _ctx(repo: Path) -> ScanContext:

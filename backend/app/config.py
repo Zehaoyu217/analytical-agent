@@ -136,8 +136,8 @@ def _build_from_raw(raw: dict[str, Any]) -> BrandingConfig:
 
 
 # ── Second Brain integration ────────────────────────────────────────────────
-import os as _os
-from pathlib import Path as _Path
+import os as _os  # noqa: E402 — grouped with helpers below intentionally
+from pathlib import Path as _Path  # noqa: E402
 
 
 def _resolve_sb_home() -> _Path:

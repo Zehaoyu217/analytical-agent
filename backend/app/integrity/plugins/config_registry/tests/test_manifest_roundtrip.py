@@ -1,11 +1,9 @@
 """Tests for manifest read/write/diff."""
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.manifest import (
-    ManifestDelta,
+from app.integrity.plugins.config_registry.manifest import (
     diff_manifests,
     empty_manifest,
     read_manifest,

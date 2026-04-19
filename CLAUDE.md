@@ -24,8 +24,8 @@ Analytical Agent — a full-stack analytical platform for MLE, data scientists, 
 ```bash
 # Development
 make dev              # Start backend + frontend + Ollama
-make backend          # Backend only (uvicorn :8000)
-make frontend         # Frontend only (vite :5173)
+make backend          # Backend only (uvicorn :8000) — auto-bootstraps backend/.venv via `uv sync` if missing
+make frontend         # Frontend only (vite :5173, falls back to :5174 if 5173 is taken)
 
 # Quality
 make lint             # Ruff (backend) + ESLint (frontend)
@@ -43,6 +43,10 @@ make skill-new name=X [parent=Y] [type=reference]  # Scaffold new skill
 make wiki-lint        # Run wiki lint cycle
 make graphify         # Regenerate graphify output
 ```
+
+### Running locally
+
+`make backend` and `make dev` invoke `backend/.venv/bin/uvicorn` directly — no `source .venv/bin/activate` needed. If `.venv` is missing, the target runs `uv sync` to create it before booting. First-time setup only needs `uv` on PATH; everything else is automatic.
 
 ## Architecture
 
@@ -105,6 +109,7 @@ Read [knowledge/wiki/working.md](knowledge/wiki/working.md) for what's in progre
 - Changelog: [docs/log.md](docs/log.md)
 - Architecture overview: [docs/architecture.md](docs/architecture.md)
 - Git workflow: [docs/git-workflow.md](docs/git-workflow.md)
+- GAN trace corpus: [docs/gan-trace-corpus.md](docs/gan-trace-corpus.md)
 - Statistical gotchas index: [knowledge/gotchas/INDEX.md](knowledge/gotchas/INDEX.md)
 - Wiki index: [knowledge/wiki/index.md](knowledge/wiki/index.md)
 - Project overview: [README.md](README.md)

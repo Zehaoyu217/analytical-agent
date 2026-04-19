@@ -4,9 +4,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.app.integrity.plugins.autofix.diff import Diff, IssueRef
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
-from backend.app.integrity.plugins.autofix.safety import (
+from app.integrity.plugins.autofix.diff import Diff, IssueRef
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.safety import (
     check_apply_preflight,
     check_diff_path,
     check_upstream,

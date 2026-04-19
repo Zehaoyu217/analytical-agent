@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from backend.app.integrity.plugins.autofix.circuit_breaker import (
+from app.integrity.plugins.autofix.circuit_breaker import (
     AutofixState,
     ClassState,
     PRRecord,

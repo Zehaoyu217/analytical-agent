@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from typing import Literal
 
 from app.evals.types import (
     AgentTrace,
@@ -67,7 +68,7 @@ def _detect_early_bail(trace: AgentTrace) -> str | None:
 def _detect_duckdb_syntax(trace: AgentTrace) -> str | None:
     for err in trace.errors:
         low = err.lower()
-        if any(kw in low for kw in ("catalog error", "parser error", "binder error", "syntax error")):
+        if any(kw in low for kw in ("catalog error", "parser error", "binder error", "syntax error")):  # noqa: E501
             return err[:200]
     return None
 
@@ -85,7 +86,7 @@ def _detect_no_synthesis(trace: AgentTrace) -> str | None:
 
 def _detect_missing_table(trace: AgentTrace) -> str | None:
     for err in trace.errors:
-        if "table" in err.lower() and ("not found" in err.lower() or "does not exist" in err.lower()):
+        if "table" in err.lower() and ("not found" in err.lower() or "does not exist" in err.lower()):  # noqa: E501
             return err[:200]
     return None
 
@@ -101,7 +102,7 @@ _PATTERN_REGISTRY: list[tuple[str, Callable[[AgentTrace], str | None], str]] = [
         "profile_wrong_arg",
         _detect_profile_string_arg,
         "Model passed a string to profile() instead of a DataFrame. "
-        "Check that _EXECUTE_PYTHON description shows profile(conn.execute(...).df(), name=...) example.",
+        "Check that _EXECUTE_PYTHON description shows profile(conn.execute(...).df(), name=...) example.",  # noqa: E501
     ),
     (
         "max_steps_exhausted",
@@ -151,7 +152,7 @@ def _extract_tables(code: str) -> list[str]:
 
 def _parse_query_results(trace: AgentTrace) -> list[QueryResult]:
     results: list[QueryResult] = []
-    for i, code in enumerate(trace.queries):
+    for _i, code in enumerate(trace.queries):
         # Match error to query by index (errors list is tool-level, not per-query)
         # We can only detect if any error message references the code snippet
         code_snippet = code.strip()[:80]
@@ -199,7 +200,9 @@ def _build_step_breakdown(trace: AgentTrace) -> StepBreakdown:
 
 # ── Completion status ─────────────────────────────────────────────────────────
 
-def _completion_status(trace: AgentTrace, step_breakdown: StepBreakdown) -> str:
+def _completion_status(
+    trace: AgentTrace, step_breakdown: StepBreakdown
+) -> Literal["complete", "exhausted", "empty", "errored"]:
     if step_breakdown.completed:
         return "complete"
     if step_breakdown.steps_exhausted:
@@ -233,8 +236,8 @@ def _infer_root_cause(
         error_count = len(trace.errors)
         waste = f" {error_count} error(s) wasted steps on retry loops." if error_count else ""
         return (
-            f"Agent exhausted all {step_count} available steps without producing a response.{waste} "
-            "The prompt may require more steps than the current max, or error retries consumed the budget."
+            f"Agent exhausted all {step_count} available steps without producing a response.{waste} "  # noqa: E501
+            "The prompt may require more steps than the current max, or error retries consumed the budget."  # noqa: E501
         )
 
     if primary and primary.kind in ("df_none_misuse", "profile_wrong_arg"):

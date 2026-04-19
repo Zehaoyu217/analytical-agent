@@ -30,6 +30,13 @@ class ClaudeSettingsSchema:
             ))
             return failures
 
+        # Claude Code hook entries have shape:
+        #   {"matcher": "<glob>", "hooks": [{"type": "command", "command": "..."}]}
+        # `matcher` is optional for events without a tool concept (e.g.
+        # UserPromptSubmit, Stop). `hooks[]` is required and each inner entry
+        # needs `type` + `command`.
+        _MATCHER_OPTIONAL_EVENTS = {"UserPromptSubmit", "Stop", "Notification", "SessionStart"}
+
         for event, entries in hooks.items():
             if not isinstance(entries, list):
                 failures.append(ValidationFailure(
@@ -44,12 +51,40 @@ class ClaudeSettingsSchema:
                         message="hook entry must be an object",
                     ))
                     continue
-                for required in ("matcher", "command"):
-                    if required not in entry:
+                if "matcher" not in entry and event not in _MATCHER_OPTIONAL_EVENTS:
+                    failures.append(ValidationFailure(
+                        rule="missing_field",
+                        location=f"hooks.{event}[{i}].matcher",
+                        message='"matcher" is required for hook entries',
+                    ))
+                inner = entry.get("hooks")
+                if inner is None:
+                    failures.append(ValidationFailure(
+                        rule="missing_field",
+                        location=f"hooks.{event}[{i}].hooks",
+                        message='"hooks" array is required for hook entries',
+                    ))
+                    continue
+                if not isinstance(inner, list):
+                    failures.append(ValidationFailure(
+                        rule="wrong_type", location=f"hooks.{event}[{i}].hooks",
+                        message='"hooks" must be a list',
+                    ))
+                    continue
+                for j, h in enumerate(inner):
+                    if not isinstance(h, dict):
                         failures.append(ValidationFailure(
-                            rule="missing_field",
-                            location=f"hooks.{event}[{i}].{required}",
-                            message=f'"{required}" is required for hook entries',
+                            rule="wrong_type",
+                            location=f"hooks.{event}[{i}].hooks[{j}]",
+                            message="inner hook must be an object",
                         ))
+                        continue
+                    for required in ("type", "command"):
+                        if required not in h:
+                            failures.append(ValidationFailure(
+                                rule="missing_field",
+                                location=f"hooks.{event}[{i}].hooks[{j}].{required}",
+                                message=f'"{required}" is required',
+                            ))
 
         return failures

@@ -13,7 +13,6 @@ Mirrors the real claude-code-agent layout minimally:
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from datetime import date
 from pathlib import Path

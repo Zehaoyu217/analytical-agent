@@ -3,11 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.builders.configs import (
-    ConfigEntry,
+from app.integrity.plugins.config_registry.builders.configs import (
     ConfigsBuilder,
 )
-
 
 DEFAULT_GLOBS = [
     "pyproject.toml",

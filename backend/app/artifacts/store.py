@@ -40,6 +40,7 @@ class ArtifactStore:
     # ── DB ──────────────────────────────────────────────────────────────────
 
     def _init_db(self) -> None:
+        assert self._db_path is not None
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.execute(
@@ -69,6 +70,7 @@ class ArtifactStore:
             conn.commit()
 
     def _connect(self) -> sqlite3.Connection:
+        assert self._db_path is not None
         return sqlite3.connect(self._db_path, check_same_thread=False)
 
     # ── Disk overflow ───────────────────────────────────────────────────────

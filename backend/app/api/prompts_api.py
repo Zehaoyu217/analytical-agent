@@ -201,7 +201,7 @@ def list_prompts() -> list[PromptEntry]:
         id="injector_pre_turn",
         category="injector_template",
         label="Pre-Turn Injector",
-        description="Dynamic context injected before each turn: operational state, skill menu, gotchas, dataset profile.",
+        description="Dynamic context injected before each turn: operational state, skill menu, gotchas, dataset profile.",  # noqa: E501
         layer="L2",
         compactable=True,
         approx_tokens=_approx_tokens(injector_text),

@@ -78,7 +78,6 @@ def test_fts5_search_no_match_returns_empty(db: SessionDB) -> None:
 
 def test_jitter_retry_on_lock(db: SessionDB) -> None:
     """Verify jitter retry eventually succeeds after repeated OperationalError('locked')."""
-    attempts: list[int] = []
     original_connect = db._connect
 
     call_count = 0

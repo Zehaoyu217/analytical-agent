@@ -27,6 +27,10 @@ export function DockProgress() {
           {running} running · {ok} done · {steps.length} total
         </div>
       </div>
+      {/* Marching-ants activity bar — only while a step is running */}
+      <div className="relative h-px bg-line-2">
+        {running > 0 && <div className="ants absolute inset-0" />}
+      </div>
       <div className="flex-1 overflow-y-auto">
         {steps.map((s) => (
           <StepCard key={s.id} step={s} />

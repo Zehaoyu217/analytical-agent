@@ -100,7 +100,7 @@ def compare(
             df.loc[df[group] == lbl, value].dropna().to_numpy() for lbl in labels
         ]
 
-    for lbl, g in zip(labels, groups_arr):
+    for lbl, g in zip(labels, groups_arr, strict=False):
         if g.size < 10:
             raise ValueError(
                 f"group_compare: group '{lbl}' has n={g.size} < 10. "
@@ -121,7 +121,7 @@ def compare(
                        "ci_low": ci_lo, "ci_high": ci_hi},
             "p_value": p_value,
             "assumption_report": report.to_dict(),
-            "n_per_group": dict(zip(labels, [int(g.size) for g in groups_arr])),
+            "n_per_group": dict(zip(labels, [int(g.size) for g in groups_arr], strict=False)),
             "paired": paired,
         }
         artifact = Artifact(

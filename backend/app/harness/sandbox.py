@@ -65,8 +65,11 @@ class SandboxExecutor:
             duration = time.monotonic() - start
             return SandboxResult(
                 ok=False,
-                stdout=e.stdout or "",
-                stderr=f"timeout after {self._timeout}s\n{e.stderr or ''}",
+                stdout=(e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout) or "",
+                stderr=(
+                    f"timeout after {self._timeout}s\n"
+                    f"{(e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr) or ''}"
+                ),
                 returncode=-1,
                 duration_sec=duration,
             )

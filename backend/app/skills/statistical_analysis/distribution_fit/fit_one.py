@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from scipy import stats
@@ -29,7 +30,7 @@ class FitCandidate:
     log_likelihood: float
 
 
-def _log_likelihood(dist, params: tuple[float, ...], x: np.ndarray) -> float:
+def _log_likelihood(dist: Any, params: tuple[float, ...], x: np.ndarray) -> float:
     try:
         return float(np.sum(dist.logpdf(x, *params)))
     except Exception:

@@ -8,7 +8,7 @@ describe('ui-store v2', () => {
       progressExpanded: [],
       artifactView: 'grid',
       recentCommandIds: [],
-      traceTab: 'timeline',
+      traceTab: 'context',
     } as never)
   })
 
@@ -34,7 +34,7 @@ describe('ui-store v2', () => {
   })
 
   it('setTraceTab lives in ui-store now', () => {
-    useUiStore.getState().setTraceTab('raw')
-    expect(useUiStore.getState().traceTab).toBe('raw')
+    useUiStore.getState().setTraceTab('io')
+    expect(useUiStore.getState().traceTab).toBe('io')
   })
 })

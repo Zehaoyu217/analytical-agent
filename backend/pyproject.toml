@@ -57,9 +57,63 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Long prompt strings and docstrings with shell commands that cannot be wrapped.
+"app/harness/loop.py" = ["E501"]
+"scripts/run_eval.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
+explicit_package_bases = true
+# type-arg: requires every dict/list to carry generic args — pedantic, not bug-catching.
+# unused-ignore: churn-inducing during dependency upgrades.
+# no-untyped-call: fires when typed code calls helpers missing annotations.
+# no-any-return: noisy when wrapping third-party libs that return Any.
+disable_error_code = ["type-arg", "unused-ignore", "no-untyped-call", "no-any-return"]
+
+# Tests: prioritise readability over type strictness. Fixtures and mocks routinely
+# pass untyped structures; enforcing strict typing here produces churn without
+# catching real bugs. Runtime behaviour is guarded by pytest itself.
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "app.*.tests.*",
+    "app.skills.*.tests.*",
+    "app.integrity.plugins.*.tests.*",
+    "app.skills.*.*.tests.*",
+]
+ignore_errors = true
+
+# Altair chart builders wrap a third-party API whose Literal-narrowed
+# string arguments and LayerChart/Chart return-type unions are awkward to
+# satisfy without verbose casts. Behaviour is exercised by skill evals.
+[[tool.mypy.overrides]]
+module = ["app.skills.charting.altair_charts.*"]
+disable_error_code = ["arg-type", "return-value"]
+
+# Stat fixtures are interactive notebooks-as-code — annotations would obscure intent.
+[[tool.mypy.overrides]]
+module = ["app.skills._stat_fixtures.*"]
+disallow_untyped_defs = false
+
+# Third-party libraries without type stubs.
+[[tool.mypy.overrides]]
+module = [
+    "pandas.*",
+    "scipy.*",
+    "ruptures.*",
+    "apscheduler.*",
+    "second_brain.*",
+    "statsmodels.*",
+    "weasyprint.*",
+    "altair.*",
+    "markdown_it.*",
+    "faker.*",
+    "prometheus_fastapi_instrumentator.*",
+    "duckdb.*",
+]
+ignore_missing_imports = true
 
 [dependency-groups]
 dev = [

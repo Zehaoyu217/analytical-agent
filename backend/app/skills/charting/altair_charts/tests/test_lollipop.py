@@ -12,8 +12,8 @@ def test_lollipop_has_rule_and_point_layers() -> None:
     spec = chart.to_dict()
     assert "layer" in spec
     marks = {
-        (l.get("mark", {}).get("type") if isinstance(l.get("mark"), dict) else l.get("mark"))
-        for l in spec["layer"]
+        (layer.get("mark", {}).get("type") if isinstance(layer.get("mark"), dict) else layer.get("mark"))  # noqa: E501
+        for layer in spec["layer"]
     }
     assert "rule" in marks
     assert "point" in marks

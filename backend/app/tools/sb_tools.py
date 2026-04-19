@@ -6,6 +6,7 @@ working without the KB.
 """
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 from app import config
@@ -18,7 +19,7 @@ def _disabled(extra: dict[str, Any] | None = None) -> dict[str, Any]:
     return out
 
 
-def _cfg():  # noqa: ANN202
+def _cfg() -> Any:
     from second_brain.config import Config
     return Config.load()
 
@@ -160,7 +161,7 @@ def sb_promote_claim(args: dict[str, Any]) -> dict[str, Any]:
     if not config.SECOND_BRAIN_ENABLED:
         return _disabled()
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     from io import StringIO
 
     from ruamel.yaml import YAML
@@ -204,7 +205,7 @@ def sb_promote_claim(args: dict[str, Any]) -> dict[str, Any]:
         supports=supports,
         contradicts=contradicts,
         refines=refines,
-        extracted_at=datetime.now(timezone.utc),
+        extracted_at=datetime.now(UTC),
         abstract=abstract,
     )
 

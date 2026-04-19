@@ -10,7 +10,9 @@ def test_severity_order() -> None:
 
 
 def test_finding_is_frozen() -> None:
-    f = GuardrailFinding(code="x", severity=Severity.WARN, message="msg")
+    import dataclasses
+
     import pytest
-    with pytest.raises(Exception):
+    f = GuardrailFinding(code="x", severity=Severity.WARN, message="msg")
+    with pytest.raises(dataclasses.FrozenInstanceError):
         f.code = "y"  # type: ignore[misc]

@@ -1,8 +1,8 @@
 /**
  * api-chat.ts — thin wrapper for the chat endpoints.
  *
- * Re-exports sendChatMessage (JSON) and streamChatMessage (SSE) from ./api.ts.
+ * Re-exports streamChatMessage (SSE) from ./api.ts.
  */
 
-export { sendChatMessage, streamChatMessage } from './api'
-export type { ChatResponse, ChatStreamEvent } from './api'
+export { streamChatMessage } from './api'
+export type { ChatStreamEvent } from './api'

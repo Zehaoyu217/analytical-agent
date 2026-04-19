@@ -35,7 +35,7 @@ def _normalize_plugins(raw: Any) -> dict[str, dict[str, Any]]:
             if not name:
                 continue
             out[name] = {
-                "issues": int(entry.get("issue_count", entry.get("issues", 0))),
+                "issues": int(entry.get("issue_count", entry.get("issues", 0)) or 0),
                 "rules_run": list(entry.get("rules_run", [])),
             }
         return out

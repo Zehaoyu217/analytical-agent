@@ -2,9 +2,8 @@ import { useUiStore, selectProgressExpanded, selectTraceTab } from '@/lib/ui-sto
 import type { ProgressStep } from '@/lib/selectors/progressSteps'
 import { StatusDot } from './StatusDot'
 import { cn } from '@/lib/utils'
-import { TimelineMode } from './modes/TimelineMode'
 import { ContextMode } from './modes/ContextMode'
-import { RawMode } from './modes/RawMode'
+import { IoMode } from './modes/IoMode'
 
 interface StepCardProps {
   step: ProgressStep
@@ -37,13 +36,29 @@ export function StepCard({ step }: StepCardProps) {
         aria-label={`Step ${step.index}: ${step.title}`}
       >
         <StatusDot status={step.status} />
-        <span className="flex-1 truncate text-[13px] text-fg-0">{step.title}</span>
-        <span className="mono text-[11px] text-fg-3">{elapsedLabel(step)}</span>
+        <span className="mono text-[10.5px] text-fg-3 flex-shrink-0">
+          {String(step.index + 1).padStart(2, '0')}
+        </span>
+        <span
+          className={cn(
+            'flex-1 truncate text-[12.5px] font-medium',
+            step.status === 'queued' ? 'text-fg-2' : 'text-fg-0',
+          )}
+        >
+          {step.title}
+        </span>
+        {step.status === 'running' ? (
+          <span className="text-[11px] font-medium text-acc flex-shrink-0">
+            Running<span className="caret">…</span>
+          </span>
+        ) : (
+          <span className="mono text-[10.5px] text-fg-3 flex-shrink-0">{elapsedLabel(step)}</span>
+        )}
       </button>
       {isOpen && (
         <div className="mt-2 border-t border-line-2 pt-2">
           <div className="mb-2 flex gap-1">
-            {(['timeline', 'context', 'raw'] as const).map((t) => (
+            {(['context', 'io'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -54,13 +69,12 @@ export function StepCard({ step }: StepCardProps) {
                   traceTab === t ? 'bg-acc/10 text-acc' : 'text-fg-3 hover:text-fg-0',
                 )}
               >
-                {t}
+                {t === 'io' ? 'I/O' : t}
               </button>
             ))}
           </div>
-          {traceTab === 'timeline' && <TimelineMode />}
-          {traceTab === 'context' && <ContextMode />}
-          {traceTab === 'raw' && <RawMode />}
+          {traceTab === 'context' && <ContextMode step={step} />}
+          {traceTab === 'io' && <IoMode step={step} />}
         </div>
       )}
     </div>

@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from threading import RLock
+from typing import Any
 
 from app.artifacts.store import ArtifactStore
 from app.core.home import artifacts_db_path, artifacts_disk_path, sessions_db_path, wiki_root_path
@@ -325,7 +326,7 @@ def get_semantic_compactor() -> Any:
 
 def reset_singletons_for_tests() -> None:
     """Clear cached singletons so tests get fresh instances."""
-    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _pre_turn_injector, _cron_engine, _toolset_resolver, _semantic_compactor
+    global _artifact_store, _session_db, _wiki_engine, _skill_registry, _pre_turn_injector, _cron_engine, _toolset_resolver, _semantic_compactor  # noqa: E501
     with _lock:
         _artifact_store = None
         _session_db = None

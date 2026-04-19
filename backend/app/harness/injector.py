@@ -56,14 +56,14 @@ def _has_content_beyond_headers(text: str) -> bool:
     ``working.md`` or ``index.md`` hold nothing but the auto-generated header
     skeleton (e.g. ``# Working`` or ``_(no pages yet)_`` index sections).
     """
-    _PLACEHOLDER = "_(no pages yet)_"
+    placeholder = "_(no pages yet)_"
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
             continue
         if stripped.startswith("#"):
             continue
-        if stripped == _PLACEHOLDER:
+        if stripped == placeholder:
             continue
         return True
     return False

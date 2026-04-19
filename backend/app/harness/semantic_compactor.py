@@ -119,7 +119,7 @@ class SemanticCompactor:
         middle = messages[head_end_idx:tail_start_idx]
         tail = messages[tail_start_idx:]
 
-        turns_in_middle = _count_turns_in_slice(messages, head_end_idx, tail_start_idx, turn_boundaries)
+        turns_in_middle = _count_turns_in_slice(messages, head_end_idx, tail_start_idx, turn_boundaries)  # noqa: E501
 
         if not middle:
             return SemanticCompactionResult(

@@ -1,11 +1,10 @@
 """Tests for health_dashboard_refresh fixer."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from backend.app.integrity.plugins.autofix.fixers.health_dashboard_refresh import propose
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.fixers.health_dashboard_refresh import propose
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
 
 
 def _aggregate(date_iso: str = "2026-04-17", issue_count: int = 3) -> dict:

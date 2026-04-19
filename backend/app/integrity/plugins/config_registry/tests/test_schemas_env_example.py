@@ -1,5 +1,7 @@
 from pathlib import Path
-from backend.app.integrity.plugins.config_registry.schemas.env_example import EnvExampleSchema
+
+from app.integrity.plugins.config_registry.schemas.env_example import EnvExampleSchema
+
 
 def test_valid(tmp_path: Path):
     p = tmp_path / ".env.example"

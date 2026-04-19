@@ -95,7 +95,7 @@ class SubagentDispatcher:
                 from app.harness.wiring import get_toolset_resolver  # noqa: PLC0415
                 allowed_set |= get_toolset_resolver().resolve(toolset)
             except Exception:  # noqa: BLE001 — toolset resolution must never crash delegation
-                logger.warning("toolset %r could not be resolved; using tools_allowed only", toolset)
+                logger.warning("toolset %r could not be resolved; using tools_allowed only", toolset)  # noqa: E501
 
         child_dispatcher = ToolDispatcher()
         for name in allowed_set:

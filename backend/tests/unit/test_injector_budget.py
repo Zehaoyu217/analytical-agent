@@ -1,6 +1,7 @@
 """Tests for the token-budget section injected into the system prompt (P21)."""
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -45,7 +46,7 @@ def test_budget_defaults_are_sane() -> None:
 
 def test_budget_is_frozen() -> None:
     budget = TokenBudget()
-    with pytest.raises(Exception):  # dataclass(frozen=True) → FrozenInstanceError
+    with pytest.raises(dataclasses.FrozenInstanceError):
         budget.max_tokens = 50_000  # type: ignore[misc]
 
 

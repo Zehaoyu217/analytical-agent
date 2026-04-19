@@ -5,11 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.plugins.hooks_check.coverage import (
+from app.integrity.plugins.hooks_check.coverage import (
     CoverageDoc,
-    CoverageRule,
-    CoverageWhen,
-    RequiredHook,
     load_coverage,
 )
 

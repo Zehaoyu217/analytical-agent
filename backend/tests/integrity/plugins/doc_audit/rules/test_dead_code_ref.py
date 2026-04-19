@@ -41,7 +41,7 @@ def test_missing_path_ref_flagged(tmp_path: Path):
 def test_missing_qualified_symbol_flagged(tmp_path: Path):
     _write(tmp_path, "CLAUDE.md", "# x\n")
     _write(tmp_path, "docs/sym.md", "Calls `Module.gone_func` somewhere.\n")
-    nodes = [{"id": "module.live_func", "label": "live_func", "source_file": "backend/app/module.py"}]
+    nodes = [{"id": "module.live_func", "label": "live_func", "source_file": "backend/app/module.py"}]  # noqa: E501
     issues = run(_ctx_with_graph(tmp_path, nodes), _CFG, date(2026, 4, 17))
     matching = [i for i in issues if "sym.md" in i.location]
     assert len(matching) == 1

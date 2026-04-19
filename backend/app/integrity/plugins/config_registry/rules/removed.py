@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from ....issue import IntegrityIssue
 from ....protocol import ScanContext
@@ -41,7 +41,7 @@ def run(
         for entry in entries:
             entry_id = str(entry.get("id"))
             referenced = escalation_enabled and entry_id in dep_index
-            severity = "WARN" if referenced else "INFO"
+            severity: Literal["WARN", "INFO"] = "WARN" if referenced else "INFO"
             msg_suffix = (
                 " (still referenced in dep graph)" if referenced else ""
             )

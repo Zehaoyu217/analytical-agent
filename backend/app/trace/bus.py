@@ -4,6 +4,7 @@ Module-level singleton. Synchronous publish — no threads, no async.
 """
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 
 from app.trace.events import TraceEvent
@@ -29,10 +30,8 @@ def subscribe(fn: Subscriber) -> None:
 
 def unsubscribe(fn: Subscriber) -> None:
     """Remove a previously-subscribed callback. No-op if not registered."""
-    try:
+    with contextlib.suppress(ValueError):
         _subscribers.remove(fn)
-    except ValueError:
-        pass
 
 
 def reset() -> None:

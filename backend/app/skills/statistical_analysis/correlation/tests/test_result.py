@@ -25,6 +25,8 @@ def test_result_is_frozen_and_serializable() -> None:
 
 
 def test_result_rejects_mutation() -> None:
+    import dataclasses
+
     import pytest
     r = CorrelationResult(
         coefficient=0.1, ci_low=0.0, ci_high=0.2, p_value=0.3,
@@ -32,5 +34,5 @@ def test_result_rejects_mutation() -> None:
         n_effective=50, na_dropped=2, x="a", y="b",
         partial_on=(), detrend=None,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         r.coefficient = 0.9  # type: ignore[misc]

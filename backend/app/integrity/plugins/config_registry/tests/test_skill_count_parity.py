@@ -9,10 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.plugins.config_registry.builders.skills import (
+from app.integrity.plugins.config_registry.builders.skills import (
     SkillsBuilder,
 )
-
 
 REPO_ROOT = Path(__file__).resolve().parents[6]
 SKILLS_ROOT = REPO_ROOT / "backend" / "app" / "skills"
@@ -20,7 +19,7 @@ SKILLS_ROOT = REPO_ROOT / "backend" / "app" / "skills"
 
 @pytest.mark.skipif(not SKILLS_ROOT.exists(), reason="real skills tree not present")
 def test_builder_count_matches_registry() -> None:
-    from backend.app.skills.registry import SkillRegistry
+    from app.skills.registry import SkillRegistry
 
     registry = SkillRegistry(SKILLS_ROOT)
     registry.discover()
@@ -42,7 +41,7 @@ def test_builder_ids_match_registry_keys() -> None:
     non-null registry_keys must equal the registry's key set exactly —
     no leaf-name workaround, no normalization, just identity.
     """
-    from backend.app.skills.registry import SkillRegistry
+    from app.skills.registry import SkillRegistry
 
     registry = SkillRegistry(SKILLS_ROOT)
     registry.discover()

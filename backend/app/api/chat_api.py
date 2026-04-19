@@ -344,7 +344,7 @@ _GLOB_FILES = ToolSchema(
     input_schema={
         "type": "object",
         "properties": {
-            "pattern": {"type": "string", "description": "Glob pattern, e.g. 'backend/app/skills/**/*.py'"},
+            "pattern": {"type": "string", "description": "Glob pattern, e.g. 'backend/app/skills/**/*.py'"},  # noqa: E501
         },
         "required": ["pattern"],
     },
@@ -361,7 +361,7 @@ _SEARCH_TEXT = ToolSchema(
         "type": "object",
         "properties": {
             "pattern": {"type": "string", "description": "Regex pattern to search for"},
-            "path": {"type": "string", "description": "Directory to search in (relative to project root)"},
+            "path": {"type": "string", "description": "Directory to search in (relative to project root)"},  # noqa: E501
         },
         "required": ["pattern"],
     },
@@ -850,7 +850,7 @@ def _build_dispatcher(
                 art = _Artifact(
                     type=raw.get("type", "analysis"),
                     title=raw.get("title", "Artifact"),
-                    description="",
+                    description=raw.get("description", ""),
                     content=fe_content,
                     format=fe_format,
                 )
@@ -858,6 +858,7 @@ def _build_dispatcher(
                 saved_artifacts_out.append({
                     "id": saved.id,
                     "title": saved.title or f"{saved.type} {saved.id}",
+                    "description": saved.description,
                     "type": saved.type,
                     "format": fe_format,
                     "content": fe_content,
@@ -1268,10 +1269,8 @@ def _run_wrap_up(
         turn_index=turn_index,
     )
     # Run Stop hooks after the turn is fully wrapped up.
-    try:
+    with contextlib.suppress(Exception):
         HookRunner().run_stop(session_id)
-    except Exception:
-        pass
 
 
 # ── HTTP layer ───────────────────────────────────────────────────────────────
@@ -1337,7 +1336,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
         session_db=get_session_db(),
     ):
         try:
-            session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
+            session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())  # noqa: E501
             response_text, charts, usage = _agent_loop_sync(
                 model_id=model_id,
                 message=payload.message,
@@ -1386,7 +1385,7 @@ def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
     settings = get_settings()
     model_id = settings.model
     trace_id = _make_trace_id(conversation_id)
-    session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())
+    session_bootstrap = build_duckdb_globals(trace_id, payload.dataset_path, registry=get_skill_registry())  # noqa: E501
     output_dir = _traces_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
 

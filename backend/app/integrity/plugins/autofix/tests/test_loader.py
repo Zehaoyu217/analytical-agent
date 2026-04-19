@@ -5,8 +5,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.autofix.loader import (
-    SiblingArtifacts,
+from app.integrity.plugins.autofix.loader import (
     read_today,
 )
 

@@ -8,11 +8,9 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from backend.app.integrity.plugins.autofix.plugin import AutofixPlugin
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.plugins.autofix.plugin import AutofixPlugin
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -80,7 +78,7 @@ def test_acceptance_5_fixers_produce_dry_run_diffs(tmp_path: Path) -> None:
          ):
         plugin = AutofixPlugin(today=today, apply=False)
         graph = GraphSnapshot.load(repo)
-        result = plugin.scan(ScanContext(repo_root=repo, graph=graph))
+        plugin.scan(ScanContext(repo_root=repo, graph=graph))
 
     artifact = repo / "integrity-out" / today.isoformat() / "autofix.json"
     payload = json.loads(artifact.read_text())

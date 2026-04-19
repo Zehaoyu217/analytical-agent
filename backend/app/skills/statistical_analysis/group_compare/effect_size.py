@@ -19,8 +19,8 @@ def cliffs_delta(a: np.ndarray, b: np.ndarray) -> float:
     n1, n2 = a.size, b.size
     if n1 == 0 or n2 == 0:
         return float("nan")
-    greater = np.sum(a[:, None] > b[None, :])
-    less = np.sum(a[:, None] < b[None, :])
+    greater = int(np.sum(a[:, None] > b[None, :]))
+    less = int(np.sum(a[:, None] < b[None, :]))
     return float((greater - less) / (n1 * n2))
 
 

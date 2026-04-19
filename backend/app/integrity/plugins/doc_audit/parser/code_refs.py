@@ -22,6 +22,23 @@ _PATH_RE = re.compile(r"`([\w./\-]+/[\w./\-]+\.[A-Za-z]{1,5})`")
 _SYMBOL_RE = re.compile(r"`([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+)`")
 _FENCE_RE = re.compile(r"^(?:```|~~~)")
 
+# Tail components that mean "this is a filename, not a Python symbol".
+# Files of these types are matched by _PATH_RE when they include a slash;
+# bare names like `CLAUDE.md` slip through _SYMBOL_RE and would be wrongly
+# flagged as dead symbols.
+_FILENAME_TAILS = frozenset({
+    # data / config
+    "md", "txt", "json", "yaml", "yml", "toml", "ini", "cfg", "csv",
+    "tsv", "log", "html", "htm", "xml", "css", "scss", "lock", "sh",
+    "bat", "ps1", "env", "rst", "pdf", "png", "jpg", "jpeg", "gif",
+    "svg", "ico", "webp", "mp4", "mov", "wav", "mp3",
+    # source files (when referenced as bare basenames, not project symbols)
+    "py", "ts", "tsx", "js", "jsx", "mjs", "cjs", "vue", "svelte",
+    "go", "rs", "java", "kt", "swift", "rb", "php", "c", "cc", "cpp",
+    "h", "hpp", "cs", "scala", "clj", "ex", "exs", "lua", "r", "jl",
+    "ipynb", "sql",
+})
+
 
 def _strip_code_blocks(text: str) -> list[tuple[int, str]]:
     """Yield `(line_number_1based, content)` for lines OUTSIDE fenced or
@@ -88,6 +105,10 @@ def extract_code_refs(text: str) -> list[CodeRef]:
             # Symbol pattern requires at least one `.` (enforced by `+` in regex)
             key = ("symbol", line_no, symbol)
             if key in seen:
+                continue
+            # Skip filenames that look like symbols (e.g. `CLAUDE.md`).
+            tail = symbol.rsplit(".", 1)[-1].lower()
+            if tail in _FILENAME_TAILS:
                 continue
             # Skip if symbol overlaps a captured path on the same line
             if any(

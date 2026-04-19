@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.builders.scripts import (
-    ScriptEntry,
+from app.integrity.plugins.config_registry.builders.scripts import (
     ScriptsBuilder,
 )
 

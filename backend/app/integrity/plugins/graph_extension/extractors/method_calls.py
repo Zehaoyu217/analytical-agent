@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from collections import defaultdict
+from collections.abc import Iterator
 from pathlib import Path
 
 from ....schema import GraphSnapshot
@@ -48,10 +49,10 @@ def extract(repo_root: Path, graph: GraphSnapshot) -> ExtractionResult:
     method_owners: dict[str, list[tuple[str, str]]] = defaultdict(list)
     for path, tree in parsed:
         stem = path.stem.lower()
-        for cls in _iter_classes(tree):
-            for inner in cls.body:
+        for cls_node in _iter_classes(tree):
+            for inner in cls_node.body:
                 if isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    method_owners[inner.name].append((stem, cls.name))
+                    method_owners[inner.name].append((stem, cls_node.name))
 
     edges: list[ExtractedEdge] = []
     edge_keys: set[tuple[str, str, str]] = set()
@@ -120,13 +121,13 @@ def _method_id(file_stem: str, class_name: str, method: str) -> str:
     return f"{file_stem.lower()}_{class_name.lower()}_{method.strip('_')}"
 
 
-def _iter_classes(tree: ast.AST):
+def _iter_classes(tree: ast.AST) -> Iterator[ast.ClassDef]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             yield node
 
 
-def _walk_funcs(tree: ast.AST):
+def _walk_funcs(tree: ast.AST) -> Iterator[tuple[str, dict[str, str], list[ast.Call]]]:
     """Yield (func_name, {var: ClassName}, [Call, ...]) per top-level func and class method."""
     for top in ast.iter_child_nodes(tree):
         if isinstance(top, (ast.FunctionDef, ast.AsyncFunctionDef)):

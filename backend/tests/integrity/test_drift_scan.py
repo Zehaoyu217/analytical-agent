@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from app.integrity.drift_scan import (
@@ -27,7 +27,7 @@ def _write_claim(
 ) -> None:
     claims_dir.mkdir(parents=True, exist_ok=True)
     updated_at = (
-        datetime.now(tz=timezone.utc) - timedelta(days=updated_days_ago)
+        datetime.now(tz=UTC) - timedelta(days=updated_days_ago)
     ).isoformat()
     fm_lines = [
         "---",
@@ -54,7 +54,7 @@ def _write_wiki(
     full = wiki_dir / rel_path
     full.parent.mkdir(parents=True, exist_ok=True)
     updated_at = (
-        datetime.now(tz=timezone.utc) - timedelta(days=updated_days_ago)
+        datetime.now(tz=UTC) - timedelta(days=updated_days_ago)
     ).isoformat()
     lines = [
         "---",

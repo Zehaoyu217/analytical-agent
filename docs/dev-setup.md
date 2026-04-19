@@ -143,7 +143,7 @@ usable with this agent regardless of what they advertise.
 
 ## DuckDB / Data Pipeline
 
-The shared analytical database lives at `backend/data/duckdb/analytical.db`. It is
+The shared analytical database lives at `backend/data/duckdb/eval.db`. It is
 created on first backend startup by `initialize_db()` in `app/data/db_init.py`.
 
 Source data is loaded from `BANK_MACRO_DATA_DIR` (default:

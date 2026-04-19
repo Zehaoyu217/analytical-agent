@@ -50,7 +50,7 @@ def initialize_db() -> None:
         existing = {t[0] for t in conn.execute("SHOW TABLES").fetchall()}
         macro_datasets = _DEFAULT_DATASETS if _BANK_MACRO_DIR.exists() else []
         if not _BANK_MACRO_DIR.exists():
-            logger.info("Bank-macro data dir not found (%s) — skipping macro datasets", _BANK_MACRO_DIR)
+            logger.info("Bank-macro data dir not found (%s) — skipping macro datasets", _BANK_MACRO_DIR)  # noqa: E501
         for filename, table_name in macro_datasets:
             file_path = _BANK_MACRO_DIR / filename
             if not file_path.exists():
@@ -83,10 +83,10 @@ def initialize_db() -> None:
 
 
 # Date column candidates — checked in order; first match wins per table.
-_DATE_COL_CANDIDATES = ("date", "txn_date", "rate_date", "opened_date", "origination_date", "join_date")
+_DATE_COL_CANDIDATES = ("date", "txn_date", "rate_date", "opened_date", "origination_date", "join_date")  # noqa: E501
 
 
-def _try_date_range(conn: duckdb.DuckDBPyConnection, tbl: str, col_names: list[str]) -> tuple[object, object] | None:
+def _try_date_range(conn: duckdb.DuckDBPyConnection, tbl: str, col_names: list[str]) -> tuple[object, object] | None:  # noqa: E501
     """Return (min, max) for the first recognised date column, or None."""
     for col in _DATE_COL_CANDIDATES:
         if col in col_names:

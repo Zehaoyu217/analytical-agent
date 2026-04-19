@@ -15,10 +15,10 @@ from app.harness.hooks import HookRunner
 def hooks_config(tmp_path: Path) -> Path:
     cfg = {
         "PreToolUse": [
-            {"matcher": "execute_python", "command": "echo pre_$TOOL_NAME", "description": "log pre"},
+            {"matcher": "execute_python", "command": "echo pre_$TOOL_NAME", "description": "log pre"},  # noqa: E501
         ],
         "PostToolUse": [
-            {"matcher": "save_artifact", "command": "echo post_$TOOL_NAME", "description": "log post"},
+            {"matcher": "save_artifact", "command": "echo post_$TOOL_NAME", "description": "log post"},  # noqa: E501
         ],
         "Stop": [
             {"command": "echo stop_hook", "description": "session end"},

@@ -4,8 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.app.integrity.plugins.autofix.fixers.manifest_regen import propose
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.fixers.manifest_regen import propose
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
 
 
 def _artifacts(*, has_drift: bool = True) -> SiblingArtifacts:

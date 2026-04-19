@@ -1,5 +1,7 @@
 from pathlib import Path
-from backend.app.integrity.plugins.config_registry.schemas.vite_config import ViteConfigSchema
+
+from app.integrity.plugins.config_registry.schemas.vite_config import ViteConfigSchema
+
 
 def test_valid(tmp_path: Path):
     p = tmp_path / "vite.config.ts"

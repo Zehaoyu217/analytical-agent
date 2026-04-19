@@ -42,7 +42,7 @@ def test_orphan_doc_emits_issue(tmp_path: Path):
 
 def test_reachable_doc_not_flagged(tmp_path: Path):
     _write(tmp_path, "CLAUDE.md", "- [Setup](docs/dev-setup.md)\n")
-    _write(tmp_path, "docs/dev-setup.md", "- [Test](testing.md)\n")  # transitively reaches testing.md
+    _write(tmp_path, "docs/dev-setup.md", "- [Test](testing.md)\n")  # transitively reaches testing.md  # noqa: E501
     _write(tmp_path, "docs/testing.md", "# tests\n")
 
     cfg = {

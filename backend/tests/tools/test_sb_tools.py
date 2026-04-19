@@ -202,7 +202,6 @@ def test_sb_search_uses_make_retriever_factory(monkeypatch, tmp_path):
     importlib.reload(sb_tools)
 
     captured: dict = {}
-    orig_make = sb_tools.__dict__.get("make_retriever")  # None before import inside handler
 
     # Spy on make_retriever by monkeypatching the symbol the handler imports.
     from second_brain.index import retriever as retriever_mod

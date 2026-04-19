@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.schemas.pyproject import (
+from app.integrity.plugins.config_registry.schemas.pyproject import (
     PyprojectSchema,
 )
 

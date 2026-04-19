@@ -1,5 +1,7 @@
 from pathlib import Path
-from backend.app.integrity.plugins.config_registry.schemas.makefile import MakefileSchema
+
+from app.integrity.plugins.config_registry.schemas.makefile import MakefileSchema
+
 
 def test_valid(tmp_path: Path):
     p = tmp_path / "Makefile"

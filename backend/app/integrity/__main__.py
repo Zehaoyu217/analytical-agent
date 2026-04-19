@@ -12,7 +12,7 @@ from .report import write_report
 from .schema import GraphSnapshot
 from .snapshots import prune_older_than, write_snapshot
 
-KNOWN_PLUGINS = ("graph_extension", "graph_lint", "doc_audit", "config_registry", "hooks_check", "autofix")
+KNOWN_PLUGINS = ("graph_extension", "graph_lint", "doc_audit", "config_registry", "hooks_check", "autofix")  # noqa: E501
 
 
 def _build_engine(

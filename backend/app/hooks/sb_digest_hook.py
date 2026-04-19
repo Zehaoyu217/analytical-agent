@@ -19,6 +19,7 @@ import os
 from collections import Counter
 from datetime import date as date_t
 from pathlib import Path
+from typing import Any
 
 from app import config as app_config
 
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 _DISABLED_VALUES = frozenset({"0", "false", "no"})
 
 
-def _load_config():  # noqa: ANN202 — late-bound seam for tests
+def _load_config() -> Any:  # late-bound seam for tests
     from second_brain.config import Config
 
     return Config.load()

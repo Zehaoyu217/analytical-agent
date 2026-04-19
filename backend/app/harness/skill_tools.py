@@ -4,20 +4,9 @@ from __future__ import annotations
 import dataclasses
 import difflib
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
-
-
-def _closest_skill_names(target: str, available: list[str], *, n: int = 5) -> list[str]:
-    """Return up to ``n`` closest matches from ``available`` to ``target``.
-
-    Uses difflib ratio so "correl" → "correlation", "timeseries" →
-    "time_series".  Empty list when nothing is close enough.
-    """
-    if not target or not available:
-        return []
-    return difflib.get_close_matches(target, available, n=n, cutoff=0.4)
+from typing import TYPE_CHECKING, Any
 
 from app.artifacts.models import Artifact
 from app.artifacts.store import ArtifactStore
@@ -40,6 +29,20 @@ from app.skills.statistical_analysis.time_series import (
 from app.storage.session_db import SessionDB
 from app.wiki.engine import WikiEngine
 from app.wiki.schema import Finding
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _closest_skill_names(target: str, available: list[str], *, n: int = 5) -> list[str]:
+    """Return up to ``n`` closest matches from ``available`` to ``target``.
+
+    Uses difflib ratio so "correl" → "correlation", "timeseries" →
+    "time_series".  Empty list when nothing is close enough.
+    """
+    if not target or not available:
+        return []
+    return difflib.get_close_matches(target, available, n=n, cutoff=0.4)
 
 
 def register_core_tools(
@@ -110,7 +113,7 @@ def register_core_tools(
         from app.telemetry.skills_log import append_skill_event  # noqa: PLC0415
 
         record = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat().replace(
+            "timestamp": datetime.now(tz=UTC).isoformat().replace(
                 "+00:00", "Z"
             ),
             "actor": f"skill:{name}",

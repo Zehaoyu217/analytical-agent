@@ -57,7 +57,7 @@ export function Message({ message, attachedNames = [] }: MessageProps) {
       <Avatar role={message.role} initial={isUser ? 'M' : 'D'} />
       <div className="min-w-0 flex-1">
         <MessageHeader
-          name={isUser ? 'Martin' : 'DS Agent'}
+          name={isUser ? 'Master' : 'DS Agent'}
           timestamp={formatTimestamp(message.timestamp)}
           onCopy={onCopy}
         />
@@ -71,7 +71,7 @@ export function Message({ message, attachedNames = [] }: MessageProps) {
         {callouts.map((c, i) => (
           <Callout key={i} kind={c.kind} label={c.label} text={c.text} />
         ))}
-        {!isUser && <ToolChipRow messageId={message.id} />}
+        {!isUser && <ToolChipRow messageId={message.id} status={message.status} />}
         {(message.artifactIds?.length ?? 0) > 0 && (
           <ArtifactPillRow artifactIds={message.artifactIds ?? []} />
         )}

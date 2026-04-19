@@ -109,8 +109,8 @@ def build(
     mode: Mode = "standalone_html",
     session_id: str | None = None,
     today: _date | None = None,
-    chart_resolver=None,
-    table_resolver=None,
+    chart_resolver: Any = None,
+    table_resolver: Any = None,
 ) -> DashboardResult:
     validate_spec(spec)
     if mode not in _VALID_MODES:

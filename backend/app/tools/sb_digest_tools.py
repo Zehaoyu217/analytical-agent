@@ -6,8 +6,8 @@ each handler returns ``{"ok": False, "error": "second_brain_disabled"}``.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from datetime import date as date_t
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ def _disabled(extra: dict[str, Any] | None = None) -> dict[str, Any]:
     return out
 
 
-def _cfg():  # noqa: ANN202
+def _cfg() -> Any:
     from second_brain.config import Config
 
     return Config.load()
@@ -33,7 +33,7 @@ def _parse_date(raw: str | None) -> date_t:
     return datetime.strptime(raw, "%Y-%m-%d").date()
 
 
-def _entries_for(cfg, day: date_t) -> list[dict[str, Any]]:
+def _entries_for(cfg: Any, day: date_t) -> list[dict[str, Any]]:
     sidecar = cfg.digests_dir / f"{day.isoformat()}.actions.jsonl"
     if not sidecar.exists():
         return []
@@ -49,7 +49,7 @@ def _entries_for(cfg, day: date_t) -> list[dict[str, Any]]:
     return out
 
 
-def _applied_ids(cfg, day: date_t) -> set[str]:
+def _applied_ids(cfg: Any, day: date_t) -> set[str]:
     path = cfg.digests_dir / f"{day.isoformat()}.applied.jsonl"
     if not path.exists():
         return set()
@@ -158,7 +158,7 @@ def sb_digest_show(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _load_applier():  # seam for tests
+def _load_applier() -> Any:  # seam for tests
     from second_brain.digest.applier import DigestApplier
 
     return DigestApplier
@@ -191,7 +191,7 @@ def sb_digest_apply(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _load_skip_registry():
+def _load_skip_registry() -> Any:
     from second_brain.digest.skip import SkipRegistry
 
     return SkipRegistry
@@ -274,14 +274,14 @@ def sb_digest_propose(args: dict[str, Any]) -> dict[str, Any]:
         "id": pending_id,
         "section": section,
         "action": action,
-        "proposed_at": datetime.now(timezone.utc).isoformat(),
+        "proposed_at": datetime.now(UTC).isoformat(),
     }
     with pending.open("a") as f:
         f.write(json.dumps(record) + "\n")
     return {"ok": True, "pending_id": pending_id, "file": str(pending)}
 
 
-def _collect_stats(cfg):
+def _collect_stats(cfg: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     from dataclasses import asdict
 
     from second_brain.stats.collector import collect_stats
@@ -300,7 +300,7 @@ def _as_dict(obj: Any) -> dict[str, Any]:
     try:
         from dataclasses import asdict, is_dataclass
 
-        if is_dataclass(obj):
+        if is_dataclass(obj) and not isinstance(obj, type):
             return asdict(obj)
     except Exception:  # noqa: BLE001
         pass

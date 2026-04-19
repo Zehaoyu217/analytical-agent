@@ -4,19 +4,19 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.hooks_check.coverage import (
+from app.integrity.plugins.hooks_check.coverage import (
     CoverageDoc,
     CoverageRule,
     CoverageWhen,
     RequiredHook,
 )
-from backend.app.integrity.plugins.hooks_check.rules.unused import run as unused_run
-from backend.app.integrity.plugins.hooks_check.settings_parser import HookRecord
+from app.integrity.plugins.hooks_check.rules.unused import run as unused_run
+from app.integrity.plugins.hooks_check.settings_parser import HookRecord
 
 
 def _ctx(tmp_path: Path):
-    from backend.app.integrity.protocol import ScanContext
-    from backend.app.integrity.schema import GraphSnapshot
+    from app.integrity.protocol import ScanContext
+    from app.integrity.schema import GraphSnapshot
     return ScanContext(repo_root=tmp_path, graph=GraphSnapshot(nodes=[], links=[]))
 
 

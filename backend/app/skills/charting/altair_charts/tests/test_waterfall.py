@@ -17,10 +17,7 @@ def test_waterfall_has_bars_with_from_to_encoding() -> None:
     chart = waterfall(df, step="step", delta="delta", kind="kind")
     spec = chart.to_dict()
     # Bars must encode y and y2 (range) to form the stepped effect.
-    if "layer" in spec:
-        first = spec["layer"][0]
-    else:
-        first = spec
+    first = spec["layer"][0] if "layer" in spec else spec
     enc = first["encoding"]
     assert "y" in enc and "y2" in enc
 

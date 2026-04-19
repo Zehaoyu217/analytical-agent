@@ -45,7 +45,13 @@ export const UiPersistedSchema = z.object({
   progressExpanded: z.array(z.string()).default([]),
   artifactView: z.enum(["grid", "list"]).default("grid"),
   recentCommandIds: z.array(z.string()).default([]),
-  traceTab: z.enum(["timeline", "context", "raw"]).default("timeline"),
+  traceTab: z
+    .preprocess(
+      // Migrate retired values from older persisted state.
+      (v) => (v === "timeline" || v === "raw" ? "context" : v),
+      z.enum(["context", "io"]),
+    )
+    .default("context"),
   // v3 additions — Tweaks panel knobs
   accent: z.enum(ACCENT_SWATCHES).default(ACCENT_DEFAULT),
   dockPosition: z.enum(["right", "bottom", "off"]).default("right"),
@@ -153,7 +159,7 @@ function createZodStorage(): PersistStorage<UiPersisted> {
                 progressExpanded: [],
                 artifactView: "grid",
                 recentCommandIds: [],
-                traceTab: "timeline",
+                traceTab: "context",
                 accent: ACCENT_DEFAULT,
                 dockPosition: "right",
                 msgStyle: "flat",
@@ -219,7 +225,7 @@ export const useUiStore = create<UiStore>()(
       progressExpanded: [],
       artifactView: "grid",
       recentCommandIds: [],
-      traceTab: "timeline",
+      traceTab: "context",
       accent: ACCENT_DEFAULT,
       dockPosition: "right",
       msgStyle: "flat",
@@ -325,7 +331,7 @@ export const useUiStore = create<UiStore>()(
             progressExpanded: [],
             artifactView: "grid",
             recentCommandIds: [],
-            traceTab: "timeline",
+            traceTab: "context",
             accent: ACCENT_DEFAULT,
             dockPosition: "right",
             msgStyle: "flat",

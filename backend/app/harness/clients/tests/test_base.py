@@ -4,9 +4,11 @@ from app.harness.clients.base import CompletionRequest, CompletionResponse, Mess
 
 
 def test_message_is_frozen() -> None:
+    import dataclasses
+
     import pytest
     m = Message(role="user", content="hi")
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         m.role = "system"  # type: ignore[misc]
 
 

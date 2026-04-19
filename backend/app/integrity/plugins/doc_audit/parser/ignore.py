@@ -24,10 +24,7 @@ class IgnoreMatcher:
 
     def matches(self, rel_path: str) -> bool:
         normalized = rel_path.replace("\\", "/")
-        for pat in self.patterns:
-            if _glob_match(normalized, pat):
-                return True
-        return False
+        return any(_glob_match(normalized, pat) for pat in self.patterns)
 
 
 def _glob_match(path: str, pattern: str) -> bool:

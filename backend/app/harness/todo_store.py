@@ -14,9 +14,10 @@ Design
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from threading import RLock
-from typing import Literal
+from typing import Any, Literal
 
 TodoStatus = Literal["pending", "in_progress", "completed"]
 _VALID_STATUSES: frozenset[str] = frozenset(("pending", "in_progress", "completed"))
@@ -44,7 +45,7 @@ class TodoStore:
             return self._by_session.get(session_id, ())
 
     def replace(
-        self, session_id: str, items: list[dict]
+        self, session_id: str, items: Sequence[dict[str, Any]]
     ) -> tuple[TodoItem, ...]:
         """Replace the session's todo list with ``items`` (list of dicts).
 

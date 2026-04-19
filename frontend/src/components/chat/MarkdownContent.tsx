@@ -122,7 +122,6 @@ const MdCodeBlock = memo(function MdCodeBlock({
           <div
             className="[&>pre]:!p-4 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!overflow-visible [&>pre]:!rounded-none [&>pre]:!border-none"
             // Shiki output is sanitised HTML from a trusted library.
-            // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (

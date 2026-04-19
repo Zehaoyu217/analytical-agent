@@ -22,6 +22,14 @@ function kindOf(name: string): ProgressStep['kind'] {
   return 'tool'
 }
 
+const TITLE_OVERRIDES: Record<string, string> = {
+  execute_python: 'Running Python',
+}
+
+function titleOf(name: string): string {
+  return TITLE_OVERRIDES[name] ?? name
+}
+
 function statusOf(t: ToolCallEntry): ProgressStep['status'] {
   if (t.status === 'pending') return 'running'
   if (t.status === 'error' || t.status === 'blocked') return 'err'
@@ -34,7 +42,7 @@ export function selectProgressSteps(log: ToolCallEntry[]): ProgressStep[] {
   const steps: ProgressStep[] = log.map((t, i) => ({
     id: t.id,
     index: t.step ?? i,
-    title: t.name,
+    title: titleOf(t.name),
     kind: kindOf(t.name),
     status: statusOf(t),
     startedAt: t.startedAt,

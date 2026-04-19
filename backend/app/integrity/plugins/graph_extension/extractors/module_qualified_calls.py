@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 
 from ....schema import GraphSnapshot
@@ -196,7 +197,7 @@ def _resolve_relative(
     return ".".join(p.lower() for p in parts) or None
 
 
-def _iter_callers(tree: ast.AST):
+def _iter_callers(tree: ast.AST) -> Iterator[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]:
     """Yield (caller_name, func_node) for every top-level func and class method."""
     for top in ast.iter_child_nodes(tree):
         if isinstance(top, (ast.FunctionDef, ast.AsyncFunctionDef)):

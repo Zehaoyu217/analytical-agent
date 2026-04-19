@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.schemas.package_json import (
+from app.integrity.plugins.config_registry.schemas.package_json import (
     PackageJsonSchema,
 )
 

@@ -158,8 +158,8 @@ class WikiEngine:
         path.write_text(notes)
         # Only scan the sessions directory at most once per hour to avoid
         # redundant filesystem work on every turn.
-        _CLEANUP_INTERVAL = 3600.0
-        if time.time() - self._last_cleanup_ts >= _CLEANUP_INTERVAL:
+        cleanup_interval = 3600.0
+        if time.time() - self._last_cleanup_ts >= cleanup_interval:
             self.cleanup_old_sessions(max_age_days=3)
             self._last_cleanup_ts = time.time()
         return path

@@ -1,5 +1,7 @@
 from pathlib import Path
-from backend.app.integrity.plugins.config_registry.schemas.tsconfig import TsconfigSchema
+
+from app.integrity.plugins.config_registry.schemas.tsconfig import TsconfigSchema
+
 
 def test_valid(tmp_path: Path):
     p = tmp_path / "tsconfig.json"

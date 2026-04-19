@@ -5,17 +5,16 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.app.integrity.plugins.hooks_check.coverage import (
+from app.integrity.plugins.hooks_check.coverage import (
     CoverageRule,
     CoverageWhen,
     RequiredHook,
 )
-from backend.app.integrity.plugins.hooks_check.dry_run import (
+from app.integrity.plugins.hooks_check.dry_run import (
     _sanitized_env,
     run_for,
 )
-from backend.app.integrity.plugins.hooks_check.settings_parser import HookRecord
-
+from app.integrity.plugins.hooks_check.settings_parser import HookRecord
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 

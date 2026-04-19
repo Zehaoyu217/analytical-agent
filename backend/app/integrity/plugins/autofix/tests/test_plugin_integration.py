@@ -5,9 +5,9 @@ import json
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.autofix.plugin import AutofixPlugin
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.plugins.autofix.plugin import AutofixPlugin
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 
 def _ctx(repo: Path) -> ScanContext:

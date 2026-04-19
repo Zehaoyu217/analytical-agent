@@ -28,11 +28,9 @@ def test_agent_trace_is_frozen() -> None:
         queries=[], intermediate=[], final_output="",
         token_count=0, duration_ms=0, errors=[],
     )
-    try:
+    import pytest
+    with pytest.raises(AttributeError):
         trace.token_count = 999  # type: ignore[misc]
-        assert False, "Should have raised"
-    except AttributeError:
-        pass
 
 
 def test_dimension_grade_creation() -> None:

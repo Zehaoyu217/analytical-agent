@@ -124,7 +124,6 @@ export function CodeBlock({
         {html ? (
           <div
             // Shiki output is sanitised HTML from a trusted library.
-            // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: html }}
             className="[&>pre]:!p-4 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!overflow-visible [&>pre]:!rounded-none [&>pre]:!border-none"
           />

@@ -35,17 +35,18 @@ def lag_correlate(
     x_arr = x_arr[:n]
     y_arr = y_arr[:n]
 
-    if not accept_non_stationary:
-        if not characterize(x_arr).stationary or not characterize(y_arr).stationary:
-            raise ValueError(
-                "time_series.lag_correlate: inputs are non_stationary. "
-                "Set accept_non_stationary=True to override, or difference inputs first."
-            )
+    if not accept_non_stationary and (
+        not characterize(x_arr).stationary or not characterize(y_arr).stationary
+    ):
+        raise ValueError(
+            "time_series.lag_correlate: inputs are non_stationary. "
+            "Set accept_non_stationary=True to override, or difference inputs first."
+        )
 
     lags = np.arange(-max_lag, max_lag + 1)
     coefs = np.empty(lags.size)
     for i, lag in enumerate(lags):
-        shifted = _shift(y_arr, lag)
+        shifted = _shift(y_arr, int(lag))
         mask = ~np.isnan(shifted)
         if mask.sum() < 10:
             coefs[i] = np.nan
@@ -54,7 +55,7 @@ def lag_correlate(
     threshold = 2.0 / np.sqrt(n)
     significant = [
         int(lag)
-        for lag, c in zip(lags, coefs)
+        for lag, c in zip(lags, coefs, strict=False)
         if not np.isnan(c) and abs(c) > threshold
     ]
     return LagCorrelationResult(lags=lags, coefficients=coefs, significant_lags=significant)

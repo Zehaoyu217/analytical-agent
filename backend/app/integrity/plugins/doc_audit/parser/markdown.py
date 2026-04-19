@@ -96,9 +96,9 @@ def parse_doc(path: Path, rel_path: str) -> ParsedDoc:
                 ch = children[j]
                 if ch.type == "link_open":
                     href = ""
-                    for name, value in ch.attrs.items() if isinstance(ch.attrs, dict) else (ch.attrs or []):
+                    for name, value in ch.attrs.items() if isinstance(ch.attrs, dict) else (ch.attrs or []):  # noqa: E501
                         if name == "href":
-                            href = value
+                            href = str(value)
                     text_parts: list[str] = []
                     k = j + 1
                     while k < len(children) and children[k].type != "link_close":

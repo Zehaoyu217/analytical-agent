@@ -95,10 +95,7 @@ def _collect_candidates(repo_root: Path, roots: list[str]) -> list[Path]:
 def _matches_any(rel: str, patterns: list[str]) -> bool:
     from .parser.ignore import _glob_match  # reuse the same matcher
 
-    for pat in patterns:
-        if _glob_match(rel, pat):
-            return True
-    return False
+    return any(_glob_match(rel, pat) for pat in patterns)
 
 
 def _resolve(base_dir: PurePosixPath, target: str) -> str | None:

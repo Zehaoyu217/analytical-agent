@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
-import io
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -81,7 +79,7 @@ def _run_main(mod, argv: list[str], capsys: pytest.CaptureFixture[str]) -> tuple
     return code, captured.out
 
 
-def test_list_flag_prints_json_summaries(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_list_flag_prints_json_summaries(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:  # noqa: E501
     mod = _load_module()
     _write_trace(tmp_path, "sess-b", started_at="t2")
     _write_trace(tmp_path, "sess-a", started_at="t1")
@@ -123,7 +121,7 @@ def test_list_flag_honours_limit(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert len(data) == 2
 
 
-def test_list_flag_empty_when_dir_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_list_flag_empty_when_dir_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:  # noqa: E501
     mod = _load_module()
     missing = tmp_path / "nope"
 

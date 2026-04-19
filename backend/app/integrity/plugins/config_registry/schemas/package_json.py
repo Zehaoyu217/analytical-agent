@@ -41,7 +41,7 @@ class PackageJsonSchema:
             if field_name in data and not isinstance(data[field_name], dict):
                 failures.append(ValidationFailure(
                     rule="wrong_type", location=field_name,
-                    message=f'"{field_name}" must be an object, got {type(data[field_name]).__name__}',
+                    message=f'"{field_name}" must be an object, got {type(data[field_name]).__name__}',  # noqa: E501
                 ))
 
         return failures

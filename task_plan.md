@@ -129,10 +129,10 @@ Replace the current Cockpit shell with the handoff's four-pane `AppShell` (IconR
 Turn the Dock into a three-tab trust surface (Progress / Context / Artifacts), land a full-viewport Artifact Viewer with six renderers, optionally ship a ⌘K Command Palette, and retire the legacy cockpit-era `TraceRail`.
 
 ## Phases
-- [ ] Phase 1 — Data model + `context_snapshot` event
-- [ ] Phase 2 — Progress panel
-- [ ] Phase 3 — Context panel
-- [ ] Phase 4 — Artifacts grid
+- [x] Phase 1 — Data model + `context_snapshot` event
+- [x] Phase 2 — Progress panel
+- [x] Phase 3 — Context panel
+- [x] Phase 4 — Artifacts grid
 - [ ] Phase 5 — Artifact Viewer
 - [ ] Phase 6 — Retirement
 - [ ] Phase 7 — Command Palette (deferrable)

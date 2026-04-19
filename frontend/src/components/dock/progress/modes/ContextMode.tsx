@@ -1,58 +1,76 @@
 import { useChatStore } from '@/lib/store'
 import { extractTextContent } from '@/lib/utils'
+import type { ProgressStep } from '@/lib/selectors/progressSteps'
+
+interface ContextModeProps {
+  step: ProgressStep
+}
 
 function formatTime(ts: number): string {
   return new Date(ts).toTimeString().slice(0, 8)
 }
 
-export function ContextMode() {
+/**
+ * Per-step context view. Shows only the conversation turn that produced this
+ * specific tool call — not aggregated session-wide tool history.
+ */
+export function ContextMode({ step }: ContextModeProps) {
   const activeId = useChatStore((s) => s.activeConversationId)
   const conversation = useChatStore((s) =>
     s.conversations.find((c) => c.id === activeId),
   )
-  const toolCallLog = useChatStore((s) => s.toolCallLog)
+  const entry = useChatStore((s) =>
+    s.toolCallLog.find((t) => t.id === step.toolCallIds[0]),
+  )
 
-  if (!conversation) {
-    return (
-      <div className="cockpit-trace__body">
-        <div className="cockpit-trace__empty">no session</div>
-      </div>
-    )
+  if (!conversation || !entry) {
+    return <div className="cockpit-trace__empty">no context for this step</div>
   }
 
-  const messages = conversation.messages.slice(-6)
+  const owningMessage = entry.messageId
+    ? conversation.messages.find((m) => m.id === entry.messageId)
+    : undefined
+  const userTurn = (() => {
+    if (!owningMessage) return undefined
+    const idx = conversation.messages.indexOf(owningMessage)
+    for (let i = idx - 1; i >= 0; i -= 1) {
+      if (conversation.messages[i].role === 'user') return conversation.messages[i]
+    }
+    return undefined
+  })()
 
   return (
-    <div className="cockpit-context">
-      {messages.length === 0 && (
-        <div className="cockpit-trace__empty">no turns yet</div>
-      )}
-      {messages.map((m) => {
-        const text = extractTextContent(m.content).slice(0, 180)
-        return (
-          <div key={m.id}>
-            <div className="cockpit-context__turn-role">
-              {m.role} · {formatTime(m.timestamp)}
-            </div>
-            <div className="cockpit-context__turn-body">
-              {text || '[no text]'}
-            </div>
+    <div className="flex flex-col gap-2">
+      {userTurn && (
+        <div>
+          <div className="label-cap mb-1">User prompt</div>
+          <div className="text-[12px] leading-[1.5] text-fg-1">
+            {extractTextContent(userTurn.content).slice(0, 320) || '[no text]'}
           </div>
-        )
-      })}
-      {toolCallLog.length > 0 && (
-        <div className="cockpit-context__tools">
-          <div className="cockpit-context__tools-head">
-            tool calls ({toolCallLog.length})
+          <div className="mono mt-1 text-[10.5px] text-fg-3">
+            {formatTime(userTurn.timestamp)}
           </div>
-          {toolCallLog.slice(-8).map((t) => (
-            <div key={t.id} className="cockpit-trace__row">
-              <span className="cockpit-trace__row-kind">{t.name}</span>
-              <span className="cockpit-hud__dim">{t.status}</span>
-            </div>
-          ))}
         </div>
       )}
+      <div>
+        <div className="label-cap mb-1">This call</div>
+        <div className="mono text-[11.5px] text-fg-1">
+          {step.title}
+          {entry.inputPreview && (
+            <>
+              {' '}
+              <span className="text-fg-3">·</span>{' '}
+              <span className="text-fg-2">{entry.inputPreview}</span>
+            </>
+          )}
+        </div>
+        <div className="mono mt-1 text-[10.5px] text-fg-3">
+          status: {entry.status}
+          {entry.startedAt && entry.finishedAt && (
+            <> · {entry.finishedAt - entry.startedAt}ms</>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

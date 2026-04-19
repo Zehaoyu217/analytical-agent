@@ -24,8 +24,8 @@ class DatasetUploadResponse(BaseModel):
 
 @router.post("/upload", response_model=DatasetUploadResponse)
 def upload_dataset(
-    file: UploadFile = File(...),
-    session_id: str = Form(...),
+    file: UploadFile = File(...),  # noqa: B008 — FastAPI dependency idiom
+    session_id: str = Form(...),  # noqa: B008 — FastAPI dependency idiom
 ) -> DatasetUploadResponse:
     """Upload a CSV or Parquet file for a given session."""
     if not file.filename:

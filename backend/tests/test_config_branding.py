@@ -9,7 +9,7 @@ import yaml
 from app.config import BrandingConfig, load_branding
 
 
-def test_load_branding_returns_defaults_when_no_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_branding_returns_defaults_when_no_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: E501
     """When no YAML file exists, load_branding() must return the hardcoded defaults."""
     # Point CCAGENT_HOME to an empty temp dir so neither override nor repo-default is used.
     monkeypatch.setenv("CCAGENT_HOME", str(tmp_path))

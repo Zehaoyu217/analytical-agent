@@ -1,10 +1,5 @@
 const BASE_URL = '/api'
 
-export async function fetchHealth(): Promise<{ status: string; version: string }> {
-  const res = await fetch(`${BASE_URL}/health`)
-  return res.json()
-}
-
 export interface ContextSnapshot {
   total_tokens: number
   max_tokens: number
@@ -57,14 +52,6 @@ export async function fetchSessionContext(sessionId: string): Promise<SessionCon
   return res.json()
 }
 
-export async function fetchContextHistory(
-  sessionId: string,
-): Promise<{ session_id: string; history: ContextSnapshot['compaction_history'] }> {
-  const res = await fetch(`${BASE_URL}/context/${encodeURIComponent(sessionId)}/history`)
-  if (!res.ok) throw new Error(`history fetch failed (${res.status})`)
-  return res.json()
-}
-
 export async function fetchCompactionDiff(
   sessionId: string,
   compactionId: number,
@@ -79,31 +66,6 @@ export async function fetchCompactionDiff(
 export async function listContextSessions(): Promise<{ sessions: string[] }> {
   const res = await fetch(`${BASE_URL}/context/sessions`)
   if (!res.ok) throw new Error(`sessions list failed (${res.status})`)
-  return res.json()
-}
-
-export interface ChatResponse {
-  session_id: string
-  response: string
-  charts?: Array<Record<string, unknown>>  // Vega-Lite JSON specs
-}
-
-export async function sendChatMessage(
-  message: string,
-  sessionId: string | null,
-): Promise<ChatResponse> {
-  const res = await fetch(`${BASE_URL}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message,
-      session_id: sessionId,
-    }),
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`chat failed (${res.status}): ${body}`)
-  }
   return res.json()
 }
 

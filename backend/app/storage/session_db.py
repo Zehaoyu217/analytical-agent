@@ -174,7 +174,7 @@ class SessionDB:
 
     def create_session(
         self,
-        id: str,
+        id: str,  # noqa: A002 — public kwarg name
         model: str | None = None,
         goal: str | None = None,
         title: str | None = None,
@@ -231,7 +231,7 @@ class SessionDB:
 
     def finalize_session(
         self,
-        id: str,
+        id: str,  # noqa: A002 — public kwarg name
         outcome: str | None = None,
         step_count: int = 0,
         input_tokens: int = 0,
@@ -319,7 +319,7 @@ class SessionDB:
 
     # ── Read helpers ───────────────────────────────────────────────────────
 
-    def get_session(self, id: str, include_messages: bool = False) -> Session | None:
+    def get_session(self, id: str, include_messages: bool = False) -> Session | None:  # noqa: A002 — public kwarg name
         """Return a Session or None if not found."""
         with self._connect() as conn:
             row = conn.execute(

@@ -5,9 +5,9 @@ import json
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.hooks_check.plugin import HooksCheckPlugin
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.plugins.hooks_check.plugin import HooksCheckPlugin
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 
 def _ctx(repo: Path) -> ScanContext:
@@ -93,7 +93,6 @@ def test_per_rule_failure_is_caught_and_reported(
     tiny_repo_with_hooks: Path, monkeypatch
 ) -> None:
     """If a rule raises, plugin emits ERROR issue and siblings continue."""
-    from backend.app.integrity.plugins.hooks_check.rules import missing
 
     def boom(*args, **kwargs):
         raise RuntimeError("synthetic")

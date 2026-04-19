@@ -4,7 +4,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.hashing import (
+from app.integrity.plugins.config_registry.hashing import (
     git_blob_sha,
     git_blob_sha_bytes,
 )
@@ -31,9 +31,7 @@ def test_git_blob_sha_empty_file(tmp_path: Path) -> None:
 def test_git_blob_sha_bytes_matches() -> None:
     """In-process implementation matches the on-disk version."""
     content = b"hello world\n"
-    # echo -n "hello world" | git hash-object --stdin → 3b18e512dba79e4c8300dd08aeb37f8e728b8dad
-    # but that's without the newline; with newline:
-    expected_with_nl = "22b1f7c80df47fa75c4e9aae22e1f87cc5c1afaa"  # known
+    # Known hash for "hello world\n": 22b1f7c80df47fa75c4e9aae22e1f87cc5c1afaa
     # We don't hardcode — instead compare paths
     p = Path("/tmp/_test_hash.txt")
     p.write_bytes(content)

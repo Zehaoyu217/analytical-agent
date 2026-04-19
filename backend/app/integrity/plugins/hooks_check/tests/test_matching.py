@@ -1,13 +1,13 @@
 """Tests for the rule↔hook matching predicate."""
 from __future__ import annotations
 
-from backend.app.integrity.plugins.hooks_check.coverage import (
+from app.integrity.plugins.hooks_check.coverage import (
     CoverageRule,
     CoverageWhen,
     RequiredHook,
 )
-from backend.app.integrity.plugins.hooks_check.matching import matches
-from backend.app.integrity.plugins.hooks_check.settings_parser import HookRecord
+from app.integrity.plugins.hooks_check.matching import matches
+from app.integrity.plugins.hooks_check.settings_parser import HookRecord
 
 
 def _rule(event="PostToolUse", matcher="Write|Edit", substr="ruff") -> CoverageRule:

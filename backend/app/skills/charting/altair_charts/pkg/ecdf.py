@@ -33,7 +33,7 @@ def ecdf(
     if groupby:
         window_kwargs["groupby"] = groupby
 
-    calc_expr = f"datum.cumulative_count / { {g: 'length(data)' for g in []} or 'length(data)' }"
+    calc_expr = "datum.cumulative_count / length(data)"
     base = (
         alt.Chart(df)
         .transform_window(**window_kwargs)

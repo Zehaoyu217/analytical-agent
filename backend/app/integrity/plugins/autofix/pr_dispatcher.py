@@ -155,6 +155,7 @@ def dispatch_class(
     body_file = cfg.repo_root / ".autofix_body.md"
     body_file.write_text(pr_body)
     try:
+        pr_num: int | None
         if pr_list:
             pr_num = int(pr_list[0]["number"])
             pr_url = str(pr_list[0].get("url", ""))

@@ -72,7 +72,7 @@ class SkillRegistry:
                 self._discover_recursive(skill_dir, parent=None, depth=1)
 
     def _discover_recursive(
-        self, dir: Path, parent: SkillNode | None, depth: int
+        self, dir: Path, parent: SkillNode | None, depth: int  # noqa: A002 — internal helper
     ) -> None:
         skill_md = dir / "SKILL.md"
         if not skill_md.exists():
@@ -113,7 +113,7 @@ class SkillRegistry:
 
         if name in self._index:
             _log.warning(
-                "Skill name collision: '%s' at %s shadows earlier entry — check for duplicate name: fields",
+                "Skill name collision: '%s' at %s shadows earlier entry — check for duplicate name: fields",  # noqa: E501
                 name,
                 dir,
             )
@@ -179,7 +179,7 @@ class SkillRegistry:
             if node.package_path is not None:
                 pkg = node.package_path
                 # Skip empty pkg/ directories
-                if not any(f for f in pkg.iterdir() if not f.name.startswith("_") or f.name == "__init__.py"):
+                if not any(f for f in pkg.iterdir() if not f.name.startswith("_") or f.name == "__init__.py"):  # noqa: E501
                     continue
                 try:
                     rel = pkg.relative_to(backend_root)

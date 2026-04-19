@@ -5,8 +5,8 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
-from backend.app.integrity.plugins.autofix.fixers.doc_link_renamed import propose
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.fixers.doc_link_renamed import propose
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
 
 
 def _artifacts(broken: list[tuple[str, str]]) -> SiblingArtifacts:

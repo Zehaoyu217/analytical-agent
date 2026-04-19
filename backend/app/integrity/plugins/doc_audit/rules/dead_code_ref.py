@@ -29,6 +29,57 @@ def _is_adr(rel: str) -> bool:
     return rel.startswith("knowledge/adr/")
 
 
+# Symbols whose roots are stdlib/third-party — never project-owned, so a
+# missing graph entry is meaningless. The match is on the leading dotted
+# component (case-insensitive).
+_STDLIB_ROOTS = frozenset({
+    "os", "sys", "io", "json", "re", "math", "time", "datetime", "pathlib",
+    "subprocess", "shutil", "tempfile", "logging", "typing", "collections",
+    "functools", "itertools", "contextlib", "asyncio", "threading", "uuid",
+    "hashlib", "base64", "random", "warnings", "dataclasses", "enum",
+    "abc", "inspect", "ast", "argparse", "concurrent", "queue", "sqlite3",
+    # very common third-party namespaces in this repo
+    "np", "pd", "plt", "alt", "duckdb", "fastapi", "pydantic", "ruamel",
+    "scipy", "sklearn", "altair", "pandas", "numpy", "matplotlib",
+    "requests", "httpx", "anyio", "starlette",
+    # integrity plugin rule-name roots (e.g. `doc.dead_code_ref`,
+    # `hooks.missing`, `config.added`, `graph.density_drop`,
+    # `autofix.fixer_failed`) — these are rule identifiers surfaced in
+    # docs/changelog, not Python symbols.
+    "doc", "hooks", "config", "graph", "autofix", "skill",
+})
+
+
+def _is_external_symbol(symbol: str) -> bool:
+    root = symbol.split(".", 1)[0].lower()
+    return root in _STDLIB_ROOTS
+
+
+_PATH_PREFIXES: tuple[str, ...] = (
+    "backend/",
+    "backend/app/",
+    "frontend/src/",
+    "frontend/",
+    "reference/src/",
+    "reference/",
+)
+
+
+def _path_resolves(ctx: ScanContext, target: str, graph_paths: set[str]) -> bool:
+    if target in graph_paths:
+        return True
+    if (ctx.repo_root / target).exists():
+        return True
+    # Docs commonly reference paths without the project prefix
+    # (e.g. `harness/loop.py`, `app/main.py`, `components/Button.tsx`).
+    # Try a few well-known roots before giving up.
+    if not target.startswith(("backend/", "frontend/", "infra/", "reference/")):
+        for prefix in _PATH_PREFIXES:
+            if (ctx.repo_root / prefix / target).exists():
+                return True
+    return False
+
+
 def run(ctx: ScanContext, cfg: dict[str, Any], today: date) -> list[IntegrityIssue]:
     idx = MarkdownIndex.build(ctx.repo_root, cfg)
     graph_paths, graph_symbols = _graph_indices(ctx)
@@ -43,9 +94,7 @@ def run(ctx: ScanContext, cfg: dict[str, Any], today: date) -> list[IntegrityIss
                 target = ref.path or ""
                 if not target:
                     continue
-                if target in graph_paths:
-                    continue
-                if (ctx.repo_root / target).exists():
+                if _path_resolves(ctx, target, graph_paths):
                     continue
                 issues.append(
                     IntegrityIssue(
@@ -63,6 +112,8 @@ def run(ctx: ScanContext, cfg: dict[str, Any], today: date) -> list[IntegrityIss
                 )
             elif ref.kind == "symbol":
                 if not ref.symbol or "." not in ref.symbol:
+                    continue
+                if _is_external_symbol(ref.symbol):
                     continue
                 if ref.symbol.lower() in graph_symbols:
                     continue

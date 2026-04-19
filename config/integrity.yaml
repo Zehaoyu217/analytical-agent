@@ -38,6 +38,10 @@ plugins:
       - "integrity-out/**"
       - "docs/health/**"
       - "docs/superpowers/**"
+      - "docs/log.md"
+      - "task_plan.md"
+      - "findings.md"
+      - "progress.md"
     claude_ignore_file: ".claude-ignore"
     rename_lookback: "30.days.ago"
     disabled_rules: []

@@ -328,6 +328,10 @@
     animation: scaleInDs 280ms var(--ease-spring) both;
   }
 
+  .spin {
+    animation: spin 720ms linear infinite;
+  }
+
   .fade-in {
     animation: fadeInDs 280ms var(--ease-out) both;
   }

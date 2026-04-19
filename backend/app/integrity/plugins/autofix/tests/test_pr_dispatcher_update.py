@@ -6,8 +6,8 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
-from backend.app.integrity.plugins.autofix.diff import Diff, IssueRef
-from backend.app.integrity.plugins.autofix.pr_dispatcher import (
+from app.integrity.plugins.autofix.diff import Diff, IssueRef
+from app.integrity.plugins.autofix.pr_dispatcher import (
     DispatcherConfig,
     dispatch_class,
 )

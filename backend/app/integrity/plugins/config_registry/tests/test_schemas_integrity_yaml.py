@@ -1,5 +1,7 @@
 from pathlib import Path
-from backend.app.integrity.plugins.config_registry.schemas.integrity_yaml import IntegrityYamlSchema
+
+from app.integrity.plugins.config_registry.schemas.integrity_yaml import IntegrityYamlSchema
+
 
 def test_valid(tmp_path: Path):
     p = tmp_path / "integrity.yaml"

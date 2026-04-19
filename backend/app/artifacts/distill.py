@@ -30,7 +30,7 @@ def _distill_chart(a: Artifact) -> str:
     if isinstance(ds, dict) and ds:
         cols = list(ds.keys())
         col_values = [ds[c] for c in cols]
-        rows = list(zip(*col_values))
+        rows = list(zip(*col_values, strict=False))
         n_rows = int(cd.get("data_rows", len(rows) or 0))
         if rows:
             header = ",".join(str(c) for c in cols)
@@ -49,14 +49,14 @@ class _TableParser(HTMLParser):
         self._in_cell = False
         self._text = ""
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == "tr":
             self._row = []
         elif tag in ("td", "th"):
             self._in_cell = True
             self._text = ""
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag: str) -> None:
         if tag in ("td", "th"):
             self._row.append(self._text.strip())
             self._in_cell = False
@@ -64,7 +64,7 @@ class _TableParser(HTMLParser):
             self.rows.append(self._row)
             self._row = []
 
-    def handle_data(self, data):
+    def handle_data(self, data: str) -> None:
         if self._in_cell:
             self._text += data
 

@@ -54,7 +54,7 @@ def test_main_runs_only_doc_audit(tmp_path, monkeypatch):
 
     rc = main(["--plugin", "doc_audit", "--repo-root", str(tmp_path)])
     assert rc == 0
-    assert (tmp_path / "integrity-out" / __import__("datetime").date.today().isoformat() / "doc_audit.json").exists()
+    assert (tmp_path / "integrity-out" / __import__("datetime").date.today().isoformat() / "doc_audit.json").exists()  # noqa: E501
 
 
 def test_main_rejects_unknown_plugin(tmp_path):
@@ -75,7 +75,6 @@ def test_hooks_check_in_known_plugins() -> None:
 
 
 def test_unknown_plugin_rejected_for_hooks_check_typo(monkeypatch, tmp_path) -> None:
-    import sys
     monkeypatch.chdir(tmp_path)
     from backend.app.integrity.__main__ import main
     try:

@@ -57,7 +57,7 @@ def run(ctx: ScanContext, cfg: dict[str, Any], today: date) -> list[IntegrityIss
                 severity="INFO",
                 node_id=rel,
                 location=rel,
-                message=f"Doc {rel} unchanged >{stale_days}d while {len(changed_refs)} ref(s) moved",
+                message=f"Doc {rel} unchanged >{stale_days}d while {len(changed_refs)} ref(s) moved",  # noqa: E501
                 evidence={
                     "doc_last_commit": doc_iso,
                     "stale_days": stale_days,

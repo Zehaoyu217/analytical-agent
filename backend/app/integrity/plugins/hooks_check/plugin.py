@@ -107,8 +107,8 @@ class HooksCheckPlugin:
             ))
 
         merged_tolerated = tuple(list(coverage.tolerated) + tolerated_cfg)
-        from .coverage import CoverageDoc as _CD
-        coverage = _CD(rules=coverage.rules, tolerated=merged_tolerated)
+        from .coverage import CoverageDoc
+        coverage = CoverageDoc(rules=coverage.rules, tolerated=merged_tolerated)
 
         rule_cfg: dict[str, Any] = {
             "_coverage": coverage,

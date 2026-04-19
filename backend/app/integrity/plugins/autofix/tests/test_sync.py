@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import yaml
 
-from backend.app.integrity.plugins.autofix.sync import sync_state
+from app.integrity.plugins.autofix.sync import sync_state
 
 
 def _ok(stdout: str = "") -> CompletedProcess:

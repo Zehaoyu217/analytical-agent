@@ -16,8 +16,8 @@ class DockerfileSchema:
     def validate(self, path: Path, content: str) -> list[ValidationFailure]:
         failures: list[ValidationFailure] = []
         first_meaningful = next(
-            (l.strip() for l in content.splitlines()
-             if l.strip() and not l.strip().startswith("#")),
+            (line.strip() for line in content.splitlines()
+             if line.strip() and not line.strip().startswith("#")),
             "",
         )
         if not first_meaningful.upper().startswith("FROM"):

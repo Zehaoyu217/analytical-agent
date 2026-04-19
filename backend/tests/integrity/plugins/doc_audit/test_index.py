@@ -10,7 +10,7 @@ def _write(repo: Path, rel: str, content: str) -> None:
 
 
 def test_builds_link_graph_and_indexes_anchors(tmp_path: Path):
-    _write(tmp_path, "CLAUDE.md", "# Index\n\n- [Setup](docs/dev-setup.md)\n- [Test](docs/testing.md)\n")
+    _write(tmp_path, "CLAUDE.md", "# Index\n\n- [Setup](docs/dev-setup.md)\n- [Test](docs/testing.md)\n")  # noqa: E501
     _write(tmp_path, "docs/dev-setup.md", "## Quick Start\n\nGo to [testing](testing.md#fast).\n")
     _write(tmp_path, "docs/testing.md", "## Fast\n\nSomething.\n")
     _write(tmp_path, "docs/orphan.md", "Not linked from anywhere.\n")

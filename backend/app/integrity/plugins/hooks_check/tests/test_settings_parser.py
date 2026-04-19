@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.plugins.hooks_check.settings_parser import (
+from app.integrity.plugins.hooks_check.settings_parser import (
     HookRecord,
     parse_settings,
 )

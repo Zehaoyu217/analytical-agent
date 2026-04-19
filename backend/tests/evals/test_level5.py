@@ -75,10 +75,10 @@ STEP_OUTPUTS = [
     "loans_summary_v1 → loans_summary_v2 → txn_summary_v1 → txn_summary_v2 "
     "→ combined_v1 → ratio_v1 → ratio_v1_filtered\n\n"
     "**loans_summary_v1 (step 1):**\n"
-    "4 cols: loan_type, count, avg_principal, default_rate. 4 rows (personal, auto, mortgage, business).\n\n"
+    "4 cols: loan_type, count, avg_principal, default_rate. 4 rows (personal, auto, mortgage, business).\n\n"  # noqa: E501
     "**loans_summary_v2 (step 2):**\n"
     "5 cols: added avg_credit_score. 3 rows: auto removed (was 20 rows, 15.0% default rate, "
-    "$30K avg principal). Credit scores reveal mortgage holders are lowest-risk borrowers (738).\n\n"
+    "$30K avg principal). Credit scores reveal mortgage holders are lowest-risk borrowers (738).\n\n"  # noqa: E501
     "**txn_summary_v2 (step 4, from txn_summary_v1):**\n"
     "5 cols: atm + merchant merged into cash_and_retail (was 6 cols). "
     "cash_and_retail grows Oct→Dec ($53K → $82K), driven by holiday spending.\n\n"

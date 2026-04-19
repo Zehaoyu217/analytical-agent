@@ -18,11 +18,9 @@ def test_grade_to_score_all_grades() -> None:
 
 
 def test_grade_to_score_invalid_raises() -> None:
-    try:
+    import pytest
+    with pytest.raises(KeyError):
         grade_to_score("X")
-        assert False, "Should have raised"
-    except KeyError:
-        pass
 
 
 def test_score_to_grade_thresholds() -> None:

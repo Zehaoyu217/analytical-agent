@@ -1,4 +1,4 @@
-.PHONY: dev backend frontend test test-backend test-frontend lint typecheck \
+.PHONY: dev backend frontend test test-backend test-frontend lint typecheck check \
         skill-check skill-eval skill-new wiki-lint graphify seed-data \
         seed-eval eval eval-trace clean-traces sop \
         docker-build docker-up integrity-augment integrity-test \
@@ -10,19 +10,25 @@ dev:
 	$(MAKE) -j2 backend frontend
 
 backend:
-	cd backend && uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000
+	@if [ ! -x backend/.venv/bin/uvicorn ]; then \
+		echo "[backend] .venv missing — bootstrapping with uv sync..."; \
+		cd backend && uv sync; \
+	fi
+	cd backend && .venv/bin/uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000
 
 frontend:
 	cd frontend && npm run dev
 
 # Quality
 lint:
-	cd backend && ruff check . --fix
-	cd frontend && npm run lint 2>/dev/null || true
+	cd backend && .venv/bin/ruff check . --fix
+	cd frontend && npm run lint
 
 typecheck:
-	cd backend && mypy app/
-	cd frontend && npx tsc --noEmit 2>/dev/null || true
+	cd backend && .venv/bin/mypy app/
+	cd frontend && npx tsc --noEmit
+
+check: lint typecheck integrity ## Full quality pipeline: lint + typecheck + integrity graph audit
 
 test: test-backend test-frontend
 

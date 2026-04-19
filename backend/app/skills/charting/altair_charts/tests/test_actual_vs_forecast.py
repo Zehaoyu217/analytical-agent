@@ -42,9 +42,9 @@ def test_actual_vs_forecast_forecast_dashed() -> None:
     chart = actual_vs_forecast(df, x="date", actual="actual", forecast="forecast")
     spec = chart.to_dict()
     dashed = [
-        l
-        for l in spec["layer"]
-        if isinstance(l.get("mark"), dict) and l["mark"].get("strokeDash") is not None
+        layer
+        for layer in spec["layer"]
+        if isinstance(layer.get("mark"), dict) and layer["mark"].get("strokeDash") is not None
     ]
     assert dashed, "expected at least one dashed layer (forecast)"
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 
 from ....schema import GraphSnapshot
@@ -66,7 +67,7 @@ def _collect_local_defs(tree: ast.AST) -> set[str]:
     return out
 
 
-def _iter_calls_with_caller(tree: ast.AST):
+def _iter_calls_with_caller(tree: ast.AST) -> Iterator[tuple[str, ast.Call, str | None]]:
     """Yield (caller_name, Call node, parent_class_or_None) for every Call."""
     for top in ast.iter_child_nodes(tree):
         if isinstance(top, (ast.FunctionDef, ast.AsyncFunctionDef)):

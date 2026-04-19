@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.autofix.fixers.dead_directive_cleanup import propose
-from backend.app.integrity.plugins.autofix.loader import SiblingArtifacts
+from app.integrity.plugins.autofix.fixers.dead_directive_cleanup import propose
+from app.integrity.plugins.autofix.loader import SiblingArtifacts
 
 
 def _artifacts(directives: list[dict]) -> SiblingArtifacts:

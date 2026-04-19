@@ -5,9 +5,9 @@ import json
 from datetime import date
 from pathlib import Path
 
-from backend.app.integrity.plugins.config_registry.plugin import ConfigRegistryPlugin
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.plugins.config_registry.plugin import ConfigRegistryPlugin
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 PLUGIN_CFG = {
     "manifest_path": "config/manifest.yaml",

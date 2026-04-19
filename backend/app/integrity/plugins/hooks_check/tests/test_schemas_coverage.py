@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.app.integrity.plugins.hooks_check.schemas.coverage import (
+from app.integrity.plugins.hooks_check.schemas.coverage import (
     CoverageSchemaValidator,
 )
 

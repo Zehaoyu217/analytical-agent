@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.integrity.plugins.hooks_check.plugin import HooksCheckPlugin
-from backend.app.integrity.protocol import ScanContext
-from backend.app.integrity.schema import GraphSnapshot
+from app.integrity.plugins.hooks_check.plugin import HooksCheckPlugin
+from app.integrity.protocol import ScanContext
+from app.integrity.schema import GraphSnapshot
 
 
 def _ctx(repo: Path) -> ScanContext:
@@ -35,19 +35,19 @@ def synthetic_5_rule_repo(tmp_path: Path) -> Path:
         "  - id: r2\n"
         "    description: eslint\n"
         "    when: {paths: ['*.tsx']}\n"
-        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: eslint}\n"
+        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: eslint}\n"  # noqa: E501
         "  - id: r3\n"
         "    description: doc_audit\n"
         "    when: {paths: ['*.md']}\n"
-        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: doc_audit}\n"
+        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: doc_audit}\n"  # noqa: E501
         "  - id: r4\n"
         "    description: skill-check\n"
         "    when: {paths: ['*SKILL.md']}\n"
-        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: skill-check}\n"
+        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: skill-check}\n"  # noqa: E501
         "  - id: r5\n"
         "    description: integrity-config\n"
         "    when: {paths: ['*.toml']}\n"
-        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: integrity-config}\n"
+        "    requires_hook: {event: PostToolUse, matcher: 'Write|Edit', command_substring: integrity-config}\n"  # noqa: E501
         "tolerated: []\n"
     )
     (repo / "config").mkdir()

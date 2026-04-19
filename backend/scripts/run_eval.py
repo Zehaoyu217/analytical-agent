@@ -36,12 +36,12 @@ _WORKING_MD_RESET = """\
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.evals.analyzer import TraceAnalyzer
-from app.evals.judge import FallbackJudge, LLMJudge, OpenRouterJudge
-from app.evals.rubric import load_rubric
-from app.evals.runner import evaluate_level
-from app.evals.types import TraceAnalysis
-from tests.evals.real_agent import BackendNotReachableError, RealAgentAdapter
+from app.evals.analyzer import TraceAnalyzer  # noqa: E402 — after sys.path insert above
+from app.evals.judge import FallbackJudge, LLMJudge, OpenRouterJudge  # noqa: E402
+from app.evals.rubric import load_rubric  # noqa: E402
+from app.evals.runner import evaluate_level  # noqa: E402
+from app.evals.types import TraceAnalysis  # noqa: E402
+from tests.evals.real_agent import BackendNotReachableError, RealAgentAdapter  # noqa: E402
 
 RUBRICS_DIR = Path(__file__).parent.parent / "tests" / "evals" / "rubrics"
 
@@ -229,7 +229,7 @@ async def run_level(
     print(f"  {'─' * 68}")
     try:
         result = await evaluate_level(rubric, trace, judge, checks)
-        print(f"  SCORE: {result.weighted_score:.2f}  GRADE: {result.grade}  [{_bar(result.weighted_score)}]")
+        print(f"  SCORE: {result.weighted_score:.2f}  GRADE: {result.grade}  [{_bar(result.weighted_score)}]")  # noqa: E501
         print(f"  {'─' * 68}")
         for d in result.dimensions:
             print(f"  {d.name:<25} {d.grade}  {d.justification[:55]}")

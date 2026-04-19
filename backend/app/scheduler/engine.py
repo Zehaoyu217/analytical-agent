@@ -71,7 +71,7 @@ class CronEngine:
         # Re-add enabled jobs from the DB.
         rows = self._db.list_cron_jobs(enabled_only=True)
         for row in rows:
-            self._schedule_one(row)
+            self._schedule_one(CronJob(**row.__dict__))
 
     # ── CRUD ──────────────────────────────────────────────────────────────────
 
@@ -111,7 +111,7 @@ class CronEngine:
         job = next((r for r in rows if r.id == job_id), None)
         if job is None:
             raise KeyError(f"cron job {job_id!r} not found")
-        self._run_job(job)
+        self._run_job(CronJob(**job.__dict__))
 
     # ── Private helpers ───────────────────────────────────────────────────────
 

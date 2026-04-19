@@ -19,8 +19,8 @@ def test_range_band_has_area_and_line_layers() -> None:
     spec = chart.to_dict()
     assert "layer" in spec
     marks = {
-        (l.get("mark", {}).get("type") if isinstance(l.get("mark"), dict) else l.get("mark"))
-        for l in spec["layer"]
+        (layer.get("mark", {}).get("type") if isinstance(layer.get("mark"), dict) else layer.get("mark"))  # noqa: E501
+        for layer in spec["layer"]
     }
     assert "area" in marks
     assert "line" in marks

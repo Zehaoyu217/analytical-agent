@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -15,7 +17,7 @@ from app.skills.statistical_analysis.distribution_fit.result import FitResult
 OUTLIER_TAIL_PROB = 0.001
 
 
-def _outlier_indices(arr: np.ndarray, candidate, threshold: float) -> tuple[int, ...]:
+def _outlier_indices(arr: np.ndarray, candidate: Any, threshold: float) -> tuple[int, ...]:
     dist = SUPPORTED[candidate.name]
     sf = dist.sf(arr, *candidate.params)
     cdf = dist.cdf(arr, *candidate.params)
@@ -24,7 +26,7 @@ def _outlier_indices(arr: np.ndarray, candidate, threshold: float) -> tuple[int,
 
 
 def _save_chart_artifact(
-    store: ArtifactStore, session_id: str, chart, title: str, summary: str
+    store: ArtifactStore, session_id: str, chart: Any, title: str, summary: str
 ) -> str:
     json_spec = chart.to_json()
     art = store.add_artifact(

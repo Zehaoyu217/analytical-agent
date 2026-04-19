@@ -51,15 +51,15 @@ def test_batch_runner_processes_all_prompts(tmp_path: Path):
         patch.object(runner, "_build_client", return_value=MagicMock()),
         patch.object(runner, "_build_system", return_value="sys"),
         patch("app.harness.wiring.get_session_db", return_value=mock_db),
-        patch("app.harness.loop.AgentLoop") as MockLoop,
+        patch("app.harness.loop.AgentLoop") as mock_loop,
     ):
-        MockLoop.return_value.run.return_value = mock_outcome
+        mock_loop.return_value.run.return_value = mock_outcome
         summary = runner.run(prompts, output)
 
     assert summary.total == 3
     assert summary.completed == 3
     assert summary.failed == 0
-    lines = [l for l in output.read_text().splitlines() if l.strip()]
+    lines = [line for line in output.read_text().splitlines() if line.strip()]
     assert len(lines) == 3
 
 
@@ -82,16 +82,16 @@ def test_checkpoint_resume_skips_completed_indices(tmp_path: Path):
         patch.object(runner, "_build_client", return_value=MagicMock()),
         patch.object(runner, "_build_system", return_value="sys"),
         patch("app.harness.wiring.get_session_db", return_value=mock_db),
-        patch("app.harness.loop.AgentLoop") as MockLoop,
+        patch("app.harness.loop.AgentLoop") as mock_loop,
     ):
-        MockLoop.return_value.run.return_value = mock_outcome
+        mock_loop.return_value.run.return_value = mock_outcome
         summary = runner.run(prompts, output, resume=True)
 
     # Only indices 3 and 4 should have been processed
     assert summary.completed == 2
-    lines = [l for l in output.read_text().splitlines() if l.strip()]
+    lines = [line for line in output.read_text().splitlines() if line.strip()]
     assert len(lines) == 2
-    result_indices = sorted(json.loads(l)["index"] for l in lines)
+    result_indices = sorted(json.loads(line)["index"] for line in lines)
     assert result_indices == [3, 4]
 
 
@@ -109,12 +109,12 @@ def test_output_jsonl_is_valid(tmp_path: Path):
         patch.object(runner, "_build_client", return_value=MagicMock()),
         patch.object(runner, "_build_system", return_value="sys"),
         patch("app.harness.wiring.get_session_db", return_value=mock_db),
-        patch("app.harness.loop.AgentLoop") as MockLoop,
+        patch("app.harness.loop.AgentLoop") as mock_loop,
     ):
-        MockLoop.return_value.run.return_value = mock_outcome
+        mock_loop.return_value.run.return_value = mock_outcome
         runner.run(prompts, output)
 
-    lines = [l for l in output.read_text().splitlines() if l.strip()]
+    lines = [line for line in output.read_text().splitlines() if line.strip()]
     assert len(lines) == 1
     result = json.loads(lines[0])
     assert {"index", "prompt", "session_id", "final_text", "steps", "ok"} <= result.keys()

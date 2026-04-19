@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 # Absolute path to the backend directory — injected into subprocess sys.path
 # so that `config.*` and `app.*` packages are importable from the temp-file sandbox.
@@ -27,9 +28,9 @@ _SKILL_IMPORTS: list[str] = [
     "from app.skills.statistical_analysis.group_compare import compare",
     "from app.skills.statistical_analysis.stat_validate import validate",
     "from app.skills.data_profiler import profile",
-    "from app.skills.statistical_analysis.time_series import characterize, decompose, find_anomalies, find_changepoints, lag_correlate",
+    "from app.skills.statistical_analysis.time_series import characterize, decompose, find_anomalies, find_changepoints, lag_correlate",  # noqa: E501
     "from app.skills.statistical_analysis.distribution_fit import fit",
-    "from app.skills.charting.altair_charts.pkg import actual_vs_forecast, area_cumulative, bar, bar_with_reference, boxplot, correlation_heatmap, dumbbell, ecdf, grouped_bar, histogram, kde, lollipop, multi_line, range_band, scatter_trend, slope, small_multiples, stacked_bar, violin, waterfall",
+    "from app.skills.charting.altair_charts.pkg import actual_vs_forecast, area_cumulative, bar, bar_with_reference, boxplot, correlation_heatmap, dumbbell, ecdf, grouped_bar, histogram, kde, lollipop, multi_line, range_band, scatter_trend, slope, small_multiples, stacked_bar, violin, waterfall",  # noqa: E501
     "from app.skills.reporting.report_builder.pkg.build import build as report_build",
     "from app.skills.analysis_plan.pkg.plan import plan as analysis_plan",
     "from app.skills.reporting.dashboard_builder.pkg.build import build as dashboard_build",
@@ -42,7 +43,7 @@ _SKILL_IMPORTS: list[str] = [
 _PREAMBLE_CACHE: dict[int, str] = {}
 
 
-def _get_cached_preamble(registry=None) -> str:
+def _get_cached_preamble(registry: Any = None) -> str:
     """Return the static import block for a given registry, building it once.
 
     The preamble contains the base Python imports plus all skill imports. Only
@@ -74,7 +75,7 @@ def build_duckdb_globals(
     session_id: str,
     dataset_path: str | Path | None = None,
     db_path: str = _MAIN_DB_PATH,
-    registry=None,  # SkillRegistry | None — injected by chat_api
+    registry: Any = None,  # SkillRegistry | None — injected by chat_api
 ) -> str:
     """Build a Python preamble for the sandbox that wires up DuckDB access.
 
@@ -126,14 +127,14 @@ def build_duckdb_globals(
         "    _type = 'analysis'; _fmt = 'text'; _content = ''",
         "    if isinstance(data, _pd_sa.DataFrame):",
         "        _d = _json_sa.loads(data.to_json(orient='split', default_handler=str))",
-        "        _content = _json_sa.dumps({'columns': _d['columns'], 'rows': _d['data'], 'total_rows': len(data)})",
+        "        _content = _json_sa.dumps({'columns': _d['columns'], 'rows': _d['data'], 'total_rows': len(data)})",  # noqa: E501
         "        _type = 'table'; _fmt = 'table-json'",
         "        _preview = f'{len(data)} rows x {len(data.columns)} cols'",
         "    elif hasattr(data, 'to_dict'):",
         "        try:",
         "            _spec = data.to_dict()",
         "            if isinstance(_spec, dict) and 'vega-lite' in str(_spec.get('$schema', '')):",
-        "                _content = _json_sa.dumps(_spec); _type = 'chart'; _fmt = 'vega-lite'; _preview = 'chart'",
+        "                _content = _json_sa.dumps(_spec); _type = 'chart'; _fmt = 'vega-lite'; _preview = 'chart'",  # noqa: E501
         "            else:",
         "                _content = str(data); _preview = _content[:80]",
         "        except Exception:",
@@ -145,9 +146,9 @@ def build_duckdb_globals(
         "            _content = str(data); _preview = _content[:80]",
         "    else:",
         "        _content = str(data); _preview = str(data)[:80]",
-        "    _payload = _json_sa.dumps({'title': title, 'type': _type, 'format': _fmt, 'content': _content})",
+        "    _payload = _json_sa.dumps({'title': title, 'description': summary, 'type': _type, 'format': _fmt, 'content': _content})",  # noqa: E501
         "    _tok_sa = _ARTIFACT_SENTINEL_TOKEN",
-        "    _sys_sa.stdout.write('\\n__SAVED_ARTIFACT_' + _tok_sa + '__' + _payload + '__END_SAVED_ARTIFACT_' + _tok_sa + '__\\n')",
+        "    _sys_sa.stdout.write('\\n__SAVED_ARTIFACT_' + _tok_sa + '__' + _payload + '__END_SAVED_ARTIFACT_' + _tok_sa + '__\\n')",  # noqa: E501
         "    _sys_sa.stdout.flush()",
         "    return f\"Saved artifact '{title}' ({_type}/{_fmt}): {_preview}\"",
         "",

@@ -91,20 +91,19 @@ def run(ctx: ScanContext, cfg: dict[str, Any], today: date) -> list[IntegrityIss
                 )
                 continue
 
-            if link.anchor:
-                if link.anchor not in idx.anchors_by_path.get(resolved, set()):
-                    issues.append(
-                        IntegrityIssue(
-                            rule="doc.broken_link",
-                            severity="WARN",
-                            node_id=f"{rel}->{resolved}#{link.anchor}",
-                            location=f"{rel}:{link.line}",
-                            message=f"Anchor #{link.anchor} not found in {resolved}",
-                            evidence={
-                                "target": resolved,
-                                "anchor": link.anchor,
-                            },
-                            fix_class=None,
-                        )
+            if link.anchor and link.anchor not in idx.anchors_by_path.get(resolved, set()):
+                issues.append(
+                    IntegrityIssue(
+                        rule="doc.broken_link",
+                        severity="WARN",
+                        node_id=f"{rel}->{resolved}#{link.anchor}",
+                        location=f"{rel}:{link.line}",
+                        message=f"Anchor #{link.anchor} not found in {resolved}",
+                        evidence={
+                            "target": resolved,
+                            "anchor": link.anchor,
+                        },
+                        fix_class=None,
                     )
+                )
     return issues
