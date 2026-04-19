@@ -76,4 +76,30 @@ describe("AppShell", () => {
     expect(screen.queryByTestId("thread-list")).not.toBeInTheDocument();
     expect(screen.queryByTestId("dock")).not.toBeInTheDocument();
   });
+
+  it("hides Dock when dockPosition === 'off'", () => {
+    setupState("chat");
+    useUiStore.setState({ dockPosition: "off" });
+    render(
+      <AppShell>
+        <div data-testid="main">main</div>
+      </AppShell>,
+    );
+    expect(screen.queryByTestId("dock")).not.toBeInTheDocument();
+    const shell = document.querySelector("[data-app-shell]");
+    expect(shell?.getAttribute("data-dock-position")).toBe("off");
+  });
+
+  it("renders Dock below main when dockPosition === 'bottom'", () => {
+    setupState("chat");
+    useUiStore.setState({ dockPosition: "bottom" });
+    render(
+      <AppShell>
+        <div data-testid="main">main</div>
+      </AppShell>,
+    );
+    const shell = document.querySelector("[data-app-shell]");
+    expect(shell?.getAttribute("data-dock-position")).toBe("bottom");
+    expect(screen.getByTestId("dock")).toBeInTheDocument();
+  });
 });
