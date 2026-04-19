@@ -25,18 +25,24 @@ const clamp = (n: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, n));
 
 export const UiPersistedSchema = z.object({
-  v: z.literal(1).default(1),
+  v: z.literal(2).default(2),
   threadW: z.number().int().min(THREAD_W_MIN).max(THREAD_W_MAX).default(200),
   dockW: z.number().int().min(DOCK_W_MIN).max(DOCK_W_MAX).default(320),
   threadsOpen: z.boolean().default(true),
   dockOpen: z.boolean().default(true),
   dockTab: z.enum(["progress", "context", "artifacts"]).default("progress"),
   density: z.enum(["compact", "default", "cozy"]).default("default"),
+  progressExpanded: z.array(z.string()).default([]),
+  artifactView: z.enum(["grid", "list"]).default("grid"),
+  recentCommandIds: z.array(z.string()).default([]),
+  traceTab: z.enum(["timeline", "context", "raw"]).default("timeline"),
 });
 
 export type UiPersisted = z.infer<typeof UiPersistedSchema>;
 export type DockTab = UiPersisted["dockTab"];
 export type Density = UiPersisted["density"];
+export type ArtifactView = UiPersisted["artifactView"];
+export type TraceTab = UiPersisted["traceTab"];
 
 export interface UiStore extends UiPersisted {
   /** User intentionally overrode auto-collapse for the thread list. */
@@ -53,6 +59,11 @@ export interface UiStore extends UiPersisted {
   setDockTab: (tab: DockTab) => void;
   setDensity: (d: Density) => void;
 
+  toggleProgressExpanded: (stepId: string) => void;
+  setArtifactView: (view: ArtifactView) => void;
+  pushRecentCommand: (id: string) => void;
+  setTraceTab: (tab: TraceTab) => void;
+
   /** Auto-collapse hook: set without flipping the override bit. */
   setAutoThreads: (open: boolean) => void;
   setAutoDock: (open: boolean) => void;
@@ -64,6 +75,7 @@ export interface UiStore extends UiPersisted {
 const PERSIST_KEY = "ds:ui";
 const LEGACY_THREAD_W_KEY = "ds:threadW";
 const LEGACY_DOCK_W_KEY = "ds:dockW";
+const RECENT_COMMAND_CAP = 5;
 
 interface RawPersistEnvelope {
   state: unknown;
@@ -74,7 +86,8 @@ interface RawPersistEnvelope {
  * zustand/persist PersistStorage<UiPersisted>. We wrap localStorage so that
  *   1. corrupt JSON returns null (defaults apply, no throw),
  *   2. schema failures return null,
- *   3. legacy `ds:threadW` / `ds:dockW` are migrated on first load.
+ *   3. legacy `ds:threadW` / `ds:dockW` are migrated on first load,
+ *   4. v1 payloads are upgraded by backfilling the new v2 fields.
  */
 function createZodStorage(): PersistStorage<UiPersisted> {
   return {
@@ -89,17 +102,29 @@ function createZodStorage(): PersistStorage<UiPersisted> {
           if (legacyThread === null && legacyDock === null) return null;
 
           const migrated = UiPersistedSchema.parse({
-            v: 1,
+            v: 2,
             threadW: legacyThread ?? undefined,
             dockW: legacyDock ?? undefined,
           });
-          return { state: migrated, version: 1 };
+          return { state: migrated, version: 2 };
         }
 
         const parsed = JSON.parse(raw) as RawPersistEnvelope;
-        const state = UiPersistedSchema.safeParse(parsed?.state);
+        // Backfill v2 fields onto v1 payloads before zod validates.
+        const stateCandidate =
+          parsed?.state && typeof parsed.state === "object"
+            ? {
+                progressExpanded: [],
+                artifactView: "grid",
+                recentCommandIds: [],
+                traceTab: "timeline",
+                ...(parsed.state as Record<string, unknown>),
+                v: 2,
+              }
+            : parsed?.state;
+        const state = UiPersistedSchema.safeParse(stateCandidate);
         if (!state.success) return null;
-        return { state: state.data, version: parsed.version ?? 1 };
+        return { state: state.data, version: 2 };
       } catch {
         return null;
       }
@@ -141,13 +166,17 @@ function readIntKey(key: string): number | null {
 export const useUiStore = create<UiStore>()(
   persist(
     (set) => ({
-      v: 1,
+      v: 2,
       threadW: 200,
       dockW: 320,
       threadsOpen: true,
       dockOpen: true,
       dockTab: "progress",
       density: "default",
+      progressExpanded: [],
+      artifactView: "grid",
+      recentCommandIds: [],
+      traceTab: "timeline",
 
       threadsOverridden: false,
       dockOverridden: false,
@@ -182,6 +211,23 @@ export const useUiStore = create<UiStore>()(
         }
       },
 
+      toggleProgressExpanded: (stepId) =>
+        set((s) => ({
+          progressExpanded: s.progressExpanded.includes(stepId)
+            ? s.progressExpanded.filter((id) => id !== stepId)
+            : [...s.progressExpanded, stepId],
+        })),
+      setArtifactView: (view) => set({ artifactView: view }),
+      pushRecentCommand: (id) =>
+        set((s) => {
+          const next = [id, ...s.recentCommandIds.filter((x) => x !== id)].slice(
+            0,
+            RECENT_COMMAND_CAP,
+          );
+          return { recentCommandIds: next };
+        }),
+      setTraceTab: (tab) => set({ traceTab: tab }),
+
       setAutoThreads: (open) => set({ threadsOpen: open }),
       setAutoDock: (open) => set({ dockOpen: open }),
 
@@ -190,17 +236,35 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: PERSIST_KEY,
-      version: 1,
+      version: 2,
       storage: createZodStorage(),
       partialize: (s): UiPersisted => ({
-        v: 1,
+        v: 2,
         threadW: s.threadW,
         dockW: s.dockW,
         threadsOpen: s.threadsOpen,
         dockOpen: s.dockOpen,
         dockTab: s.dockTab,
         density: s.density,
+        progressExpanded: s.progressExpanded,
+        artifactView: s.artifactView,
+        recentCommandIds: s.recentCommandIds,
+        traceTab: s.traceTab,
       }),
+      migrate: (persisted, fromVersion) => {
+        if (fromVersion < 2 && persisted && typeof persisted === "object") {
+          const merged = {
+            progressExpanded: [],
+            artifactView: "grid",
+            recentCommandIds: [],
+            traceTab: "timeline",
+            ...(persisted as Record<string, unknown>),
+            v: 2,
+          };
+          return merged as unknown as UiPersisted;
+        }
+        return persisted as UiPersisted;
+      },
     },
   ),
 );
@@ -212,3 +276,7 @@ export const selectDockTab = (s: UiStore): DockTab => s.dockTab;
 export const selectThreadsOpen = (s: UiStore): boolean => s.threadsOpen;
 export const selectDockOpen = (s: UiStore): boolean => s.dockOpen;
 export const selectDensity = (s: UiStore): Density => s.density;
+export const selectArtifactView = (s: UiStore): ArtifactView => s.artifactView;
+export const selectProgressExpanded = (s: UiStore): string[] => s.progressExpanded;
+export const selectTraceTab = (s: UiStore): TraceTab => s.traceTab;
+export const selectRecentCommandIds = (s: UiStore): string[] => s.recentCommandIds;
