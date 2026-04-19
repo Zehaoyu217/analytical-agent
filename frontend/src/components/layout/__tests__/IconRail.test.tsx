@@ -25,11 +25,20 @@ beforeEach(() => {
 });
 
 describe("IconRail", () => {
-  it("renders 9 section buttons + theme toggle + settings = 11 buttons", () => {
+  it("renders 9 section buttons + theme + tweaks + settings = 12 buttons", () => {
     renderRail();
     const nav = screen.getByRole("navigation", { name: /main navigation/i });
     const buttons = within(nav).getAllByRole("button");
-    expect(buttons.length).toBe(11);
+    expect(buttons.length).toBe(12);
+  });
+
+  it("Tweaks button opens the Tweaks panel via ui-store", async () => {
+    const { useUiStore } = await import("@/lib/ui-store");
+    useUiStore.setState({ tweaksOpen: false });
+    renderRail();
+    const tweaks = screen.getByRole("button", { name: "Tweaks" });
+    tweaks.click();
+    expect(useUiStore.getState().tweaksOpen).toBe(true);
   });
 
   it("applies aria-current='page' to the active section", () => {

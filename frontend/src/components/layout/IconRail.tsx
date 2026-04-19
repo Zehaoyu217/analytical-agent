@@ -11,11 +11,13 @@ import {
   Network,
   Puzzle,
   Settings,
+  SlidersHorizontal,
   Sun,
 } from "lucide-react";
 import { useChatStore, type SectionId } from "@/lib/store";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { FlyoutTooltip } from "@/components/layout/FlyoutTooltip";
+import { useUiStore, selectRailMode } from "@/lib/ui-store";
 import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
@@ -47,6 +49,7 @@ interface RailButtonProps {
   label: string;
   hint?: string;
   active?: boolean;
+  expanded?: boolean;
   onClick: () => void;
 }
 
@@ -55,32 +58,43 @@ function RailButton({
   label,
   hint,
   active = false,
+  expanded = false,
   onClick,
 }: RailButtonProps) {
+  const button = (
+    <button
+      type="button"
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      onClick={onClick}
+      className={cn(
+        "relative flex h-9 items-center rounded-md",
+        expanded ? "w-full justify-start gap-2 px-2" : "w-9 justify-center",
+        "transition-colors duration-100",
+        "focus-ring",
+        active
+          ? "bg-acc-dim text-acc"
+          : "text-fg-1 hover:bg-bg-2 hover:text-fg-0",
+      )}
+    >
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute -left-[10px] top-2 h-[22px] w-[2px] rounded-r-full bg-acc"
+        />
+      )}
+      <Icon size={16} aria-hidden="true" />
+      {expanded && (
+        <span className="font-mono text-[11px] uppercase tracking-wider">
+          {label}
+        </span>
+      )}
+    </button>
+  );
+  if (expanded) return button;
   return (
     <FlyoutTooltip label={label} hint={hint}>
-      <button
-        type="button"
-        aria-label={label}
-        aria-current={active ? "page" : undefined}
-        onClick={onClick}
-        className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-md",
-          "transition-colors duration-100",
-          "focus-ring",
-          active
-            ? "bg-acc-dim text-acc"
-            : "text-fg-1 hover:bg-bg-2 hover:text-fg-0",
-        )}
-      >
-        {active && (
-          <span
-            aria-hidden="true"
-            className="absolute -left-[10px] top-2 h-[22px] w-[2px] rounded-r-full bg-acc"
-          />
-        )}
-        <Icon size={16} aria-hidden="true" />
-      </button>
+      {button}
     </FlyoutTooltip>
   );
 }
@@ -111,18 +125,28 @@ export function IconRail() {
   const activeSection = useChatStore((s) => s.activeSection);
   const setActiveSection = useChatStore((s) => s.setActiveSection);
   const { theme, setTheme } = useTheme();
+  const railMode = useUiStore(selectRailMode);
+  const setTweaksOpen = useUiStore((s) => s.setTweaksOpen);
   const isDark = theme === "dark";
+  const expanded = railMode === "expand";
 
   return (
     <nav
       aria-label="Main navigation"
+      data-rail-mode={railMode}
       className={cn(
-        "flex h-full w-[52px] flex-shrink-0 flex-col items-center",
+        "flex h-full flex-shrink-0 flex-col items-stretch",
+        expanded ? "w-[148px] px-2" : "w-[52px] items-center",
         "bg-bg-1 border-r border-line-2",
         "pt-[10px] pb-[10px]",
       )}
     >
-      <div className="flex flex-1 flex-col items-center gap-[2px]">
+      <div
+        className={cn(
+          "flex flex-1 flex-col gap-[2px]",
+          expanded ? "items-stretch" : "items-center",
+        )}
+      >
         {SECTIONS.map((section) => (
           <RailButton
             key={section.id}
@@ -130,22 +154,36 @@ export function IconRail() {
             label={section.label}
             hint={section.hint}
             active={activeSection === section.id}
+            expanded={expanded}
             onClick={() => setActiveSection(section.id)}
           />
         ))}
       </div>
 
-      <div className="flex flex-col items-center gap-[2px]">
+      <div
+        className={cn(
+          "flex flex-col gap-[2px]",
+          expanded ? "items-stretch" : "items-center",
+        )}
+      >
         <RailButton
           icon={isDark ? Sun : Moon}
           label={isDark ? "Light mode" : "Dark mode"}
           hint="⌘⇧L"
+          expanded={expanded}
           onClick={() => setTheme(isDark ? "light" : "dark")}
+        />
+        <RailButton
+          icon={SlidersHorizontal}
+          label="Tweaks"
+          hint="⌘,"
+          expanded={expanded}
+          onClick={() => setTweaksOpen(true)}
         />
         <RailButton
           icon={Settings}
           label="Settings"
-          hint="⌘,"
+          expanded={expanded}
           active={activeSection === "settings"}
           onClick={() => setActiveSection("settings")}
         />
