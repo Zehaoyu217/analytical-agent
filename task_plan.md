@@ -115,3 +115,35 @@ Replace the current Cockpit shell with the handoff's four-pane `AppShell` (IconR
 | Path | Action |
 |------|--------|
 
+---
+
+# Task Plan — DS-Agent Dock + Artifact Viewer (step 3 of 5)
+
+**Source spec:** `docs/superpowers/specs/2026-04-19-dock-artifact-viewer-design.md`
+**Canonical plan:** `docs/superpowers/plans/2026-04-19-dock-artifact-viewer.md`
+**Started:** 2026-04-19
+**Owner:** main Claude session
+
+## Goal
+
+Turn the Dock into a three-tab trust surface (Progress / Context / Artifacts), land a full-viewport Artifact Viewer with six renderers, optionally ship a ⌘K Command Palette, and retire the legacy cockpit-era `TraceRail`.
+
+## Phases
+- [ ] Phase 1 — Data model + `context_snapshot` event
+- [ ] Phase 2 — Progress panel
+- [ ] Phase 3 — Context panel
+- [ ] Phase 4 — Artifacts grid
+- [ ] Phase 5 — Artifact Viewer
+- [ ] Phase 6 — Retirement
+- [ ] Phase 7 — Command Palette (deferrable)
+- [ ] Phase 8 — Verification + close
+
+## Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+
+## Files created / modified so far
+
+| Path | Action |
+|------|--------|
