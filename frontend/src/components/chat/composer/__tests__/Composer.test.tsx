@@ -49,4 +49,17 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: /extended/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /attach/i })).toBeInTheDocument()
   })
+
+  it('renders frozen banner instead of textarea when conversation frozen', () => {
+    const id = useChatStore.getState().createConversation()
+    useChatStore.setState((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, frozenAt: Date.now() } : c,
+      ),
+    }))
+    render(<Composer conversationId={id} />)
+    expect(screen.queryByPlaceholderText(/ask the agent/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/this conversation is frozen/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /duplicate/i })).toBeInTheDocument()
+  })
 })

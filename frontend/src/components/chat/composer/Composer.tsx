@@ -32,6 +32,11 @@ export function Composer({ conversationId }: ComposerProps) {
   const clearActiveConversation = useChatStore((s) => s.clearActiveConversation)
   const createConversation = useChatStore((s) => s.createConversation)
   const setActiveSection = useChatStore((s) => s.setActiveSection)
+  const duplicateConversation = useChatStore((s) => s.duplicateConversation)
+  const frozen = useChatStore((s) => {
+    const conv = s.conversations.find((c) => c.id === conversationId)
+    return typeof conv?.frozenAt === 'number' && conv.frozenAt > 0
+  })
   const { openHelp } = useCommandRegistry()
   const { submit, stop, isSending, error } = useComposerSubmit(conversationId)
 
@@ -142,6 +147,37 @@ export function Composer({ conversationId }: ComposerProps) {
   )
 
   const hasText = input.trim().length > 0
+
+  if (frozen) {
+    return (
+      <div
+        className="rounded-[12px] border p-3 text-[12.5px]"
+        style={{
+          borderColor: 'var(--line)',
+          background: 'var(--bg-1)',
+          color: 'var(--fg-2)',
+        }}
+        role="status"
+      >
+        <div className="mb-2">
+          This conversation is frozen. Duplicate it to continue.
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void duplicateConversation(conversationId).catch((err: unknown) => {
+              // eslint-disable-next-line no-console
+              console.error('duplicate failed', err)
+            })
+          }}
+          className="rounded-lg px-3 py-1.5 text-[12.5px] font-medium"
+          style={{ background: 'var(--acc)', color: 'var(--acc-fg)' }}
+        >
+          Duplicate
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="relative">
