@@ -7,6 +7,10 @@ import { MAX_MESSAGE_LENGTH } from '@/lib/constants'
 import { filterSlashCommands } from './slash'
 import { SlashMenu } from './SlashMenu'
 import { PlanToggle } from './PlanToggle'
+import { IconRow } from './IconRow'
+import { ModelPicker } from './ModelPicker'
+import { ExtendedToggle } from './ExtendedToggle'
+import { AttachedFilesPreview } from './AttachedFilesPreview'
 import { useComposerSubmit } from './useComposerSubmit'
 
 interface ComposerProps {
@@ -108,6 +112,35 @@ export function Composer({ conversationId }: ComposerProps) {
     await submit(text)
   }, [input, submit, adjustHeight])
 
+  const insertAtCaret = useCallback(
+    (token: string) => {
+      const el = textareaRef.current
+      if (!el) return
+      const start = el.selectionStart ?? input.length
+      const end = el.selectionEnd ?? input.length
+      const next = input.slice(0, start) + token + input.slice(end)
+      setInput(next)
+      requestAnimationFrame(() => {
+        el.focus()
+        const pos = start + token.length
+        el.setSelectionRange(pos, pos)
+        adjustHeight()
+      })
+    },
+    [input, adjustHeight],
+  )
+
+  const appendTranscript = useCallback(
+    (text: string) => {
+      setInput((prev) => (prev ? `${prev} ${text}` : text))
+      requestAnimationFrame(() => {
+        adjustHeight()
+        textareaRef.current?.focus()
+      })
+    },
+    [adjustHeight],
+  )
+
   const hasText = input.trim().length > 0
 
   return (
@@ -128,6 +161,7 @@ export function Composer({ conversationId }: ComposerProps) {
           boxShadow: 'var(--shadow-1)',
         }}
       >
+        <AttachedFilesPreview conversationId={conversationId} />
         <textarea
           ref={textareaRef}
           rows={1}
@@ -152,6 +186,17 @@ export function Composer({ conversationId }: ComposerProps) {
           }}
         />
         <div className="mt-1 flex items-center gap-1">
+          <IconRow
+            conversationId={conversationId}
+            onInsert={insertAtCaret}
+            onTranscript={appendTranscript}
+          />
+          <div
+            className="mx-1.5 h-4 w-px"
+            style={{ background: 'var(--line-2)' }}
+          />
+          <ModelPicker conversationId={conversationId} />
+          <ExtendedToggle conversationId={conversationId} />
           <PlanToggle enabled={planMode} onToggle={togglePlanMode} />
           <div className="flex-1" />
           <span

@@ -13,6 +13,7 @@ vi.mock('@/lib/api-backend', () => ({
   backend: {
     conversations: { appendTurn: vi.fn().mockResolvedValue({}) },
     slash: { list: vi.fn().mockResolvedValue([]) },
+    models: { list: vi.fn().mockResolvedValue({ groups: [] }) },
   },
 }))
 
@@ -39,5 +40,13 @@ describe('Composer', () => {
     const ta = screen.getByPlaceholderText(/ask the agent/i)
     fireEvent.change(ta, { target: { value: 'hello' } })
     expect(screen.getByRole('button', { name: /^send$/i })).toBeEnabled()
+  })
+
+  it('renders model picker, extended toggle, and icon row', () => {
+    const id = useChatStore.getState().createConversation()
+    render(<Composer conversationId={id} />)
+    expect(screen.getByRole('button', { name: /model/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /extended/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /attach/i })).toBeInTheDocument()
   })
 })

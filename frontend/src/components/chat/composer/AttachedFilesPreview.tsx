@@ -7,10 +7,10 @@ interface AttachedFilesPreviewProps {
 
 export function AttachedFilesPreview({ conversationId }: AttachedFilesPreviewProps) {
   const files = useChatStore(
-    (s) => s.conversations.find((c) => c.id === conversationId)?.attachedFiles ?? [],
+    (s) => s.conversations.find((c) => c.id === conversationId)?.attachedFiles,
   )
   const removeAttachedFile = useChatStore((s) => s.removeAttachedFile)
-  if (files.length === 0) return null
+  if (!files || files.length === 0) return null
   return (
     <div className="mb-2 flex flex-wrap gap-1.5">
       {files.map((f) => (
