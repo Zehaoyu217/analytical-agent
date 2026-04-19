@@ -149,6 +149,7 @@ export interface ChatStreamEvent {
     | 'a2a_start'
     | 'a2a_end'
     | 'artifact'
+    | 'context_snapshot'
   // turn_start
   session_id?: string
   step?: number
@@ -191,6 +192,11 @@ export interface ChatStreamEvent {
   artifact_type?: string
   artifact_content?: string
   artifact_metadata?: Record<string, unknown>
+  // context_snapshot
+  layers?: Array<{ id: string; label: string; tokens: number; max_tokens: number }>
+  loaded_files?: Array<{ id: string; name: string; size: number; kind: string }>
+  total_tokens?: number
+  budget_tokens?: number
   created_at?: number
 }
 

@@ -25,6 +25,28 @@ export interface Artifact {
   metadata: Record<string, unknown>
 }
 
+export interface ContextLayer {
+  id: string
+  label: string
+  tokens: number
+  maxTokens: number
+}
+
+export interface LoadedFile {
+  id: string
+  name: string
+  size: number
+  kind: string
+}
+
+export interface ContextShape {
+  layers: ContextLayer[]
+  loadedFiles: LoadedFile[]
+  scratchpad: string
+  totalTokens: number
+  budgetTokens: number
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -53,6 +75,7 @@ export interface Conversation {
   model?: string
   extendedThinking?: boolean
   attachedFiles?: AttachedFile[]
+  context?: ContextShape
 }
 
 export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
