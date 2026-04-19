@@ -30,6 +30,7 @@ import { DigestPanel } from '@/components/digest/DigestPanel'
 import { IngestPanel } from '@/components/ingest/IngestPanel'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { ArtifactViewer } from '@/components/artifact/ArtifactViewer'
+import { ArtifactPage } from '@/routes/ArtifactPage'
 
 interface SectionShortcut {
   id: string
@@ -296,6 +297,7 @@ prefetchBranding()
 export default function App() {
   const hash = useHashRoute()
   const monitorMatch = hash.match(/^#\/monitor\/(.+)$/)
+  const artifactMatch = hash.match(/^#\/artifact\/(.+)$/)
   const branding = useBranding()
   const refreshPending = useDigestStore((s) => s.refreshPending)
   const refreshSkills = useSkillsStore((s) => s.refresh)
@@ -318,6 +320,16 @@ export default function App() {
 
   if (monitorMatch) {
     return <MonitorPage sessionId={monitorMatch[1]} />
+  }
+
+  if (artifactMatch) {
+    return (
+      <ErrorBoundary name="ArtifactPage">
+        <ThemeProvider>
+          <ArtifactPage id={artifactMatch[1]} />
+        </ThemeProvider>
+      </ErrorBoundary>
+    )
   }
 
   return (

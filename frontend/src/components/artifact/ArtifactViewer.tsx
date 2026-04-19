@@ -149,7 +149,7 @@ export function ArtifactViewer() {
           <IconBtn label="Download" onClick={() => download(current)}>
             <Download className="h-3.5 w-3.5" />
           </IconBtn>
-          <IconBtn label="Open in new window" onClick={() => window.open(`/artifact/${current.id}`)}>
+          <IconBtn label="Open in new window" onClick={() => window.open(`#/artifact/${current.id}`)}>
             <ExternalLink className="h-3.5 w-3.5" />
           </IconBtn>
           <IconBtn label="Close" onClick={() => setOpenId(null)}>
