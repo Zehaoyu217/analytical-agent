@@ -45,4 +45,17 @@ export interface A2aContent {
   status: 'pending' | 'complete' | 'error'
 }
 
-export type ContentBlock = TextContent | ToolUseContent | ToolResultContent | ChartContent | A2aContent
+export interface CalloutContent {
+  type: 'callout'
+  kind: 'warn' | 'err' | 'info'
+  label: string
+  text: string
+}
+
+export type ContentBlock =
+  | TextContent
+  | ToolUseContent
+  | ToolResultContent
+  | ChartContent
+  | A2aContent
+  | CalloutContent
