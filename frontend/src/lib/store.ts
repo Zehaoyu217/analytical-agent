@@ -76,6 +76,9 @@ export interface Conversation {
   extendedThinking?: boolean
   attachedFiles?: AttachedFile[]
   context?: ContextShape
+  pinned?: boolean
+  // Epoch milliseconds. Presence = frozen (immutable checkpoint). One-way.
+  frozenAt?: number | null
 }
 
 export type SidebarTab = 'chats' | 'agents' | 'skills' | 'history' | 'files' | 'devtools' | 'settings'
@@ -156,6 +159,12 @@ interface ChatState {
   unloadFile: (conversationId: string, fileId: string) => void
   loadConversation: (id: string) => Promise<void>
   createConversationRemote: (title: string) => Promise<string>
+  refreshConversations: () => Promise<void>
+  setConversationPinned: (id: string, pinned: boolean) => Promise<void>
+  freezeConversation: (id: string) => Promise<void>
+  duplicateConversation: (id: string) => Promise<string>
+  renameConversation: (id: string, title: string) => Promise<void>
+  deleteConversationRemote: (id: string) => Promise<void>
   toggleSidebar: () => void
   setSidebarWidth: (w: number) => void
   setSidebarTab: (t: SidebarTab) => void
@@ -421,6 +430,130 @@ export const useChatStore = create<ChatState>()(
         return hydrated.id
       },
 
+      refreshConversations: async () => {
+        const list = await backend.conversations.list()
+        set((state) => {
+          const byId = new Map(state.conversations.map((c) => [c.id, c]))
+          for (const s of list) {
+            const existing = byId.get(s.id)
+            if (existing) {
+              byId.set(s.id, {
+                ...existing,
+                title: s.title,
+                createdAt: Math.round(s.created_at * 1000),
+                updatedAt: Math.round(s.updated_at * 1000),
+                pinned: s.pinned ?? false,
+                frozenAt:
+                  typeof s.frozen_at === 'number' ? Math.round(s.frozen_at * 1000) : null,
+              })
+            } else {
+              byId.set(s.id, {
+                id: s.id,
+                title: s.title,
+                messages: [],
+                createdAt: Math.round(s.created_at * 1000),
+                updatedAt: Math.round(s.updated_at * 1000),
+                pinned: s.pinned ?? false,
+                frozenAt:
+                  typeof s.frozen_at === 'number' ? Math.round(s.frozen_at * 1000) : null,
+              })
+            }
+          }
+          return { conversations: Array.from(byId.values()) }
+        })
+      },
+
+      setConversationPinned: async (id, pinned) => {
+        // Optimistic update; revert on error.
+        const prev = get().conversations.find((c) => c.id === id)?.pinned ?? false
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, pinned } : c,
+          ),
+        }))
+        try {
+          await backend.conversations.patch(id, { pinned })
+        } catch (err) {
+          set((state) => ({
+            conversations: state.conversations.map((c) =>
+              c.id === id ? { ...c, pinned: prev } : c,
+            ),
+          }))
+          throw err
+        }
+      },
+
+      freezeConversation: async (id) => {
+        const nowSec = Date.now() / 1000
+        const prev = get().conversations.find((c) => c.id === id)?.frozenAt ?? null
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, frozenAt: Math.round(nowSec * 1000) } : c,
+          ),
+        }))
+        try {
+          await backend.conversations.patch(id, { frozen_at: nowSec })
+        } catch (err) {
+          set((state) => ({
+            conversations: state.conversations.map((c) =>
+              c.id === id ? { ...c, frozenAt: prev } : c,
+            ),
+          }))
+          throw err
+        }
+      },
+
+      renameConversation: async (id, title) => {
+        const prev = get().conversations.find((c) => c.id === id)?.title ?? ''
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, title } : c,
+          ),
+        }))
+        try {
+          await backend.conversations.patch(id, { title })
+        } catch (err) {
+          set((state) => ({
+            conversations: state.conversations.map((c) =>
+              c.id === id ? { ...c, title: prev } : c,
+            ),
+          }))
+          throw err
+        }
+      },
+
+      deleteConversationRemote: async (id) => {
+        await backend.conversations.delete(id)
+        set((state) => {
+          const remaining = state.conversations.filter((c) => c.id !== id)
+          return {
+            conversations: remaining,
+            activeConversationId:
+              state.activeConversationId === id ? null : state.activeConversationId,
+          }
+        })
+      },
+
+      duplicateConversation: async (id) => {
+        const source = get().conversations.find((c) => c.id === id)
+        if (!source) throw new Error('conversation not found')
+        const copy = await backend.conversations.create(`${source.title} (copy)`)
+        // Replay messages into the new conversation server-side.
+        for (const m of source.messages) {
+          if (m.role !== 'user' && m.role !== 'assistant') continue
+          const text = typeof m.content === 'string' ? m.content : ''
+          if (!text) continue
+          await backend.conversations.appendTurn(copy.id, m.role, text)
+        }
+        const fresh = await backend.conversations.get(copy.id)
+        const hydrated = backendConversationToStore(fresh)
+        set((state) => ({
+          conversations: [hydrated, ...state.conversations],
+          activeConversationId: hydrated.id,
+        }))
+        return hydrated.id
+      },
+
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
       setSidebarWidth: (w) => set({ sidebarWidth: w }),
@@ -562,5 +695,8 @@ function backendConversationToStore(conv: BackendConversation): Conversation {
     messages,
     createdAt: Math.round(conv.created_at * 1000),
     updatedAt: Math.round(conv.updated_at * 1000),
+    pinned: conv.pinned ?? false,
+    frozenAt:
+      typeof conv.frozen_at === 'number' ? Math.round(conv.frozen_at * 1000) : null,
   }
 }

@@ -21,6 +21,8 @@ export interface ConversationSummary {
   created_at: number
   updated_at: number
   turn_count: number
+  pinned?: boolean
+  frozen_at?: number | null
 }
 
 export interface ConversationTurn {
@@ -35,6 +37,14 @@ export interface Conversation {
   created_at: number
   updated_at: number
   turns: ConversationTurn[]
+  pinned?: boolean
+  frozen_at?: number | null
+}
+
+export interface ConversationPatchPayload {
+  title?: string
+  pinned?: boolean
+  frozen_at?: number | null
 }
 
 export type ThemePreference = 'light' | 'dark' | 'system'
@@ -116,7 +126,7 @@ export interface SessionSearchResult {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
 ): Promise<T> {
@@ -172,6 +182,12 @@ export const backend = {
       ),
     delete: (id: string): Promise<void> =>
       request<void>('DELETE', `/api/conversations/${encodeURIComponent(id)}`),
+    patch: (id: string, payload: ConversationPatchPayload): Promise<Conversation> =>
+      request<Conversation>(
+        'PATCH',
+        `/api/conversations/${encodeURIComponent(id)}`,
+        payload,
+      ),
   },
   settings: {
     get: (): Promise<UserSettings> => request<UserSettings>('GET', '/api/settings'),
