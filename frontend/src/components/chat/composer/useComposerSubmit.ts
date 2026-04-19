@@ -30,6 +30,7 @@ export function useComposerSubmit(conversationId: string): ComposerSubmitResult 
         addMessage,
         updateMessage,
         setConversationSessionId,
+        setConversationContext,
         pushToolCall,
         updateToolCallById,
         clearToolCallLog,
@@ -151,6 +152,27 @@ export function useComposerSubmit(conversationId: string): ComposerSubmitResult 
               artifactIds: [...(currentMsg?.artifactIds ?? []), artifact.id],
             })
             setRightPanelTab('artifacts')
+          } else if (event.type === 'context_snapshot') {
+            const existing = useChatStore
+              .getState()
+              .conversations.find((c) => c.id === conversationId)?.context
+            setConversationContext(conversationId, {
+              layers: (event.layers ?? []).map((l) => ({
+                id: l.id,
+                label: l.label,
+                tokens: l.tokens,
+                maxTokens: l.max_tokens,
+              })),
+              loadedFiles: (event.loaded_files ?? []).map((f) => ({
+                id: f.id,
+                name: f.name,
+                size: f.size,
+                kind: f.kind,
+              })),
+              scratchpad: existing?.scratchpad ?? '',
+              totalTokens: event.total_tokens ?? 0,
+              budgetTokens: event.budget_tokens ?? 200_000,
+            })
           } else if (event.type === 'scratchpad_delta') {
             setScratchpad(event.content ?? '')
           } else if (event.type === 'todos_update') {
