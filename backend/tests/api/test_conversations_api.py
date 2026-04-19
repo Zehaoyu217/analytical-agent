@@ -146,6 +146,56 @@ def test_turn_rejects_unknown_role(client: TestClient) -> None:
     assert r.status_code == 422
 
 
+def test_patch_pinned_persists(client: TestClient) -> None:
+    conv = client.post("/api/conversations", json={"title": "x"}).json()
+    cid = conv["id"]
+    assert conv["pinned"] is False
+
+    r = client.patch(f"/api/conversations/{cid}", json={"pinned": True})
+    assert r.status_code == 200
+    assert r.json()["pinned"] is True
+
+    # Persists across reload.
+    again = client.get(f"/api/conversations/{cid}").json()
+    assert again["pinned"] is True
+
+    # And shows in summary.
+    summaries = client.get("/api/conversations").json()
+    assert summaries[0]["pinned"] is True
+
+
+def test_patch_freeze_persists_and_blocks_appends(client: TestClient) -> None:
+    conv = client.post("/api/conversations", json={"title": "x"}).json()
+    cid = conv["id"]
+    assert conv["frozen_at"] is None
+
+    ts = time.time()
+    r = client.patch(f"/api/conversations/{cid}", json={"frozen_at": ts})
+    assert r.status_code == 200
+    assert r.json()["frozen_at"] == pytest.approx(ts, abs=1)
+
+    # Append now blocked with 409.
+    r2 = client.post(
+        f"/api/conversations/{cid}/turns",
+        json={"role": "user", "content": "after-freeze"},
+    )
+    assert r2.status_code == 409
+    assert "frozen" in r2.json()["detail"]
+
+
+def test_patch_freeze_is_one_way(client: TestClient) -> None:
+    conv = client.post("/api/conversations", json={"title": "x"}).json()
+    cid = conv["id"]
+    client.patch(f"/api/conversations/{cid}", json={"frozen_at": time.time()})
+    frozen = client.get(f"/api/conversations/{cid}").json()
+    original_frozen_at = frozen["frozen_at"]
+
+    # Sending null/None does not unfreeze; sending a new value is ignored.
+    r = client.patch(f"/api/conversations/{cid}", json={"frozen_at": None})
+    assert r.status_code == 200
+    assert client.get(f"/api/conversations/{cid}").json()["frozen_at"] == original_frozen_at
+
+
 def test_concurrent_turn_appends_do_not_lose_writes(client: TestClient) -> None:
     """Per-conversation lock serializes read-modify-write on /turns."""
     conv = client.post("/api/conversations", json={"title": "race"}).json()

@@ -67,6 +67,8 @@ class Conversation(BaseModel):
     created_at: float
     updated_at: float
     turns: list[ConversationTurn]
+    pinned: bool = False
+    frozen_at: float | None = None
 
 
 class ConversationSummary(BaseModel):
@@ -77,12 +79,22 @@ class ConversationSummary(BaseModel):
     created_at: float
     updated_at: float
     turn_count: int
+    pinned: bool = False
+    frozen_at: float | None = None
 
 
 class ConversationCreate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     title: str = Field(..., min_length=1, max_length=_TITLE_MAX)
+
+
+class ConversationPatch(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    title: str | None = Field(default=None, min_length=1, max_length=_TITLE_MAX)
+    pinned: bool | None = None
+    frozen_at: float | None = None
 
 
 def _data_dir() -> Path:
@@ -137,6 +149,8 @@ def list_conversations() -> list[ConversationSummary]:
                 created_at=conv.created_at,
                 updated_at=conv.updated_at,
                 turn_count=len(conv.turns),
+                pinned=conv.pinned,
+                frozen_at=conv.frozen_at,
             )
         )
     return sorted(summaries, key=lambda s: s.updated_at, reverse=True)
@@ -166,18 +180,42 @@ def append_turn(conv_id: str, payload: TurnCreate) -> Conversation:
     _validate_id(conv_id)
     with _conv_lock(conv_id):
         conv = _load_or_404(conv_id)
+        if conv.frozen_at is not None:
+            raise HTTPException(status_code=409, detail="conversation is frozen")
         turn = ConversationTurn(
             role=payload.role,
             content=payload.content,
             timestamp=time.time(),
         )
-        updated = Conversation(
-            id=conv.id,
-            title=conv.title,
-            created_at=conv.created_at,
-            updated_at=turn.timestamp,
-            turns=[*conv.turns, turn],
+        updated = conv.model_copy(
+            update={
+                "updated_at": turn.timestamp,
+                "turns": [*conv.turns, turn],
+            }
         )
+        write_json_atomic(_conv_path(conv_id), updated)
+        return updated
+
+
+@router.patch("/{conv_id}")
+def patch_conversation(conv_id: str, payload: ConversationPatch) -> Conversation:
+    _validate_id(conv_id)
+    with _conv_lock(conv_id):
+        conv = _load_or_404(conv_id)
+        update: dict[str, object] = {}
+        if payload.title is not None:
+            update["title"] = payload.title
+        if payload.pinned is not None:
+            update["pinned"] = payload.pinned
+        if payload.frozen_at is not None:
+            if conv.frozen_at is not None:
+                # Already frozen — freeze is one-way and idempotent.
+                return conv
+            update["frozen_at"] = payload.frozen_at
+        if not update:
+            return conv
+        update["updated_at"] = time.time()
+        updated = conv.model_copy(update=update)
         write_json_atomic(_conv_path(conv_id), updated)
         return updated
 
