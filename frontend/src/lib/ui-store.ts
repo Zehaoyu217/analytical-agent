@@ -48,6 +48,7 @@ export interface UiStore extends UiPersisted {
   setDockW: (w: number) => void;
   toggleThreads: () => void;
   toggleDock: () => void;
+  setDockOpen: (open: boolean) => void;
   setDockTab: (tab: DockTab) => void;
   setDensity: (d: Density) => void;
 
@@ -165,6 +166,7 @@ export const useUiStore = create<UiStore>()(
           dockOpen: !s.dockOpen,
           dockOverridden: true,
         })),
+      setDockOpen: (open) => set({ dockOpen: open, dockOverridden: true }),
 
       setDockTab: (tab) => set({ dockTab: tab }),
       setDensity: (d) => {
