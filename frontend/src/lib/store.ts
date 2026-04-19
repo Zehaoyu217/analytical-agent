@@ -75,6 +75,8 @@ export interface ToolCallEntry {
   artifactIds?: string[]
   startedAt?: number
   finishedAt?: number
+  messageId?: string
+  rows?: string
 }
 
 // DevTools content is dense — widen sidebar on first switch if it's too narrow.
