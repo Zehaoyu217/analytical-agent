@@ -15,7 +15,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-Phase = Literal["ingest", "digest", "maintain"]
+Phase = Literal["ingest", "digest", "maintain", "gardener"]
+_PHASES: tuple[str, ...] = ("ingest", "digest", "maintain", "gardener")
 _EMPTY_SLOT: dict[str, Any] = {"last_run_at": None, "result": None}
 
 
@@ -24,11 +25,7 @@ def _state_path(cfg: Any) -> Path:
 
 
 def _blank_state() -> dict[str, Any]:
-    return {
-        "ingest": dict(_EMPTY_SLOT),
-        "digest": dict(_EMPTY_SLOT),
-        "maintain": dict(_EMPTY_SLOT),
-    }
+    return {phase: dict(_EMPTY_SLOT) for phase in _PHASES}
 
 
 def read_state(cfg: Any) -> dict[str, Any]:
@@ -41,7 +38,7 @@ def read_state(cfg: Any) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return _blank_state()
     state = _blank_state()
-    for phase in ("ingest", "digest", "maintain"):
+    for phase in _PHASES:
         slot = raw.get(phase)
         if isinstance(slot, dict):
             state[phase] = {
@@ -68,14 +65,28 @@ def write_phase(cfg: Any, phase: Phase, result: dict[str, Any]) -> bool:
 
 
 def run_maintain(cfg: Any) -> dict[str, Any]:
-    """Invoke the MaintainRunner and return a JSON-safe summary.
+    """Invoke the MaintainRunner plus a reindex pass, return a JSON-safe summary.
+
+    MaintainRunner does lint + analytics rebuild, but does NOT rebuild the
+    FTS/graph indices when new claim files have been added since the last
+    reindex. Without this, newly promoted claims stay invisible to retrieval
+    until someone runs `sb reindex` by hand. We wire reindex in here so a
+    single "Maintain" click restores searchability end-to-end.
 
     Writes the outcome into the state ledger. Propagates exceptions so
     the route layer can translate them to HTTP 500.
     """
     from second_brain.maintain.runner import MaintainRunner
+    from second_brain.reindex import reindex
 
     report = MaintainRunner(cfg).run(build_digest=False)
+    reindex_ok = True
+    reindex_error: str | None = None
+    try:
+        reindex(cfg)
+    except Exception as exc:  # noqa: BLE001 — surface in summary, don't fail maintain
+        reindex_ok = False
+        reindex_error = str(exc)
     lint_counts = dict(report.lint_counts)
     summary = {
         "lint_errors": int(lint_counts.get("error", 0)),
@@ -90,6 +101,8 @@ def run_maintain(cfg: Any) -> dict[str, Any]:
         "fts_bytes_after": report.fts_bytes_after,
         "duck_bytes_before": report.duck_bytes_before,
         "duck_bytes_after": report.duck_bytes_after,
+        "reindex_ok": reindex_ok,
+        "reindex_error": reindex_error,
     }
     write_phase(cfg, "maintain", summary)
     return summary

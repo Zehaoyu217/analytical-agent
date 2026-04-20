@@ -26,12 +26,24 @@ export interface MaintainResultSummary {
   fts_bytes_after: number
   duck_bytes_before: number
   duck_bytes_after: number
+  reindex_ok?: boolean
+  reindex_error?: string | null
+}
+
+export interface GardenerResultSummary {
+  passes_run: string[]
+  proposals_added: number
+  total_tokens: number
+  total_cost_usd: number
+  duration_ms: number
+  errors: string[]
 }
 
 export type PhaseResultSummary =
   | IngestResultSummary
   | DigestResultSummary
   | MaintainResultSummary
+  | GardenerResultSummary
 
 export interface PhaseState<T extends PhaseResultSummary = PhaseResultSummary> {
   status: PipelineStatus
@@ -45,15 +57,24 @@ interface StatusResponse {
   ingest: { last_run_at: string | null; result: IngestResultSummary | null }
   digest: { last_run_at: string | null; result: DigestResultSummary | null }
   maintain: { last_run_at: string | null; result: MaintainResultSummary | null }
+  gardener?: { last_run_at: string | null; result: GardenerResultSummary | null }
+}
+
+export interface RunGardenerOptions {
+  dry_run?: boolean
+  passes?: string[]
 }
 
 export interface PipelineStore {
   ingest: PhaseState<IngestResultSummary>
   digest: PhaseState<DigestResultSummary>
   maintain: PhaseState<MaintainResultSummary>
+  gardener: PhaseState<GardenerResultSummary>
+  digestPending: number | null
   refreshStatus: () => Promise<void>
   runDigest: () => Promise<DigestResultSummary | null>
   runMaintain: () => Promise<MaintainResultSummary | null>
+  runGardener: (opts?: RunGardenerOptions) => Promise<GardenerResultSummary | null>
 }
 
 const DONE_FLASH_MS = 2000
@@ -74,12 +95,24 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
   ingest: emptyPhase(),
   digest: emptyPhase(),
   maintain: emptyPhase(),
+  gardener: emptyPhase(),
+  digestPending: null,
 
   async refreshStatus() {
     try {
-      const res = await fetch('/api/sb/pipeline/status')
-      if (!res.ok) return
-      const body = (await res.json()) as StatusResponse
+      const [statusRes, pendingRes] = await Promise.all([
+        fetch('/api/sb/pipeline/status'),
+        fetch('/api/sb/digest/pending'),
+      ])
+      if (!statusRes.ok) return
+      const body = (await statusRes.json()) as StatusResponse
+      let pending: number | null = null
+      if (pendingRes.ok) {
+        const p = (await pendingRes.json()) as { count?: number; pending?: number; entries?: unknown[] }
+        if (typeof p.count === 'number') pending = p.count
+        else if (typeof p.pending === 'number') pending = p.pending
+        else if (Array.isArray(p.entries)) pending = p.entries.length
+      }
       set((s) => ({
         ingest: {
           ...s.ingest,
@@ -96,6 +129,12 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
           lastRunAt: body.maintain.last_run_at,
           lastResult: body.maintain.result,
         },
+        gardener: {
+          ...s.gardener,
+          lastRunAt: body.gardener?.last_run_at ?? s.gardener.lastRunAt,
+          lastResult: body.gardener?.result ?? s.gardener.lastResult,
+        },
+        digestPending: pending,
       }))
     } catch {
       // status is best-effort; stale display is fine
@@ -178,6 +217,48 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
       set((s) => ({
         maintain: {
           ...s.maintain,
+          status: 'error',
+          errorMessage: err instanceof Error ? err.message : 'Unexpected error',
+        },
+      }))
+      return null
+    }
+  },
+
+  async runGardener(opts?: RunGardenerOptions) {
+    set((s) => ({
+      gardener: { ...s.gardener, status: 'running', errorMessage: null },
+    }))
+    try {
+      const res = await fetch('/api/sb/gardener/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opts ?? {}),
+      })
+      if (!res.ok) {
+        const detail = await res.text()
+        set((s) => ({
+          gardener: {
+            ...s.gardener,
+            status: 'error',
+            errorMessage: detail || `HTTP ${res.status}`,
+          },
+        }))
+        return null
+      }
+      const body = (await res.json()) as { ok: boolean; result: GardenerResultSummary }
+      await get().refreshStatus()
+      set((s) => ({
+        gardener: { ...s.gardener, status: 'done', lastResult: body.result },
+      }))
+      scheduleRevert((status) =>
+        set((s) => ({ gardener: { ...s.gardener, status } })),
+      )
+      return body.result
+    } catch (err: unknown) {
+      set((s) => ({
+        gardener: {
+          ...s.gardener,
           status: 'error',
           errorMessage: err instanceof Error ? err.message : 'Unexpected error',
         },

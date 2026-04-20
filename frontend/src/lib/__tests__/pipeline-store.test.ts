@@ -23,6 +23,13 @@ function resetStore(): void {
       lastResult: null,
       errorMessage: null,
     },
+    gardener: {
+      status: "idle",
+      lastRunAt: null,
+      lastResult: null,
+      errorMessage: null,
+    },
+    digestPending: null,
   });
 }
 
@@ -71,6 +78,7 @@ describe("pipeline-store", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 2, proposals: [] } },
     ]);
 
     await usePipelineStore.getState().refreshStatus();
@@ -104,6 +112,7 @@ describe("pipeline-store", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
     ]);
 
     const promise = usePipelineStore.getState().runDigest();
@@ -153,6 +162,7 @@ describe("pipeline-store", () => {
           maintain: { last_run_at: "2026-04-19T10:05:00Z", result: summary },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
     ]);
     const result = await usePipelineStore.getState().runMaintain();
     expect(result?.lint_warnings).toBe(2);
@@ -169,6 +179,49 @@ describe("pipeline-store", () => {
     const s = usePipelineStore.getState().maintain;
     expect(s.status).toBe("error");
     expect(s.errorMessage).toBe("boom");
+  });
+
+  it("runGardener posts body and hydrates slot on success", async () => {
+    const summary = {
+      passes_run: ["extract"],
+      proposals_added: 4,
+      total_tokens: 900,
+      total_cost_usd: 0.012,
+      duration_ms: 50,
+      errors: [],
+    };
+    mockFetchSequence([
+      { ok: true, body: { ok: true, result: summary } },
+      {
+        ok: true,
+        body: {
+          ok: true,
+          ingest: { last_run_at: null, result: null },
+          digest: { last_run_at: null, result: null },
+          maintain: { last_run_at: null, result: null },
+          gardener: { last_run_at: "2026-04-19T10:00:00Z", result: summary },
+        },
+      },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
+    ]);
+    const result = await usePipelineStore
+      .getState()
+      .runGardener({ dry_run: false, passes: ["extract"] });
+    expect(result?.proposals_added).toBe(4);
+    expect(usePipelineStore.getState().gardener.status).toBe("done");
+    vi.advanceTimersByTime(2100);
+    expect(usePipelineStore.getState().gardener.status).toBe("idle");
+  });
+
+  it("runGardener records errorMessage on non-ok response", async () => {
+    mockFetchSequence([
+      { ok: false, status: 500, body: {}, text: "gardener_run_failed: boom" },
+    ]);
+    const result = await usePipelineStore.getState().runGardener();
+    expect(result).toBeNull();
+    const s = usePipelineStore.getState().gardener;
+    expect(s.status).toBe("error");
+    expect(s.errorMessage).toContain("gardener_run_failed");
   });
 });
 

@@ -23,6 +23,7 @@ def test_read_state_returns_empty_when_file_missing(cfg: SimpleNamespace) -> Non
         "ingest": {"last_run_at": None, "result": None},
         "digest": {"last_run_at": None, "result": None},
         "maintain": {"last_run_at": None, "result": None},
+        "gardener": {"last_run_at": None, "result": None},
     }
 
 

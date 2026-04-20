@@ -9,7 +9,7 @@ import {
   type MaintainResultSummary,
 } from '@/lib/pipeline-store'
 
-export type PipelinePhase = 'ingest' | 'digest' | 'maintain'
+export type PipelinePhase = 'ingest' | 'digest' | 'maintain' | 'gardener'
 
 interface PipelineActionProps {
   phase: PipelinePhase
