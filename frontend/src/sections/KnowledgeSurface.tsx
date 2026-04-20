@@ -180,10 +180,12 @@ function PipelineToolbarButton({
     <button
       type="button"
       onClick={() => {
-        if (!running) void onClick()
+        if (running || showDimmed) return
+        void onClick()
       }}
-      disabled={running}
+      disabled={running || showDimmed}
       aria-busy={running}
+      aria-disabled={showDimmed || undefined}
       aria-label={ariaLabel}
       title={detail}
       data-phase={phase}
@@ -200,7 +202,7 @@ function PipelineToolbarButton({
           !showDimmed &&
           'border-line bg-bg-1 text-fg-1 hover:bg-bg-2 hover:text-fg-0',
         showDimmed &&
-          'border-line/60 bg-bg-1/60 text-fg-3 opacity-60 hover:opacity-90 hover:text-fg-2',
+          'cursor-not-allowed border-line/60 bg-bg-1/60 text-fg-3 opacity-60',
       )}
     >
       <span
