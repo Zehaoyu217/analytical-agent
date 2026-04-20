@@ -25,11 +25,11 @@ beforeEach(() => {
 });
 
 describe("IconRail", () => {
-  it("renders 9 section buttons + theme + tweaks + settings = 12 buttons", () => {
+  it("renders 7 section buttons + theme + tweaks + settings = 10 buttons", () => {
     renderRail();
     const nav = screen.getByRole("navigation", { name: /main navigation/i });
     const buttons = within(nav).getAllByRole("button");
-    expect(buttons.length).toBe(12);
+    expect(buttons.length).toBe(10);
   });
 
   it("Tweaks button opens the Tweaks panel via ui-store", async () => {
@@ -50,18 +50,20 @@ describe("IconRail", () => {
 
   it("clicking a section button updates activeSection in the store", () => {
     renderRail();
-    fireEvent.click(screen.getByRole("button", { name: "Graph" }));
-    expect(useChatStore.getState().activeSection).toBe("graph");
-    fireEvent.click(screen.getByRole("button", { name: "Digest" }));
-    expect(useChatStore.getState().activeSection).toBe("digest");
-    fireEvent.click(screen.getByRole("button", { name: "Ingest" }));
-    expect(useChatStore.getState().activeSection).toBe("ingest");
+    fireEvent.click(screen.getByRole("button", { name: "Knowledge" }));
+    expect(useChatStore.getState().activeSection).toBe("knowledge");
+    fireEvent.click(screen.getByRole("button", { name: "Memory" }));
+    expect(useChatStore.getState().activeSection).toBe("memory");
+    fireEvent.click(screen.getByRole("button", { name: "Agents" }));
+    expect(useChatStore.getState().activeSection).toBe("agents");
   });
 
-  it("settings button routes to the settings section", () => {
+  it("settings button opens the settings overlay", async () => {
+    const { useSurfacesStore } = await import("@/lib/surfaces-store");
+    useSurfacesStore.setState({ settingsOverlayOpen: false });
     renderRail();
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-    expect(useChatStore.getState().activeSection).toBe("settings");
+    expect(useSurfacesStore.getState().settingsOverlayOpen).toBe(true);
   });
 
   it("theme toggle flips between light and dark", () => {

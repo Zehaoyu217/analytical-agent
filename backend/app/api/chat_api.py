@@ -642,6 +642,7 @@ def _build_system_prompt(
     active_profile_summary: str | None = None,
     plan_mode: bool = False,
     session_id: str = "",
+    latest_user_prompt: str = "",
 ) -> str:
     """Assemble the full data-scientist system prompt for this turn."""
     from app.hooks.sb_digest_hook import build_digest_summary
@@ -657,6 +658,7 @@ def _build_system_prompt(
         token_budget=TokenBudget(),
         plan_mode=plan_mode,
         session_id=session_id,
+        latest_user_prompt=latest_user_prompt,
     )
     base = injector.build(inputs)
     data_ctx = get_data_context()
@@ -673,9 +675,17 @@ def _build_system_prompt(
 # prompts_api now calls _build_system_prompt() directly for its devtools view.
 
 
-def _get_system_prompt(plan_mode: bool = False, session_id: str = "") -> str:
+def _get_system_prompt(
+    plan_mode: bool = False,
+    session_id: str = "",
+    latest_user_prompt: str = "",
+) -> str:
     """Build a fresh system prompt for each turn (wiki state changes)."""
-    return _build_system_prompt(plan_mode=plan_mode, session_id=session_id)
+    return _build_system_prompt(
+        plan_mode=plan_mode,
+        session_id=session_id,
+        latest_user_prompt=latest_user_prompt,
+    )
 
 
 # ── model factory ─────────────────────────────────────────────────────────────
@@ -957,7 +967,7 @@ def _agent_loop_sync(
     saved_artifacts: list[dict[str, Any]] = []
     usage: dict[str, int] = {}
     tools = filter_tools_for_plan_mode(_CHAT_TOOLS) if plan_mode else _CHAT_TOOLS
-    system_prompt = _get_system_prompt(plan_mode=plan_mode)
+    system_prompt = _get_system_prompt(plan_mode=plan_mode, latest_user_prompt=message)
 
     with httpx.Client(timeout=300) as http:
         client = _make_client(model_id, http)
@@ -1017,7 +1027,9 @@ def _stream_agent_loop(
 
     # ── per-session context layers ───────────────────────────────────────────
     ctx = session_registry.get_or_create(session_id)
-    sys_prompt = _get_system_prompt(plan_mode=plan_mode, session_id=session_id)
+    sys_prompt = _get_system_prompt(
+        plan_mode=plan_mode, session_id=session_id, latest_user_prompt=message,
+    )
     sp_tokens = _estimate_tokens(sys_prompt)
     ctx.add_layer(ContextLayer(
         name="System Prompt", tokens=sp_tokens, compactable=False,

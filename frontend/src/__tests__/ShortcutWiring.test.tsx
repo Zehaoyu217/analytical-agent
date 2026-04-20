@@ -46,9 +46,9 @@ beforeEach(() => {
 
 describe("ShortcutWiring", () => {
   it("registers one OPEN_SECTION_* command per rail section", () => {
-    expect(SECTION_SHORTCUTS).toHaveLength(9);
+    expect(SECTION_SHORTCUTS).toHaveLength(7);
     const keys = SECTION_SHORTCUTS.map((s) => s.key);
-    expect(new Set(keys).size).toBe(9); // all unique
+    expect(new Set(keys).size).toBe(7); // all unique
     expect(keys).toEqual([
       "mod+shift+1",
       "mod+shift+2",
@@ -57,12 +57,10 @@ describe("ShortcutWiring", () => {
       "mod+shift+5",
       "mod+shift+6",
       "mod+shift+7",
-      "mod+shift+8",
-      "mod+shift+9",
     ]);
   });
 
-  it("mod+shift+2 switches activeSection to 'agents'", async () => {
+  it("mod+shift+2 switches activeSection to 'knowledge'", async () => {
     mount();
     await act(async () => {
       await Promise.resolve();
@@ -70,10 +68,10 @@ describe("ShortcutWiring", () => {
 
     fireBoth("2", { shift: true });
 
-    expect(useChatStore.getState().activeSection).toBe("agents");
+    expect(useChatStore.getState().activeSection).toBe("knowledge");
   });
 
-  it("mod+shift+7 switches activeSection to 'graph'", async () => {
+  it("mod+shift+7 switches activeSection to 'integrity'", async () => {
     mount();
     await act(async () => {
       await Promise.resolve();
@@ -81,7 +79,7 @@ describe("ShortcutWiring", () => {
 
     fireBoth("7", { shift: true });
 
-    expect(useChatStore.getState().activeSection).toBe("graph");
+    expect(useChatStore.getState().activeSection).toBe("integrity");
   });
 
   it("mod+j toggles the dock open state and marks it overridden", async () => {

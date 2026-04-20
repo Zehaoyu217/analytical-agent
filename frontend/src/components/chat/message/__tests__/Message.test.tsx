@@ -62,7 +62,10 @@ describe('Message', () => {
     render(<Message message={msg} />)
     expect(screen.getByLabelText('assistant avatar')).toBeInTheDocument()
     expect(screen.getByText('data quality')).toBeInTheDocument()
-    expect(screen.getByText('read_file')).toBeInTheDocument()
+    // Completed assistant messages collapse tool chips into a summary pill.
+    expect(
+      screen.getByRole('button', { name: /show 1 tool call/i }),
+    ).toBeInTheDocument()
     expect(screen.getByText('residuals.png')).toBeInTheDocument()
   })
 })

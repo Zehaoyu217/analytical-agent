@@ -32,6 +32,7 @@ class InjectorInputs:
     token_budget: TokenBudget | None = None
     plan_mode: bool = False
     session_id: str = ""
+    latest_user_prompt: str = ""
 
 
 class _SkillRegistry(Protocol):
@@ -46,6 +47,12 @@ class _Wiki(Protocol):
 
 class _GotchaIndex(Protocol):
     def as_injection(self) -> str: ...
+
+
+class _KnowledgeSource(Protocol):
+    """Source of external knowledge-base claim abstracts (e.g. Second Brain)."""
+
+    def build_block(self, prompt: str) -> str: ...
 
 
 def _has_content_beyond_headers(text: str) -> bool:
@@ -77,12 +84,14 @@ class PreTurnInjector:
         skill_registry: _SkillRegistry,
         gotcha_index: _GotchaIndex | None = None,
         agent_persona: str = "",
+        knowledge_source: _KnowledgeSource | None = None,
     ) -> None:
         self._prompt_path = Path(prompt_path)
         self._wiki = wiki
         self._skills = skill_registry
         self._gotchas = gotcha_index
         self._agent_persona = agent_persona
+        self._knowledge = knowledge_source
         # Cache the static base prompt — it never changes at runtime, so
         # re-reading the file on every turn is unnecessary I/O.
         self._static_cache: str | None = None
@@ -178,6 +187,30 @@ class PreTurnInjector:
         ]
         return "\n\n" + "\n".join(lines)
 
+    def _knowledge_section(self, prompt: str) -> str:
+        """Inject top-k knowledge-base claim abstracts for the current turn.
+
+        Pulls from the configured knowledge source (e.g. Second Brain). The
+        source is responsible for returning an already-rendered markdown block
+        or an empty string when nothing should be injected (disabled, no hits,
+        skip-pattern match, retrieval error, etc.).
+        """
+        if self._knowledge is None or not prompt.strip():
+            return ""
+        try:
+            body = self._knowledge.build_block(prompt).strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Knowledge-source injection failed: %s", exc)
+            return ""
+        if not body:
+            return ""
+        try:
+            scan(body, source="knowledge_source")
+        except InjectionAttemptError:
+            logger.warning("Injection attempt detected in knowledge source — block skipped")
+            return ""
+        return "\n\n## Knowledge Recall\n\n" + body
+
     def _session_memory_section(self, session_id: str) -> str:
         """Inject the most-recent prior session notes for cross-session continuity (P18)."""
         notes = self._wiki.latest_session_notes(exclude_session_id=session_id)
@@ -254,6 +287,9 @@ class PreTurnInjector:
         mem = self._session_memory_section(inputs.session_id)
         if mem:
             parts.append(mem)
+        knowledge = self._knowledge_section(inputs.latest_user_prompt)
+        if knowledge:
+            parts.append(knowledge)
         profile = self._profile_section(inputs.active_profile_summary)
         if profile:
             parts.append(profile)
@@ -277,6 +313,7 @@ class PreTurnInjector:
             self._static(),
             self._operational_state(),
             self._session_memory_section(inputs.session_id),
+            self._knowledge_section(inputs.latest_user_prompt),
             self._skill_menu(),
             self._gotchas_section(),
             self._profile_section(inputs.active_profile_summary),

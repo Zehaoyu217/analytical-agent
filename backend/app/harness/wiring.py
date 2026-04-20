@@ -219,6 +219,33 @@ class _WikiInjectorAdapter:
         return text[: self._MAX_DIGEST_CHARS] + "\n…(truncated)"
 
 
+class _SecondBrainKnowledgeAdapter:
+    """Per-turn Second-Brain KB injection for the PreTurnInjector.
+
+    Delegates to :func:`second_brain.inject.runner.build_injection` and returns
+    the pre-rendered claim-abstract block (or empty string when retrieval is
+    disabled, skipped, or yields no hits). Gated on ``SECOND_BRAIN_ENABLED`` —
+    returns empty when the feature flag is off so the rest of the harness
+    never needs to know.
+    """
+
+    def build_block(self, prompt: str) -> str:
+        from app import config  # noqa: PLC0415
+
+        if not getattr(config, "SECOND_BRAIN_ENABLED", False):
+            return ""
+        try:
+            from second_brain.config import Config  # noqa: PLC0415
+            from second_brain.habits.loader import load_habits  # noqa: PLC0415
+            from second_brain.inject.runner import build_injection  # noqa: PLC0415
+        except Exception:  # noqa: BLE001
+            return ""
+        cfg = Config.load()
+        habits = load_habits(cfg)
+        result = build_injection(cfg, habits, prompt)
+        return getattr(result, "block", "") or ""
+
+
 def get_pre_turn_injector() -> PreTurnInjector:
     global _pre_turn_injector
     if _pre_turn_injector is not None:
@@ -235,6 +262,7 @@ def get_pre_turn_injector() -> PreTurnInjector:
                 wiki=_WikiInjectorAdapter(wiki),
                 skill_registry=_SkillMenuAdapter(registry),
                 agent_persona=branding.agent_persona,
+                knowledge_source=_SecondBrainKnowledgeAdapter(),
             )
     return _pre_turn_injector
 

@@ -13,6 +13,7 @@ function resetStore(): void {
       lastResult: null,
       errorMessage: null,
     },
+    digestPending: null,
   });
 }
 
@@ -50,6 +51,7 @@ describe("PipelineBar", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
     ]);
     render(<PipelineBar />);
     const nav = screen.getByRole("navigation", { name: "Pipeline" });
@@ -68,6 +70,7 @@ describe("PipelineBar", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
     ]);
     const onOpenIngest = vi.fn();
     render(<PipelineBar onOpenIngest={onOpenIngest} />);
@@ -86,6 +89,7 @@ describe("PipelineBar", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
       { ok: true, body: { ok: true, entries: 4, emitted: true } },
       {
         ok: true,
@@ -99,6 +103,7 @@ describe("PipelineBar", () => {
           maintain: { last_run_at: null, result: null },
         },
       },
+      { ok: true, body: { ok: true, count: 0, proposals: [] } },
     ]);
     const onDigestComplete = vi.fn();
     render(<PipelineBar onDigestComplete={onDigestComplete} />);
