@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from app import config
 from app.telemetry.sidecar import write_meta
-from app.tools import sb_digest_tools
+from app.tools import sb_digest_tools, sb_pipeline_state
 
 router = APIRouter(prefix="/api/sb", tags=["second-brain"])
 
@@ -185,6 +185,15 @@ def digest_build() -> dict[str, Any]:
     emitted = len(entries) > 0
     _write_build_meta(
         cfg, started=started, outcome="ok", entries=len(entries), emitted=emitted
+    )
+    try:
+        pending_count = len(list(_read_pending(cfg)))
+    except Exception:  # noqa: BLE001 — pending read is best-effort
+        pending_count = 0
+    sb_pipeline_state.write_phase(
+        cfg,
+        "digest",
+        {"entries": len(entries), "emitted": emitted, "pending": pending_count},
     )
     return {"ok": True, "emitted": emitted, "entries": len(entries)}
 
@@ -417,7 +426,14 @@ def sb_ingest_route(body: IngestBody) -> dict[str, Any]:
     _require_enabled()
     from app.tools import sb_tools
 
-    return sb_tools.sb_ingest(body.model_dump())
+    result = sb_tools.sb_ingest(body.model_dump())
+    if result.get("ok"):
+        sb_pipeline_state.write_phase(
+            _sb_cfg(),
+            "ingest",
+            {"sources_added": 1, "source_id": result.get("source_id")},
+        )
+    return result
 
 
 @router.post("/ingest/upload")
@@ -447,7 +463,14 @@ async def sb_ingest_upload(file: UploadFile = File(...)) -> dict[str, Any]:  # n
     ) as staged:
         staged.write(raw)
 
-    return sb_tools.sb_ingest({"path": staged.name})
+    result = sb_tools.sb_ingest({"path": staged.name})
+    if result.get("ok"):
+        sb_pipeline_state.write_phase(
+            _sb_cfg(),
+            "ingest",
+            {"sources_added": 1, "source_id": result.get("source_id")},
+        )
+    return result
 
 
 # ── Drift (graph↔wiki) ──────────────────────────────────────────────
