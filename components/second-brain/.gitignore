@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+
+# User data — should never be committed from tool repo
+# (user data lives in ~/second-brain/, this repo is the tool)

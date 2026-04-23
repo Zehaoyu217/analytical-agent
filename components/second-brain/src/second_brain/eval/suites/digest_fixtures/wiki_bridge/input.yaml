@@ -1,0 +1,6 @@
+claims: []
+wiki:
+  - path: research/new-finding.md
+    status: mature
+    taxonomy: papers/ml
+    body: "A mature finding not yet linked to any claim."

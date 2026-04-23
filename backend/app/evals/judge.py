@@ -1,21 +1,17 @@
 """LLM judge for qualitative dimension grading.
 
-Two implementations:
-- ``LLMJudge``     — calls local Ollama (default model: gemma4:e2b).
-                     Use when Ollama is running and the model is loaded.
+Three implementations:
+- ``LLMJudge``        — calls a local MLX model (default: Gemma 4 E4B text-only).
 - ``OpenRouterJudge`` — calls OpenRouter chat completions directly.
-                     No agent loop overhead; uses the project's existing API key.
-                     Use when Ollama is unavailable (resource contention, etc.).
-- ``FallbackJudge`` — tries OpenRouterJudge first, falls back to LLMJudge.
+- ``FallbackJudge``   — tries OpenRouterJudge first, falls back to LLMJudge.
 
-To switch back to Ollama once gemma4:e2b loads reliably:
-    judge = LLMJudge()                     # uses gemma4:e2b on localhost:11434
-    judge = LLMJudge(JudgeConfig(model="gemma4:e2b"))  # explicit
-See docs/eval-judge-setup.md for full setup instructions.
+The local judge is intentionally tool-free and uses the same MLX runtime family as
+the main backend chat harness, so evals can run without Ollama.
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass, field
 
@@ -24,6 +20,9 @@ import httpx
 from app.evals.grading import grade_to_score
 from app.evals.rubric import DimensionRubric
 from app.evals.types import AgentTrace, DimensionGrade
+from app.harness.clients.base import CompletionRequest, Message
+from app.harness.clients.mlx_client import MLXClient, cached_model_ids, mlx_available
+from app.harness.config import ModelProfile
 
 # ── Shared prompt builder ──────────────────────────────────────────────────────
 
@@ -65,29 +64,31 @@ def _parse_grade_response(response: str) -> tuple[str, str]:
     return "F", "Could not parse judge response"
 
 
-# ── Ollama judge (primary when available) ─────────────────────────────────────
+# ── Local MLX judge (primary local path) ──────────────────────────────────────
 
 @dataclass(frozen=True)
 class JudgeConfig:
-    """Configuration for the Ollama LLM judge.
+    """Configuration for the local MLX LLM judge."""
 
-    To revert to Ollama once gemma4:e2b loads:
-        judge = LLMJudge(JudgeConfig(model="gemma4:e2b"))
-    """
-    model: str = "gemma4:e2b"
-    base_url: str = "http://localhost:11434"
+    model: str = "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit"
     temperature: float = 0.0
+    max_tokens: int = 256
 
 
 class LLMJudge:
-    """Grades agent traces against rubric criteria using a local Ollama model.
-
-    Requires Ollama running at ``JudgeConfig.base_url`` with the model loaded.
-    Use ``FallbackJudge`` or ``OpenRouterJudge`` when Ollama is unavailable.
-    """
+    """Grades agent traces against rubric criteria using a local MLX model."""
 
     def __init__(self, config: JudgeConfig | None = None) -> None:
         self._config = config or JudgeConfig()
+        self._client = MLXClient(
+            ModelProfile(
+                name="eval_judge",
+                provider="mlx",
+                model_id=self._config.model,
+                tier="observatory",
+                options={"temperature": self._config.temperature},
+            )
+        )
 
     async def grade_dimension(
         self,
@@ -96,7 +97,7 @@ class LLMJudge:
         trace: AgentTrace,
     ) -> DimensionGrade:
         prompt = self.build_prompt(dimension_name, rubric, trace)
-        response = await self._call_ollama(prompt)
+        response = await self._call_local_model(prompt)
         grade, justification = self.parse_response(response)
         return DimensionGrade(
             name=dimension_name,
@@ -114,23 +115,47 @@ class LLMJudge:
     ) -> str:
         return _build_grading_prompt(dimension_name, rubric, trace)
 
-    async def _call_ollama(self, prompt: str) -> str:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self._config.base_url}/api/generate",
-                json={
-                    "model": self._config.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": self._config.temperature},
-                },
-                timeout=600.0,
-            )
-            resp.raise_for_status()
-            return resp.json()["response"]
+    async def _call_local_model(self, prompt: str) -> str:
+        return await asyncio.to_thread(self._complete, prompt)
+
+    def probe_ready(self) -> None:
+        self._complete("Reply with exactly: GRADE: B — warmup")
 
     def parse_response(self, response: str) -> tuple[str, str]:
         return _parse_grade_response(response)
+
+    def _complete(self, prompt: str) -> str:
+        response = self._client.complete(
+            CompletionRequest(
+                system=(
+                    "You are an evaluation judge. Respond with exactly one line in the format: "
+                    "GRADE: <A|B|C|F> — <one-sentence justification>"
+                ),
+                messages=(Message(role="user", content=prompt),),
+                max_tokens=self._config.max_tokens,
+                temperature=self._config.temperature,
+            )
+        )
+        return response.text
+
+
+def local_judge_ready_reason(model: str | None = None) -> str:
+    """Return an empty string when the configured MLX judge is ready, else a reason."""
+
+    judge = LLMJudge(JudgeConfig(model=model or JudgeConfig().model))
+    model_id = judge._config.model
+    if not mlx_available():
+        return "mlx-lm runtime is not available"
+    if model_id not in cached_model_ids():
+        return (
+            f"Judge model '{model_id}' is not cached for MLX — "
+            "download it once before running the eval suite"
+        )
+    try:
+        judge.probe_ready()
+    except Exception as exc:
+        return f"Judge model '{model_id}' failed local MLX warmup: {exc}"
+    return ""
 
 
 # ── OpenRouter judge (fallback when Ollama is unavailable) ────────────────────
@@ -155,12 +180,9 @@ class OpenRouterJudge:
     Does NOT use the agent loop — makes a direct chat completion call so there
     is no risk of the judge itself calling execute_python or other tools.
 
-    Activate instead of LLMJudge when local Ollama can't load models:
+    Activate instead of LLMJudge when local MLX isn't available:
         judge = OpenRouterJudge()
         # or in run_eval.py: pass --judge (it auto-selects this class)
-
-    To revert to Ollama:
-        judge = LLMJudge()  # see docs/eval-judge-setup.md
     """
 
     def __init__(self, config: OpenRouterJudgeConfig | None = None) -> None:
@@ -222,16 +244,10 @@ class OpenRouterJudge:
             return data["choices"][0]["message"]["content"]
 
 
-# ── FallbackJudge: OpenRouter → Ollama ────────────────────────────────────────
+# ── FallbackJudge: OpenRouter → local MLX ─────────────────────────────────────
 
 class FallbackJudge:
-    """Tries OpenRouterJudge; falls back to LLMJudge (Ollama) on failure.
-
-    This is the recommended judge for environments where Ollama may have
-    resource contention.  Configure via env vars:
-        OPENROUTER_API_KEY  — required for OpenRouter path
-        OLLAMA_URL          — optional, defaults to http://localhost:11434
-    """
+    """Tries OpenRouterJudge; falls back to LLMJudge (local MLX) on failure."""
 
     def __init__(
         self,

@@ -1,0 +1,4 @@
+actions:
+  - action: add_taxonomy_root
+    root: papers/crypto
+    example_claim_ids: [clm_td1, clm_td2, clm_td3, clm_td4, clm_td5]

@@ -75,3 +75,25 @@ guardrails: {mode: per_tier, retry_on_gate_block: null}
     )
     with pytest.raises(ValueError, match="tier"):
         load_config(path)
+
+
+def test_load_config_accepts_mlx_provider(tmp_path) -> None:
+    path = tmp_path / "mlx.yaml"
+    path.write_text(
+        """
+mode: config
+models:
+  local_mlx:
+    provider: mlx
+    model_id: mlx/mlx-community/gemma-4-e2b-it-OptiQ-4bit
+    tier: strict
+roles: {think: local_mlx}
+warmup: [local_mlx]
+guardrails: {mode: per_tier, retry_on_gate_block: null}
+""",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(path)
+    assert cfg.models["local_mlx"].provider == "mlx"
+    assert cfg.warmup == ("local_mlx",)

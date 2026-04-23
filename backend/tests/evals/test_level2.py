@@ -1,6 +1,6 @@
 """Level 2: Multi-Step Exploration — analytical chaining and conclusions.
 
-Requires Ollama running locally for LLM-judged dimensions.
+Requires the local MLX judge model for LLM-judged dimensions.
 Run: cd backend && python -m pytest tests/evals/test_level2.py -v -s
 """
 

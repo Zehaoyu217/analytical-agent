@@ -1,5 +1,10 @@
 # SB Bridge Gaps Implementation Plan
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Expose the second-brain v2 digest surface to the agent (7 tools + pre-turn hook) and to the frontend (right-rail DigestPanel + 4 REST routes), with a sb-side pending-proposal merge.

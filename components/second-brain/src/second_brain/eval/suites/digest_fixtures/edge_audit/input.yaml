@@ -1,0 +1,7 @@
+claims:
+  - id: clm_live
+    status: active
+    supports: [clm_dead]
+  - id: clm_dead
+    status: retracted
+    resolution: superseded_by_clm_live

@@ -1,11 +1,13 @@
 """REST endpoint for listing available models grouped by provider.
 
 GET /api/models — returns models available based on configured API keys:
+  - MLX: shown when mlx-lm is installed; lists cached and recommended local models
   - Ollama: fetched live from local daemon, filtered to tool-capable models only
   - OpenRouter: shown if OPENROUTER_API_KEY is set (free models that support tools)
 """
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 
@@ -14,6 +16,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.config import get_config
+from app.harness.clients.mlx_client import cached_model_ids
 
 router = APIRouter(prefix="/api/models", tags=["models"])
 logger = logging.getLogger(__name__)
@@ -75,6 +78,54 @@ class ModelsResponse(BaseModel):
     groups: list[ModelGroup]
 
 
+_KNOWN_MLX_MODELS = [
+    ModelEntry(
+        id="mlx/mlx-community/gemma-4-e2b-it-OptiQ-4bit",
+        label="Gemma 4 E2B",
+        description="MLX local · recommended small",
+    ),
+    ModelEntry(
+        id="mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit",
+        label="Gemma 4 E4B",
+        description="MLX local · recommended default",
+    ),
+    ModelEntry(
+        id="mlx/NexVeridian/gemma-4-26B-A4b-it-4bit",
+        label="Gemma 4 26B A4B",
+        description="MLX local · recommended large",
+    ),
+    ModelEntry(
+        id="mlx/mlx-community/Qwen3.5-9B-OptiQ-4bit",
+        label="Qwen3.5 9B",
+        description="MLX local · recommended alternate",
+    ),
+]
+
+
+def _mlx_runtime_available() -> bool:
+    return importlib.util.find_spec("mlx_lm") is not None
+
+
+def _humanize_mlx_id(model_id: str) -> str:
+    bare = model_id.removeprefix("mlx/")
+    if bare.startswith("mlx-community/"):
+        bare = bare.removeprefix("mlx-community/")
+    return bare.replace("-", " ")
+
+
+def _fetch_mlx_models() -> list[ModelEntry]:
+    entries: dict[str, ModelEntry] = {
+        entry.id: entry for entry in _KNOWN_MLX_MODELS
+    }
+    for model_id in cached_model_ids():
+        entries[model_id] = ModelEntry(
+            id=model_id,
+            label=_humanize_mlx_id(model_id),
+            description="MLX local · cached",
+        )
+    return [entries[key] for key in sorted(entries)]
+
+
 def _has_tool_capability(base_url: str, model_name: str) -> bool:
     """Return True if the Ollama model supports native tool calling.
 
@@ -128,6 +179,7 @@ def list_models() -> ModelsResponse:
 
     # Prefer env vars; fall back to config fields so .env files work either way.
     has_openrouter = bool(os.getenv("OPENROUTER_API_KEY") or config.openrouter_api_key)
+    has_mlx = _mlx_runtime_available()
 
     groups: list[ModelGroup] = []
 
@@ -139,6 +191,22 @@ def list_models() -> ModelsResponse:
             models=[ModelEntry(**m) for m in _OPENROUTER_MODELS],
             available=has_openrouter,
             note="" if has_openrouter else "Set OPENROUTER_API_KEY to enable",
+        )
+    )
+
+    # MLX local models (Apple Silicon, on-demand download via Hugging Face)
+    mlx_models = _fetch_mlx_models() if has_mlx else []
+    groups.append(
+        ModelGroup(
+            provider="mlx",
+            label="MLX (Local)",
+            models=mlx_models,
+            available=has_mlx,
+            note=(
+                ""
+                if has_mlx
+                else "Install backend[mlx] on Apple Silicon to enable local MLX models"
+            ),
         )
     )
 

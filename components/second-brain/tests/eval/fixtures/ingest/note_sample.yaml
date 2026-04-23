@@ -1,0 +1,17 @@
+cases:
+  - name: short-note
+    content: |
+      # Short note
+      Just a single paragraph.
+    expected_kind: note
+    claim_count_min: 0
+    claim_count_max: 2
+  - name: long-note
+    content: |
+      # Long note
+      First claim about transformers.
+      Second claim about layer norm.
+      Third claim about attention.
+    expected_kind: note
+    claim_count_min: 0
+    claim_count_max: 5

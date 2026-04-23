@@ -1,5 +1,10 @@
 # Second Brain — Polish & Bridge Completion (Plan 7) Implementation Plan
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Finish the v1 second-brain → claude-code-agent bridge by shipping an interactive `sb init` wizard, a backend `second_brain` skill package (with sub-skills), a real `sb_promote_claim` tool handler, and user-facing skills under `.claude/skills/sb-*` inside the second-brain repo.

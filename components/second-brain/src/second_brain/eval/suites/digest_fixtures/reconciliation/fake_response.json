@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "action": "resolve_contradiction",
+      "target_id": "clm_recon_contra_a",
+      "rationale": "left side is better-evidenced; mark right as refuted"
+    },
+    {
+      "action": "upgrade_confidence",
+      "target_id": "clm_recon_stale",
+      "rationale": "two independent sources now corroborate"
+    }
+  ]
+}

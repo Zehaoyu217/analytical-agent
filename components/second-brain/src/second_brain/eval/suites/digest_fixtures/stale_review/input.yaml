@@ -1,0 +1,12 @@
+sources:
+  - id: src_ml
+    habit_taxonomy: papers/ml/transformers
+claims:
+  - id: clm_stale1
+    supports: [src_ml]
+    abstract: "a stale claim that has not been reviewed recently"
+    mtime_days_ago: 200
+  - id: clm_stale2
+    supports: [src_ml]
+    abstract: "another stale claim awaiting re-abstract"
+    mtime_days_ago: 200

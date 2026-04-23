@@ -1,0 +1,4 @@
+actions:
+  - action: promote_wiki_to_claim
+    wiki_path: research/new-finding.md
+    proposed_taxonomy: papers/ml

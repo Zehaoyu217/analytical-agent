@@ -1,6 +1,6 @@
 """Level 1: Basic Rendering — chart, table, and mermaid ERD.
 
-Requires Ollama running locally for LLM-judged dimensions.
+Requires the local MLX judge model for LLM-judged dimensions.
 Run: cd backend && python -m pytest tests/evals/test_level1.py -v -s
 """
 

@@ -1,5 +1,10 @@
 # Second Brain — Automation (Plan 5)
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add unattended operation to second-brain — batch inbox processing, ingest retry, filesystem watcher, and a nightly maintenance job — so the KB can absorb drops and self-heal without a human in the loop.

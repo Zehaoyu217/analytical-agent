@@ -1,0 +1,5 @@
+actions:
+  - action: drop_edge
+    src_id: clm_live
+    dst_id: clm_dead
+    relation: supports

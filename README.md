@@ -18,12 +18,14 @@ Open http://localhost:5173
 - [Architecture](docs/architecture.md)
 - [Testing Guide](docs/testing.md)
 - [Skill Creation](docs/skill-creation.md)
+- [Nested Knowledge Engine](components/second-brain/README.md)
 
 ## Project Structure
 
 ```
 backend/       Python/FastAPI backend
 frontend/      React+Vite analytical UI
+components/    Nested standalone subsystems such as second-brain
 reference/     Claude Code CLI source (read-only study material)
 knowledge/     Wiki, ADRs, graphify graphs
 docs/          SOPs and guides

@@ -21,11 +21,12 @@ def test_paper_finding_defaults():
 
 
 def test_paper_finding_frozen():
+    import dataclasses
     pf = PaperFinding(title="Test", key_finding="finding", source="arxiv")
     try:
         pf.title = "mutated"  # type: ignore[misc]
-        assert False, "should have raised FrozenInstanceError"
-    except Exception:
+        raise AssertionError("should have raised FrozenInstanceError")
+    except dataclasses.FrozenInstanceError:
         pass
 
 

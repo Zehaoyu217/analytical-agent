@@ -1,0 +1,21 @@
+claims:
+  # Stale low-confidence path.
+  - id: clm_recon_stale
+    confidence: low
+    status: active
+    extracted_at_days_ago: 75
+    abstract: "stale low-confidence claim awaiting reconciliation"
+  # Contradiction path: two active claims past the 14d grace period
+  # that contradict each other with no resolution attached.
+  - id: clm_recon_contra_a
+    confidence: medium
+    status: active
+    extracted_at_days_ago: 30
+    contradicts: ["clm_recon_contra_b"]
+    abstract: "left side of a contradiction pair"
+  - id: clm_recon_contra_b
+    confidence: medium
+    status: active
+    extracted_at_days_ago: 30
+    contradicts: ["clm_recon_contra_a"]
+    abstract: "right side of a contradiction pair"

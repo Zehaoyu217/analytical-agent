@@ -1,0 +1,14 @@
+sources:
+  - id: src_crypto
+    habit_taxonomy: papers/crypto/zk
+claims:
+  - id: clm_td1
+    supports: [src_crypto]
+  - id: clm_td2
+    supports: [src_crypto]
+  - id: clm_td3
+    supports: [src_crypto]
+  - id: clm_td4
+    supports: [src_crypto]
+  - id: clm_td5
+    supports: [src_crypto]

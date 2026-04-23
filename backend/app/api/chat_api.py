@@ -41,6 +41,7 @@ from app.harness.clients.base import (
     ToolSchema,
 )
 from app.harness.clients.fallback_client import FallbackModelClient
+from app.harness.clients.mlx_client import MLXClient
 from app.harness.clients.ollama_client import OllamaClient
 from app.harness.clients.openrouter_client import OpenRouterClient
 from app.harness.config import ModelProfile
@@ -710,6 +711,14 @@ def _make_client(model_id: str, http: httpx.Client) -> ModelClient:
             name=model_id, provider="anthropic", model_id=model_id, tier="advisory",
         )
         return AnthropicClient(profile, anthropic.Anthropic())  # type: ignore[return-value]
+    if model_id.startswith("mlx/"):
+        profile = ModelProfile(
+            name=model_id,
+            provider="mlx",
+            model_id=model_id,
+            tier="advisory",
+        )
+        return MLXClient(profile)  # type: ignore[return-value]
     if "/" in model_id:
         primary = _make_openrouter_client(model_id, config.openrouter_api_key, http)
         fallback_ids = [

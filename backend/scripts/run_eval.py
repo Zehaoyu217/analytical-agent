@@ -253,8 +253,8 @@ async def main(levels: list[int], use_judge: bool, db_path: str) -> None:
 
     judge: OpenRouterJudge | LLMJudge | FallbackJudge | None = None
     if use_judge:
-        judge = OpenRouterJudge()
-        print(f"✓ LLM judge: OpenRouter ({judge._config.model})")
+        judge = LLMJudge()
+        print(f"✓ LLM judge: local MLX ({judge._config.model})")
     else:
         print("  LLM judge: disabled (pass --judge to add letter grades)")
 
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--judge", action="store_true", default=False,
-        help="Enable LLM grading via OpenRouter (set OPENROUTER_API_KEY)",
+        help="Enable LLM grading via the local MLX judge",
     )
     parser.add_argument(
         "--db", default=os.environ.get("EVAL_DB", "/tmp/eval_run.db"),

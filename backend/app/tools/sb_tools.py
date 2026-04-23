@@ -27,26 +27,24 @@ def _cfg() -> Any:
 def sb_search(args: dict[str, Any]) -> dict[str, Any]:
     if not config.SECOND_BRAIN_ENABLED:
         return _disabled({"hits": []})
-    from second_brain.index.retriever import make_retriever
+    from second_brain.research.broker import broker_search
 
     query = str(args.get("query", ""))
     if not query:
         return {"ok": False, "error": "missing query", "hits": []}
     k = int(args.get("k", 5))
     scope = str(args.get("scope", "both"))
-    taxonomy = args.get("taxonomy")
     with_neighbors = bool(args.get("with_neighbors", False))
 
     cfg = _cfg()
     if not cfg.fts_path.exists():
         return {"ok": False, "error": "no_index", "hits": []}
 
-    retriever = make_retriever(cfg)
-    hits = retriever.search(
-        query,
+    result = broker_search(
+        cfg,
+        query=query,
         k=k,
-        scope=scope,  # type: ignore[arg-type]
-        taxonomy=taxonomy,
+        scope=scope,
         with_neighbors=with_neighbors,
     )
     return {
@@ -55,12 +53,35 @@ def sb_search(args: dict[str, Any]) -> dict[str, Any]:
             {
                 "id": h.id,
                 "kind": h.kind,
+                "title": h.title,
                 "score": h.score,
                 "matched_field": h.matched_field,
-                "snippet": h.snippet,
-                "neighbors": h.neighbors,
+                "summary": h.summary,
+                "project_ids": h.project_ids,
+                "source_ids": h.source_ids,
+                "claim_ids": h.claim_ids,
+                "section_title": h.section_title,
+                "page_start": h.page_start,
+                "page_end": h.page_end,
+                "evidence": [
+                    {
+                        "id": ev.id,
+                        "kind": ev.kind,
+                        "score": ev.score,
+                        "matched_field": ev.matched_field,
+                        "snippet": ev.snippet,
+                        "neighbors": ev.neighbors,
+                        "source_id": ev.source_id,
+                        "chunk_id": ev.chunk_id,
+                        "section_title": ev.section_title,
+                        "source_title": ev.source_title,
+                        "page_start": ev.page_start,
+                        "page_end": ev.page_end,
+                    }
+                    for ev in h.evidence
+                ],
             }
-            for h in hits
+            for h in result.hits
         ],
     }
 
@@ -128,6 +149,8 @@ def sb_ingest(args: dict[str, Any]) -> dict[str, Any]:
 
     from second_brain.ingest.base import IngestInput
     from second_brain.ingest.orchestrator import IngestError, ingest
+    from second_brain.reindex import reindex
+    from second_brain.research.compiler import compile_center
 
     path_or_url = str(args.get("path", ""))
     if not path_or_url:
@@ -136,24 +159,20 @@ def sb_ingest(args: dict[str, Any]) -> dict[str, Any]:
     cfg = _cfg()
     try:
         if path_or_url.startswith(("http://", "https://", "gh:", "file://")):
-            # URL and repo converters accept origin strings via IngestInput.from_origin;
-            # fall back to a path if the URL/repo shorthand isn't supported here.
-            inp = (
-                IngestInput.from_path(_Path(path_or_url))
-                if _Path(path_or_url).exists()
-                else None
+            inp = IngestInput.from_bytes(
+                origin=path_or_url,
+                suffix=_Path(path_or_url).suffix,
+                content=b"",
             )
-            if inp is None:
-                # Future: add IngestInput.from_origin for URLs/repos.
-                return {
-                    "ok": False,
-                    "error": "url/repo ingest via tool not yet supported",
-                }
         else:
             inp = IngestInput.from_path(_Path(path_or_url))
         folder = ingest(inp, cfg=cfg)
+        compile_center(cfg)
+        reindex(cfg)
     except IngestError as exc:
         return {"ok": False, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"ingest_failed: {exc}"}
     return {"ok": True, "source_id": folder.root.name, "folder": str(folder.root)}
 
 
@@ -165,6 +184,8 @@ def sb_promote_claim(args: dict[str, Any]) -> dict[str, Any]:
     from io import StringIO
 
     from ruamel.yaml import YAML
+    from second_brain.reindex import reindex
+    from second_brain.research.compiler import compile_center
     from second_brain.schema.claim import ClaimConfidence, ClaimFrontmatter, ClaimKind
 
     statement = str(args.get("statement", "")).strip()
@@ -221,6 +242,8 @@ def sb_promote_claim(args: dict[str, Any]) -> dict[str, Any]:
     if taxonomy:
         body_lines.extend([f"> taxonomy: `{taxonomy}`", ""])
     path.write_text("\n".join(body_lines), encoding="utf-8")
+    compile_center(cfg)
+    reindex(cfg)
 
     return {
         "ok": True,

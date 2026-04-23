@@ -203,8 +203,9 @@ def test_sb_search_uses_make_retriever_factory(monkeypatch, tmp_path):
 
     captured: dict = {}
 
-    # Spy on make_retriever by monkeypatching the symbol the handler imports.
+    # Spy on the factory used by the broker layer.
     from second_brain.index import retriever as retriever_mod
+    from second_brain.research import broker as broker_mod
 
     real_factory = retriever_mod.make_retriever
 
@@ -214,6 +215,7 @@ def test_sb_search_uses_make_retriever_factory(monkeypatch, tmp_path):
         return r
 
     monkeypatch.setattr(retriever_mod, "make_retriever", spy)
+    monkeypatch.setattr(broker_mod, "make_retriever", spy)
 
     # Patch the embedder factory so we don't try to load sentence-transformers.
     from second_brain.index import vector_retriever as vr
@@ -247,6 +249,7 @@ def test_sb_search_falls_back_to_bm25_when_no_vectors(monkeypatch, tmp_path):
 
     captured: dict = {}
     from second_brain.index import retriever as retriever_mod
+    from second_brain.research import broker as broker_mod
 
     real_factory = retriever_mod.make_retriever
 
@@ -256,6 +259,7 @@ def test_sb_search_falls_back_to_bm25_when_no_vectors(monkeypatch, tmp_path):
         return r
 
     monkeypatch.setattr(retriever_mod, "make_retriever", spy)
+    monkeypatch.setattr(broker_mod, "make_retriever", spy)
 
     res = sb_tools.sb_search({"query": "attention", "k": 3, "scope": "claims"})
     assert res["ok"] is True

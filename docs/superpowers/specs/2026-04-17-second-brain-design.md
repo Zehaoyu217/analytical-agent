@@ -1,5 +1,10 @@
 # Second Brain — design spec
 
+> Historical note (2026-04-22): This spec was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 **Date:** 2026-04-17
 **Status:** Draft (awaiting implementation plan)
 **Scope:** Standalone side-project that produces a curated, graph-backed knowledge base which claude-code-agent consumes via a skill, a small tool set, and a prompt-time injection hook.

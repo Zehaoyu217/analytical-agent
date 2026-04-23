@@ -1,5 +1,10 @@
 # Second Brain — Retrieval + Claim Extraction Implementation Plan
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** On top of the foundation plan, add (1) the DuckPGQ property graph view, (2) a `Retriever` protocol + `BM25Retriever` with graph-neighbor enrichment, (3) `sb_search` / `sb_load` / `sb_reason` CLI commands and Python tool surfaces, and (4) the Opus-powered claim extractor that writes `claims/*.md`.

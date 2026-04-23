@@ -49,12 +49,12 @@ make test-backend     # Backend only (pytest)
 make test-frontend    # Frontend only (vitest)
 ```
 
-## Ollama Setup
+## MLX Local Model Setup
 
 ```bash
-# Install Ollama: https://ollama.ai
-ollama pull qwen3.5:9b
-source infra/ollama/start.sh
+cd backend
+uv sync --extra mlx
+uv run --extra mlx python scripts/preload_mlx_models.py --smoke
 ```
 
 ---

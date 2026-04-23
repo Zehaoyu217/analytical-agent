@@ -109,7 +109,11 @@ class PapersModule:
     def _search_semantic_scholar(self, query: str) -> list[_RawPaper]:
         resp = httpx.get(
             f"{_S2_API}/paper/search",
-            params={"query": query, "fields": "title,year,citationCount,abstract,externalIds", "limit": 10},
+            params={
+                "query": query,
+                "fields": "title,year,citationCount,abstract,externalIds",
+                "limit": 10,
+            },
             headers=self._s2_headers,
             timeout=_S2_TIMEOUT,
         )

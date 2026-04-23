@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from app.harness.research.modules.papers import PapersModule, _RawPaper, _estimate_tokens, _recency_query
+from app.harness.research.modules.papers import (
+    PapersModule,
+    _estimate_tokens,
+    _RawPaper,
+    _recency_query,
+)
 
 
 def test_estimate_tokens():

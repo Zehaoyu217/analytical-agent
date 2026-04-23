@@ -1,0 +1,4 @@
+actions:
+  - action: re_abstract_batch
+    claim_ids: [clm_stale1, clm_stale2]
+    taxonomy: papers/ml/*

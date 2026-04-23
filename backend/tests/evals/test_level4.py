@@ -1,6 +1,6 @@
 """Level 4: Free Exploration for Insights.
 
-Requires Ollama running locally for LLM-judged dimensions.
+Requires the local MLX judge model for LLM-judged dimensions.
 Run: cd backend && python -m pytest tests/evals/test_level4.py -v -s
 """
 

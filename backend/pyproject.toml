@@ -37,9 +37,15 @@ dev = [
     "ruff>=0.9.0",
     "mypy>=1.14.0",
 ]
-second-brain = [
-    "second-brain @ file:///Users/jay/Developer/second-brain",
+mlx = [
+    "mlx-lm>=0.31,<0.32; platform_system == 'Darwin' and platform_machine == 'arm64'",
 ]
+second-brain = [
+    "second-brain[mlx]",
+]
+
+[tool.uv.sources]
+second-brain = { path = "../components/second-brain", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "app/skills", "scripts"]

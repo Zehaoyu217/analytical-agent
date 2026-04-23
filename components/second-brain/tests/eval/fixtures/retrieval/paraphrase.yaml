@@ -1,0 +1,17 @@
+claims:
+  - id: clm_transformer_attention
+    statement: Self-attention computes weighted sum over all token positions.
+    taxonomy: papers/ml/transformers
+  - id: clm_transformer_layernorm
+    statement: Layer normalization stabilizes gradients in deep transformers.
+    taxonomy: papers/ml/transformers
+  - id: clm_rnn_gradient_vanishing
+    statement: Recurrent nets suffer vanishing gradients over long sequences.
+    taxonomy: papers/ml/rnn
+queries:
+  - query: dot product mixing of token representations
+    expected_ids: [clm_transformer_attention]
+    min_ndcg: 0.5
+  - query: normalization trick to keep deep stacks trainable
+    expected_ids: [clm_transformer_layernorm]
+    min_ndcg: 0.5

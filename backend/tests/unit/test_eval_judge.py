@@ -9,9 +9,9 @@ from app.evals.types import AgentTrace
 
 def test_judge_config_defaults() -> None:
     config = JudgeConfig()
-    assert config.model == "gemma4:e2b"
-    assert config.base_url == "http://localhost:11434"
+    assert config.model == "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit"
     assert config.temperature == 0.0
+    assert config.max_tokens == 256
 
 
 def test_judge_build_prompt() -> None:
@@ -75,7 +75,7 @@ async def test_judge_grade_dimension_with_mocked_call(monkeypatch: pytest.Monkey
     async def fake_call(self: LLMJudge, prompt: str) -> str:
         return "GRADE: B — Good work"
 
-    monkeypatch.setattr(LLMJudge, "_call_ollama", fake_call)
+    monkeypatch.setattr(LLMJudge, "_call_local_model", fake_call)
 
     rubric = DimensionRubric(
         weight=0.3,

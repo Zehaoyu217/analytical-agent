@@ -1,5 +1,10 @@
 # Second Brain — habits + inject + reconcile + claude-code-agent bridge
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the second-brain KB usable from inside claude-code-agent by landing the habits layer, the `sb inject` prompt-prefix hook, the `sb reconcile` contradiction resolver, and the three-artifact bridge (skill + tool registrations + settings hook) described in design spec §8.4, §10, §7.4, and §12.

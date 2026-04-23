@@ -1,0 +1,14 @@
+graph:
+  nodes:
+    - {id: clm_a, kind: claim}
+    - {id: clm_b, kind: claim}
+    - {id: clm_c, kind: claim}
+    - {id: clm_d, kind: claim}
+  edges:
+    - {src: clm_a, dst: clm_b, relation: supports}
+    - {src: clm_b, dst: clm_c, relation: supports}
+    - {src: clm_c, dst: clm_d, relation: refines}
+    - {src: clm_a, dst: clm_c, relation: refines}
+queries:
+  - {start: clm_a, relation: supports, depth: 2, expected: [clm_b, clm_c]}
+  - {start: clm_a, relation: refines, depth: 1, expected: [clm_c]}

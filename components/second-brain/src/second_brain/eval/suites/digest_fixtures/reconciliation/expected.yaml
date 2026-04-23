@@ -1,0 +1,11 @@
+actions:
+  # Contradictions sort before low_conf in _collect_candidates().
+  - action: resolve_contradiction
+    left_id: clm_recon_contra_a
+    right_id: clm_recon_contra_b
+    rationale: "left side is better-evidenced; mark right as refuted"
+  - action: upgrade_confidence
+    claim_id: clm_recon_stale
+    from: low
+    to: medium
+    rationale: "two independent sources now corroborate"

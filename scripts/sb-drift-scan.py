@@ -39,7 +39,7 @@ def _resolve_cfg(
 ) -> _Cfg:
     if claims_dir and wiki_dir:
         return _Cfg(claims_dir=claims_dir, wiki_dir=wiki_dir)
-    # Try the sibling second-brain config.
+    # Try the active second-brain package config first.
     sb_claims: Path | None = None
     try:
         from second_brain.config import Config  # type: ignore

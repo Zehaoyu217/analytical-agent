@@ -12,6 +12,7 @@ Analytical Agent — a full-stack analytical platform for MLE, data scientists, 
 |-----------|------|---------|
 | `backend/` | Python/FastAPI backend (agent, skills, sandbox, API) | Yes |
 | `frontend/` | React+Vite analytical UI + devtools | Yes |
+| `components/` | Nested standalone subsystems (including `second-brain/`) | Yes |
 | `mcp/` | MCP explorer server | Yes |
 | `infra/` | Docker, Helm, Grafana, Ollama | Yes |
 | `knowledge/` | Wiki, graphify graphs, ADRs | Yes |
@@ -113,6 +114,7 @@ Read [knowledge/wiki/working.md](knowledge/wiki/working.md) for what's in progre
 - Statistical gotchas index: [knowledge/gotchas/INDEX.md](knowledge/gotchas/INDEX.md)
 - Wiki index: [knowledge/wiki/index.md](knowledge/wiki/index.md)
 - Project overview: [README.md](README.md)
+- Nested knowledge engine: [components/second-brain/README.md](components/second-brain/README.md)
 
 ## Design Context
 

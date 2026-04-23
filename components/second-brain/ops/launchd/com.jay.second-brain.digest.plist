@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jay.second-brain.digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__REPO_ROOT__/.venv/bin/sb</string>
+        <string>maintain</string>
+        <string>--digest</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SECOND_BRAIN_HOME__</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jay/second-brain/digests/.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/jay/second-brain/digests/.launchd.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

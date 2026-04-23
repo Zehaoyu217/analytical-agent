@@ -1,5 +1,10 @@
 # Second Brain — Converters + Lint Implementation Plan
 
+> Historical note (2026-04-22): This plan was written when `second-brain` lived
+> at `~/Developer/second-brain/`. The active codebase has since been moved into
+> `claude-code-agent/components/second-brain`. Path references in this document
+> are historical unless explicitly updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the remaining v1 ingest converters (URL, repo, DOCX, EPUB) and land the lint subsystem (rule set, runner, `sb lint`, `conflicts.md` renderer).
