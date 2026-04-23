@@ -65,7 +65,9 @@ def test_execute_clamps_budget_over_1m():
 def test_execute_returns_research_result():
     tool = _tool_with_mocks()
     tool._synthesis_agent.synthesise.return_value = _make_result("calibration summary")
-    result = tool.execute(query="calibration", context="", sources=["papers"], budget_tokens=150_000)
+    result = tool.execute(
+        query="calibration", context="", sources=["papers"], budget_tokens=150_000,
+    )
     assert result.summary == "calibration summary"
 
 

@@ -37,14 +37,20 @@ def test_run_deduplicates_repos():
     """Three repos, two files from a/repo — should yield one example per repo (3 total)."""
     module = CodeModule()
     mixed_items = [
-        {"url": "https://github.com/a/repo/blob/main/f1.py", "repo": "a/repo", "file_path": "f1.py", "stars": None},
-        {"url": "https://github.com/a/repo/blob/main/f2.py", "repo": "a/repo", "file_path": "f2.py", "stars": None},
-        {"url": "https://github.com/b/repo/blob/main/g.py",  "repo": "b/repo", "file_path": "g.py",  "stars": None},
-        {"url": "https://github.com/c/repo/blob/main/h.py",  "repo": "c/repo", "file_path": "h.py",  "stars": None},
+        {"url": "https://github.com/a/repo/blob/main/f1.py",
+         "repo": "a/repo", "file_path": "f1.py", "stars": None},
+        {"url": "https://github.com/a/repo/blob/main/f2.py",
+         "repo": "a/repo", "file_path": "f2.py", "stars": None},
+        {"url": "https://github.com/b/repo/blob/main/g.py",
+         "repo": "b/repo", "file_path": "g.py", "stars": None},
+        {"url": "https://github.com/c/repo/blob/main/h.py",
+         "repo": "c/repo", "file_path": "h.py", "stars": None},
     ]
-    with patch.object(module, "_gh_search", return_value=mixed_items):
-        with patch.object(module, "_read_file_snippet", return_value="code snippet"):
-            result = module.run("test", budget_tokens=30_000)
+    with (
+        patch.object(module, "_gh_search", return_value=mixed_items),
+        patch.object(module, "_read_file_snippet", return_value="code snippet"),
+    ):
+        result = module.run("test", budget_tokens=30_000)
     repos = {ex.repo for ex in result.examples}
     assert repos == {"a/repo", "b/repo", "c/repo"}
     assert len(result.examples) == 3
@@ -55,7 +61,6 @@ def test_result_examples_are_tuples():
     with patch.object(module, "_gh_search", return_value=[
         {"url": "https://github.com/a/b/blob/main/f.py",
          "repo": "a/b", "file_path": "f.py", "stars": None}
-    ]):
-        with patch.object(module, "_read_file_snippet", return_value="x = 1"):
-            result = module.run("test", budget_tokens=30_000)
+    ]), patch.object(module, "_read_file_snippet", return_value="x = 1"):
+        result = module.run("test", budget_tokens=30_000)
     assert isinstance(result.examples, tuple)

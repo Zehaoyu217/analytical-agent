@@ -22,10 +22,12 @@ def test_recency_query_detected():
 
 def test_run_returns_empty_on_all_failures():
     module = PapersModule()
-    with patch.object(module, "_search_hf_papers", return_value=[]):
-        with patch.object(module, "_search_semantic_scholar", return_value=[]):
-            with patch.object(module, "_search_arxiv", return_value=[]):
-                result = module.run("calibration", budget_tokens=10_000)
+    with (
+        patch.object(module, "_search_hf_papers", return_value=[]),
+        patch.object(module, "_search_semantic_scholar", return_value=[]),
+        patch.object(module, "_search_arxiv", return_value=[]),
+    ):
+        result = module.run("calibration", budget_tokens=10_000)
     assert result.papers == ()
     assert result.crawl_depth == 0
 
@@ -40,10 +42,12 @@ def test_run_uses_hf_papers_for_recent_query():
         abstract="Great paper about calibration",
         source="hf_papers",
     )
-    with patch.object(module, "_search_hf_papers", return_value=[mock_paper]) as mock_hf:
-        with patch.object(module, "_search_semantic_scholar", return_value=[]):
-            with patch.object(module, "_citation_graph", return_value=[]):
-                result = module.run("recent calibration 2025", budget_tokens=50_000)
+    with (
+        patch.object(module, "_search_hf_papers", return_value=[mock_paper]) as mock_hf,
+        patch.object(module, "_search_semantic_scholar", return_value=[]),
+        patch.object(module, "_citation_graph", return_value=[]),
+    ):
+        result = module.run("recent calibration 2025", budget_tokens=50_000)
     mock_hf.assert_called_once()
     assert len(result.papers) >= 1
 
@@ -56,10 +60,12 @@ def test_run_respects_tiny_budget():
 
 def test_s2_rate_limit_falls_back_to_arxiv():
     module = PapersModule()
-    with patch.object(module, "_search_hf_papers", return_value=[]):
-        with patch.object(module, "_search_semantic_scholar", side_effect=Exception("429")):
-            with patch.object(module, "_search_arxiv", return_value=[]) as mock_arxiv:
-                result = module.run("calibration sigmoid", budget_tokens=50_000)
+    with (
+        patch.object(module, "_search_hf_papers", return_value=[]),
+        patch.object(module, "_search_semantic_scholar", side_effect=Exception("429")),
+        patch.object(module, "_search_arxiv", return_value=[]) as mock_arxiv,
+    ):
+        result = module.run("calibration sigmoid", budget_tokens=50_000)
     mock_arxiv.assert_called_once()
     assert isinstance(result.papers, tuple)
 
@@ -74,12 +80,14 @@ def test_citation_graph_sets_crawl_depth():
         title="Downstream", arxiv_id="2001.11111", year=2020,
         citation_count=10, abstract="Builds on temperature scaling", source="semantic_scholar",
     )
-    with patch.object(module, "_search_hf_papers", return_value=[]):
-        with patch.object(module, "_search_semantic_scholar", return_value=[anchor]):
-            with patch.object(module, "_citation_graph", return_value=[
-                module._raw_to_finding(downstream)
-            ]) as mock_graph:
-                result = module.run("calibration", budget_tokens=100_000)
+    with (
+        patch.object(module, "_search_hf_papers", return_value=[]),
+        patch.object(module, "_search_semantic_scholar", return_value=[anchor]),
+        patch.object(module, "_citation_graph", return_value=[
+            module._raw_to_finding(downstream)
+        ]) as mock_graph,
+    ):
+        result = module.run("calibration", budget_tokens=100_000)
     mock_graph.assert_called_once_with("1706.04599", mock_graph.call_args[0][1])
     assert result.crawl_depth == 1
     assert len(result.papers) == 2
@@ -91,9 +99,11 @@ def test_recency_query_falls_back_to_s2_when_hf_empty():
         title="S2 Result", arxiv_id="2301.00001", year=2023,
         citation_count=20, abstract="Found via S2 fallback", source="semantic_scholar",
     )
-    with patch.object(module, "_search_hf_papers", return_value=[]):
-        with patch.object(module, "_search_semantic_scholar", return_value=[s2_paper]):
-            with patch.object(module, "_citation_graph", return_value=[]):
-                result = module.run("recent calibration 2025", budget_tokens=50_000)
+    with (
+        patch.object(module, "_search_hf_papers", return_value=[]),
+        patch.object(module, "_search_semantic_scholar", return_value=[s2_paper]),
+        patch.object(module, "_citation_graph", return_value=[]),
+    ):
+        result = module.run("recent calibration 2025", budget_tokens=50_000)
     assert len(result.papers) == 1
     assert result.papers[0].title == "S2 Result"

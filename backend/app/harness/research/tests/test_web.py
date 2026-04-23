@@ -13,7 +13,10 @@ def test_strip_html_removes_tags():
 
 
 def test_strip_html_removes_script_and_style():
-    html = "<html><head><style>body{color:red}</style></head><body><script>alert(1)</script><p>content</p></body></html>"
+    html = (
+        "<html><head><style>body{color:red}</style></head>"
+        "<body><script>alert(1)</script><p>content</p></body></html>"
+    )
     result = _strip_html(html)
     assert "color:red" not in result
     assert "alert" not in result
@@ -37,7 +40,10 @@ def test_run_skips_on_tiny_budget():
 
 def test_run_fetches_and_strips():
     module = WebModule()
-    fake_html = "<html><head><title>Test Page</title></head><body><p>Important content here.</p></body></html>"
+    fake_html = (
+        "<html><head><title>Test Page</title></head>"
+        "<body><p>Important content here.</p></body></html>"
+    )
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.text = fake_html
