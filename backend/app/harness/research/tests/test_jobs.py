@@ -66,3 +66,11 @@ def test_ttl_expiry():
     time.sleep(0.01)
     snap = reg.get(job_id)
     assert snap["status"] == "not_found"
+
+
+def test_running_job_not_expired_by_ttl():
+    reg = JobRegistry(ttl_seconds=0)
+    job_id = reg.create(query="live", sources=["papers"], estimated_seconds=10)
+    time.sleep(0.01)
+    snap = reg.get(job_id)
+    assert snap["status"] == "running"
