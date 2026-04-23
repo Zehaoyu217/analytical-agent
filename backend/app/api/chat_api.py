@@ -999,6 +999,7 @@ def _agent_loop_sync(
     session_bootstrap: str,
     max_steps: int = _DEFAULT_MAX_STEPS,
     plan_mode: bool = False,
+    extended_thinking: bool = False,
 ) -> tuple[str, list[dict[str, Any]], dict[str, int]]:
     """Run the wired AgentLoop synchronously and return (text, charts, usage)."""
     charts: list[dict[str, Any]] = []
@@ -1034,6 +1035,7 @@ def _agent_loop_sync(
             dataset_loaded=bool(session_bootstrap),
             max_steps=max_steps,
             tools=tools,
+            reasoning_effort="high" if extended_thinking else None,
         )
         final_text = outcome.final_text
         # AgentLoop doesn't surface usage today — derive a rough estimate.
@@ -1055,6 +1057,7 @@ def _stream_agent_loop(
     session_bootstrap: str,
     max_steps: int = _DEFAULT_MAX_STEPS,
     plan_mode: bool = False,
+    extended_thinking: bool = False,
 ) -> Generator[str, None, None]:
     """Yield SSE lines for one chat turn through the full harness.
 
@@ -1172,6 +1175,7 @@ def _stream_agent_loop(
                 session_id=session_id,
                 max_steps=max_steps,
                 tools=tools,
+                reasoning_effort="high" if extended_thinking else None,
             ):
                 if event.type == "scratchpad_delta":
                     captured_state.scratchpad = str(event.payload.get("content", ""))
@@ -1364,6 +1368,15 @@ class ChatRequest(BaseModel):
             "and wait for user approval before acting."
         ),
     )
+    extended_thinking: bool = Field(
+        default=False,
+        description=(
+            "When true and the routed model supports OpenRouter's reasoning "
+            "parameter (e.g. GPT-OSS 120B), the request is made with "
+            "reasoning.effort=high. Ignored silently for models that don't "
+            "support the parameter."
+        ),
+    )
 
 
 class ChatResponse(BaseModel):
@@ -1407,6 +1420,7 @@ def chat_endpoint(payload: ChatRequest) -> ChatResponse:
                 session_id=trace_id,
                 session_bootstrap=session_bootstrap,
                 plan_mode=payload.plan_mode,
+                extended_thinking=payload.extended_thinking,
             )
         except Exception as exc:
             logger.error("agent loop failed for model %s: %s", model_id, exc, exc_info=True)
@@ -1479,6 +1493,7 @@ def chat_stream_endpoint(payload: ChatRequest) -> StreamingResponse:
                 session_id=trace_id,
                 session_bootstrap=session_bootstrap,
                 plan_mode=payload.plan_mode,
+                extended_thinking=payload.extended_thinking,
             ):
                 # Best-effort: capture final_text from the turn_end SSE event
                 # so we can publish an llm_call record for the Prompt tab.

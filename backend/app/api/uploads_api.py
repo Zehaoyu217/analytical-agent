@@ -38,7 +38,10 @@ router = APIRouter(prefix="/api/conversations", tags=["uploads"])
 
 _MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB
 _TABLE_NAME_RE = re.compile(r"[^a-zA-Z0-9_]+")
-_VALID_SUFFIXES = frozenset({".csv", ".parquet", ".json", ".jsonl", ".ndjson"})
+_VALID_SUFFIXES = frozenset(
+    {".csv", ".parquet", ".json", ".jsonl", ".ndjson", ".xlsx", ".xls"},
+)
+_EXCEL_SUFFIXES = frozenset({".xlsx", ".xls"})
 
 
 def _user_data_root() -> Path:
@@ -98,7 +101,7 @@ async def upload_dataset(
             status_code=400,
             detail=(
                 f"unsupported file type '{suffix}'. "
-                "Use .csv, .parquet, .json, .jsonl, or .ndjson."
+                "Use .csv, .parquet, .json, .jsonl, .ndjson, .xlsx, or .xls."
             ),
         )
 
@@ -126,10 +129,27 @@ async def upload_dataset(
             con = duckdb.connect(str(db_path))
             try:
                 table_name = _ensure_unique_table(con, base_table)
-                expr = _read_expr(suffix, tmp_path)
                 try:
-                    con.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM {expr}')
-                except duckdb.Error as exc:
+                    if suffix in _EXCEL_SUFFIXES:
+                        # DuckDB has no first-party Excel reader; go via pandas.
+                        # Only the first sheet is ingested; users wanting a
+                        # specific sheet should pre-export to CSV.
+                        import pandas as pd  # noqa: PLC0415
+                        df = pd.read_excel(tmp_path)
+                        con.register("_ccagent_upload_tmp", df)
+                        try:
+                            con.execute(
+                                f'CREATE TABLE "{table_name}" AS '
+                                'SELECT * FROM _ccagent_upload_tmp'
+                            )
+                        finally:
+                            con.unregister("_ccagent_upload_tmp")
+                    else:
+                        expr = _read_expr(suffix, tmp_path)
+                        con.execute(
+                            f'CREATE TABLE "{table_name}" AS SELECT * FROM {expr}'
+                        )
+                except (duckdb.Error, ValueError, ImportError) as exc:
                     raise HTTPException(
                         status_code=400,
                         detail=f"failed to ingest file: {exc}",

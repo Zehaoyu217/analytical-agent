@@ -83,6 +83,10 @@ class OpenRouterClient:
         }
         if request.temperature is not None:
             payload["temperature"] = request.temperature
+        if request.reasoning_effort:
+            # OpenRouter's reasoning API. Models that don't support it will
+            # return 4xx which the outer retry logic drops the param on.
+            payload["reasoning"] = {"effort": request.reasoning_effort}
         if request.tools:
             payload["tools"] = [
                 {
@@ -109,14 +113,19 @@ class OpenRouterClient:
                 model=self.profile.model_id,
                 detail=resp.text[:500],
             )
-        # Some models reject tool_choice="required" with a 4xx error.
-        # Retry once without it so the loop keeps running.
-        if resp.status_code in (400, 422) and "tool_choice" in payload:
+        # Some models reject tool_choice="required" or the reasoning param
+        # with a 4xx. Retry once without the rejected params so the loop
+        # keeps running instead of breaking the turn.
+        if resp.status_code in (400, 422) and (
+            "tool_choice" in payload or "reasoning" in payload
+        ):
             logger.debug(
-                "openrouter %s rejected tool_choice (%s); retrying without it",
+                "openrouter %s rejected param set (%s); retrying without "
+                "reasoning + tool_choice",
                 self.profile.model_id, resp.status_code,
             )
             payload.pop("tool_choice", None)
+            payload.pop("reasoning", None)
             resp = self._http.post(url, json=payload, headers=self._headers())
         if resp.status_code == 429:
             raise RateLimitError(

@@ -11,7 +11,6 @@ from app.api.chat_api import router as chat_router
 from app.api.config_api import router as config_router
 from app.api.context_api import router as context_router
 from app.api.conversations_api import router as conversations_router
-from app.api.uploads_api import router as uploads_router
 from app.api.data_status_api import router as data_status_router
 from app.api.datasets_api import router as datasets_router
 from app.api.files_api import router as files_router
@@ -29,10 +28,11 @@ from app.api.settings_api import router as settings_router
 from app.api.skills_api import router as skills_router
 from app.api.skills_telemetry_api import router as skills_telemetry_router
 from app.api.slash_api import router as slash_router
-from app.api.wiki_api import router as wiki_router
 from app.api.sop_api import router as sop_router
 from app.api.todos_api import router as todos_router
 from app.api.trace_api import router as trace_router
+from app.api.uploads_api import router as uploads_router
+from app.api.wiki_api import router as wiki_router
 
 
 @asynccontextmanager

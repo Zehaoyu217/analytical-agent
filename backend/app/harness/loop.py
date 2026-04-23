@@ -413,6 +413,7 @@ class AgentLoop:
         max_steps: int = 12,
         scratchpad: str = "",
         tools: tuple[ToolSchema, ...] = (),
+        reasoning_effort: str | None = None,
     ) -> LoopOutcome:
         state = TurnState(dataset_loaded=dataset_loaded, scratchpad=scratchpad)
         messages: list[Message] = [Message(role="user", content=user_message)]
@@ -449,6 +450,7 @@ class AgentLoop:
                 system=req_system, messages=tuple(req_messages),
                 tools=req_tools, max_tokens=4096,
                 tool_choice=req_tool_choice,
+                reasoning_effort=reasoning_effort,
             ))
             final_text = resp.text
 
@@ -514,6 +516,7 @@ class AgentLoop:
         max_steps: int = 12,
         scratchpad: str = "",
         tools: tuple[ToolSchema, ...] = (),
+        reasoning_effort: str | None = None,
     ) -> Generator[StreamEvent, None, None]:
         """Run the agent loop, yielding a StreamEvent for each notable moment.
 
@@ -591,6 +594,7 @@ class AgentLoop:
                 system=req_system, messages=tuple(req_messages),
                 tools=req_tools, max_tokens=4096,
                 tool_choice=req_tool_choice,
+                reasoning_effort=reasoning_effort,
             ))
             _llm_ms = int((time.monotonic() - _llm_start) * 1000)
             final_text = resp.text

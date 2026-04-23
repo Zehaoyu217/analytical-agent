@@ -54,6 +54,11 @@ class CompletionRequest:
     temperature: float | None = None
     thinking_budget: int | None = None
     tool_choice: str | None = None  # "required", "auto", "none", or None (provider default)
+    # OpenRouter reasoning effort ("low" | "medium" | "high"). Only honored by
+    # models whose ``supported_parameters`` advertise ``reasoning`` (e.g.
+    # openai/gpt-oss-120b). Ignored by MLX and by models without native
+    # reasoning support.
+    reasoning_effort: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

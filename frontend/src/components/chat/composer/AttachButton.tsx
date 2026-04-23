@@ -3,7 +3,7 @@ import { Loader2, Paperclip } from 'lucide-react'
 import { useChatStore } from '@/lib/store'
 
 const ICON_BTN = 'flex h-7 w-7 items-center justify-center rounded-md transition-colors'
-const ACCEPTED = '.csv,.parquet,.json,.jsonl,.ndjson'
+const ACCEPTED = '.csv,.parquet,.json,.jsonl,.ndjson,.xlsx,.xls'
 
 interface AttachButtonProps {
   conversationId: string
@@ -46,7 +46,7 @@ export function AttachButton({ conversationId }: AttachButtonProps) {
       />
       <button
         type="button"
-        title={error ? `Last upload failed: ${error}` : 'Upload dataset (CSV, Parquet, JSON)'}
+        title={error ? `Last upload failed: ${error}` : 'Upload dataset (CSV, XLSX, Parquet, JSON)'}
         aria-label="Upload dataset"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
