@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaperFinding:
     title: str
     key_finding: str          # one sentence: result + recipe
-    source: str               # "hf_papers" | "semantic_scholar" | "arxiv"
+    source: Literal["hf_papers", "semantic_scholar", "arxiv"]
     arxiv_id: str | None = None
     year: int | None = None
     citation_count: int | None = None
-    section_excerpts: list[str] = field(default_factory=list)
+    section_excerpts: tuple[str, ...] = field(default_factory=tuple)
 
 
-@dataclass
+@dataclass(frozen=True)
 class PapersResult:
-    papers: list[PaperFinding] = field(default_factory=list)
+    papers: tuple[PaperFinding, ...] = field(default_factory=tuple)
     crawl_depth: int = 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class CodeExample:
     url: str
     repo: str
@@ -30,40 +31,40 @@ class CodeExample:
     stars: int | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class CodeResult:
-    examples: list[CodeExample] = field(default_factory=list)
+    examples: tuple[CodeExample, ...] = field(default_factory=tuple)
 
 
-@dataclass
+@dataclass(frozen=True)
 class WebPage:
     url: str
     title: str
     summary: str              # ≤300 chars
 
 
-@dataclass
+@dataclass(frozen=True)
 class WebResult:
-    pages: list[WebPage] = field(default_factory=list)
+    pages: tuple[WebPage, ...] = field(default_factory=tuple)
 
 
-@dataclass
+@dataclass(frozen=True)
 class RoutePlan:
-    modules: list[str]
+    modules: tuple[str, ...]
     sub_queries: dict[str, str]
     budgets: dict[str, int]
     parallel_ok: bool
     rationale: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResearchResult:
     summary: str
-    papers: list[PaperFinding]
-    code_examples: list[CodeExample]
-    web_refs: list[WebPage]
-    follow_up_questions: list[str]
-    modules_ran: list[str]
+    papers: tuple[PaperFinding, ...]
+    code_examples: tuple[CodeExample, ...]
+    web_refs: tuple[WebPage, ...]
+    follow_up_questions: tuple[str, ...]
+    modules_ran: tuple[str, ...]
     total_ms: int
     budget_tokens_used: int
     budget_warning: str | None = None
