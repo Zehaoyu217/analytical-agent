@@ -181,6 +181,11 @@ interface ChatState {
   duplicateConversation: (id: string) => Promise<string>
   renameConversation: (id: string, title: string) => Promise<void>
   deleteConversationRemote: (id: string) => Promise<void>
+  bulkDeleteConversations: (options: {
+    olderThanMs?: number
+    includePinned?: boolean
+    includeFrozen?: boolean
+  }) => Promise<{ deletedCount: number; preservedCount: number }>
   toggleSidebar: () => void
   setSidebarWidth: (w: number) => void
   setSidebarTab: (t: SidebarTab) => void
@@ -548,6 +553,42 @@ export const useChatStore = create<ChatState>()(
               state.activeConversationId === id ? null : state.activeConversationId,
           }
         })
+      },
+
+      bulkDeleteConversations: async ({
+        olderThanMs,
+        includePinned = false,
+        includeFrozen = false,
+      }) => {
+        // Backend timestamps are unix seconds (float); convert from JS ms.
+        const payload: {
+          older_than?: number
+          include_pinned?: boolean
+          include_frozen?: boolean
+        } = { include_pinned: includePinned, include_frozen: includeFrozen }
+        if (typeof olderThanMs === 'number') {
+          payload.older_than = olderThanMs / 1000
+        }
+        const result = await backend.conversations.bulkDelete(payload)
+        const deletedSet = new Set(result.deleted_ids)
+        set((state) => {
+          const remaining = state.conversations.filter(
+            (c) => !deletedSet.has(c.id),
+          )
+          const activeStillPresent =
+            state.activeConversationId !== null &&
+            !deletedSet.has(state.activeConversationId)
+          return {
+            conversations: remaining,
+            activeConversationId: activeStillPresent
+              ? state.activeConversationId
+              : null,
+          }
+        })
+        return {
+          deletedCount: result.deleted_ids.length,
+          preservedCount: result.preserved_count,
+        }
       },
 
       duplicateConversation: async (id) => {

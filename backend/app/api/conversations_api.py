@@ -97,6 +97,32 @@ class ConversationPatch(BaseModel):
     frozen_at: float | None = None
 
 
+class BulkDeleteRequest(BaseModel):
+    """Deletion selector for POST /bulk-delete.
+
+    - ``older_than``: unix timestamp; only conversations with
+      ``updated_at < older_than`` are eligible. ``None`` means no age filter
+      (the whole list is eligible).
+    - ``include_pinned``: when False (default) pinned conversations are kept
+      even if they match the age filter.
+    - ``include_frozen``: when False (default) frozen/checkpoint conversations
+      are kept even if they match the age filter.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    older_than: float | None = None
+    include_pinned: bool = False
+    include_frozen: bool = False
+
+
+class BulkDeleteResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    deleted_ids: list[str]
+    preserved_count: int
+
+
 def _data_dir() -> Path:
     return Path(os.environ.get("DATA_DIR", "data"))
 
@@ -218,6 +244,49 @@ def patch_conversation(conv_id: str, payload: ConversationPatch) -> Conversation
         updated = conv.model_copy(update=update)
         write_json_atomic(_conv_path(conv_id), updated)
         return updated
+
+
+@router.post("/bulk-delete")
+def bulk_delete_conversations(payload: BulkDeleteRequest) -> BulkDeleteResponse:
+    """Delete conversations matching the selector.
+
+    Pinned and frozen conversations are preserved by default — set
+    ``include_pinned`` or ``include_frozen`` to True to include them.
+    Deletions are best-effort: a failure on one file does not abort the batch.
+    """
+    conv_dir = _conversations_dir()
+    if not conv_dir.exists():
+        return BulkDeleteResponse(deleted_ids=[], preserved_count=0)
+
+    deleted: list[str] = []
+    preserved = 0
+    for path in conv_dir.glob("*.json"):
+        try:
+            conv = read_json(path, Conversation)
+        except JsonStoreError:
+            # Skip corrupt files — they'll still be listed in GET until cleaned.
+            preserved += 1
+            continue
+        if payload.older_than is not None and conv.updated_at >= payload.older_than:
+            preserved += 1
+            continue
+        if conv.pinned and not payload.include_pinned:
+            preserved += 1
+            continue
+        if conv.frozen_at is not None and not payload.include_frozen:
+            preserved += 1
+            continue
+        with _conv_lock(conv.id):
+            try:
+                path.unlink()
+            except OSError:
+                preserved += 1
+                continue
+            with _LOCK_REGISTRY_GUARD:
+                _CONV_LOCKS.pop(conv.id, None)
+        deleted.append(conv.id)
+
+    return BulkDeleteResponse(deleted_ids=deleted, preserved_count=preserved)
 
 
 @router.delete("/{conv_id}")

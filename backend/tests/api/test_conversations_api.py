@@ -224,3 +224,98 @@ def test_concurrent_turn_appends_do_not_lose_writes(client: TestClient) -> None:
     contents = sorted(t["content"] for t in final["turns"])
     assert len(final["turns"]) == n
     assert contents == sorted(f"msg-{i}" for i in range(n))
+
+
+# ── Bulk delete ──────────────────────────────────────────────────────────────
+
+
+def _create_conv(client: TestClient, title: str) -> dict:
+    r = client.post("/api/conversations", json={"title": title})
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_bulk_delete_no_filter_wipes_all_unprotected(client: TestClient) -> None:
+    a = _create_conv(client, "a")
+    b = _create_conv(client, "b")
+    c = _create_conv(client, "c")
+
+    r = client.post("/api/conversations/bulk-delete", json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body["deleted_ids"]) == {a["id"], b["id"], c["id"]}
+    assert body["preserved_count"] == 0
+
+    remaining = client.get("/api/conversations").json()
+    assert remaining == []
+
+
+def test_bulk_delete_preserves_pinned_by_default(client: TestClient) -> None:
+    keep = _create_conv(client, "keep")
+    drop = _create_conv(client, "drop")
+    client.patch(f"/api/conversations/{keep['id']}", json={"pinned": True})
+
+    r = client.post("/api/conversations/bulk-delete", json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted_ids"] == [drop["id"]]
+    assert body["preserved_count"] == 1
+
+    remaining = {c["id"] for c in client.get("/api/conversations").json()}
+    assert remaining == {keep["id"]}
+
+
+def test_bulk_delete_include_pinned_removes_pinned(client: TestClient) -> None:
+    conv = _create_conv(client, "pinned")
+    client.patch(f"/api/conversations/{conv['id']}", json={"pinned": True})
+
+    r = client.post(
+        "/api/conversations/bulk-delete",
+        json={"include_pinned": True},
+    )
+    assert r.status_code == 200
+    assert r.json()["deleted_ids"] == [conv["id"]]
+    assert client.get("/api/conversations").json() == []
+
+
+def test_bulk_delete_preserves_frozen_by_default(client: TestClient) -> None:
+    frozen = _create_conv(client, "frozen")
+    drop = _create_conv(client, "drop")
+    client.patch(
+        f"/api/conversations/{frozen['id']}",
+        json={"frozen_at": time.time()},
+    )
+
+    r = client.post("/api/conversations/bulk-delete", json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted_ids"] == [drop["id"]]
+    assert body["preserved_count"] == 1
+
+
+def test_bulk_delete_older_than_filter(client: TestClient) -> None:
+    """Only conversations with updated_at < older_than are eligible."""
+    old = _create_conv(client, "old")
+    # Force a gap so the second conversation's updated_at is strictly later.
+    time.sleep(0.05)
+    cutoff = time.time()
+    time.sleep(0.05)
+    new = _create_conv(client, "new")
+
+    r = client.post(
+        "/api/conversations/bulk-delete",
+        json={"older_than": cutoff},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted_ids"] == [old["id"]]
+    assert body["preserved_count"] == 1
+
+    remaining = {c["id"] for c in client.get("/api/conversations").json()}
+    assert remaining == {new["id"]}
+
+
+def test_bulk_delete_on_empty_dir_returns_empty(client: TestClient) -> None:
+    r = client.post("/api/conversations/bulk-delete", json={})
+    assert r.status_code == 200
+    assert r.json() == {"deleted_ids": [], "preserved_count": 0}

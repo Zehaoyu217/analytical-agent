@@ -25,6 +25,7 @@ import {
   MoreHorizontal,
   Pin,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useChatStore, type Conversation } from "@/lib/store";
 import { extractTextContent } from "@/lib/utils";
@@ -248,12 +249,24 @@ function MoreMenu({ conversation, onClose }: MoreMenuProps) {
   );
 }
 
+type SweepOption =
+  | { kind: "all" }
+  | { kind: "older"; days: number; label: string };
+
+const SWEEP_OPTIONS: SweepOption[] = [
+  { kind: "all" },
+  { kind: "older", days: 7, label: "7 days" },
+  { kind: "older", days: 30, label: "30 days" },
+  { kind: "older", days: 90, label: "90 days" },
+];
+
 export function ThreadList() {
   const conversations = useChatStore((s) => s.conversations);
   const activeId = useChatStore((s) => s.activeConversationId);
   const setActive = useChatStore((s) => s.setActiveConversation);
   const createLocal = useChatStore((s) => s.createConversation);
   const createRemote = useChatStore((s) => s.createConversationRemote);
+  const bulkDelete = useChatStore((s) => s.bulkDeleteConversations);
 
   const threadW = useUiStore(selectThreadW);
   const setThreadW = useUiStore((s) => s.setThreadW);
@@ -262,8 +275,10 @@ export function ThreadList() {
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [sweepOpen, setSweepOpen] = useState(false);
 
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
+  const sweepContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Close the menu on outside click.
   useEffect(() => {
@@ -279,6 +294,28 @@ export function ThreadList() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [openMenuId]);
+
+  // Close the sweep menu on outside click / Escape.
+  useEffect(() => {
+    if (!sweepOpen) return;
+    function onDocClick(ev: globalThis.MouseEvent) {
+      if (
+        sweepContainerRef.current &&
+        !sweepContainerRef.current.contains(ev.target as Node)
+      ) {
+        setSweepOpen(false);
+      }
+    }
+    function onKey(ev: globalThis.KeyboardEvent) {
+      if (ev.key === "Escape") setSweepOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [sweepOpen]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -315,6 +352,52 @@ export function ThreadList() {
     setOpenMenuId((prev) => (prev === id ? null : id));
   }
 
+  async function handleSweep(option: SweepOption) {
+    setSweepOpen(false);
+    // Count the conversations that would actually be deleted so the confirm
+    // dialog tells the user what's about to happen. Pinned and frozen
+    // conversations are preserved by default on the backend.
+    const now = Date.now();
+    const isProtected = (c: Conversation) =>
+      c.pinned || typeof c.frozenAt === "number";
+    const eligible = conversations.filter((c) => {
+      if (isProtected(c)) return false;
+      if (option.kind === "older") {
+        const age = now - c.updatedAt;
+        return age > option.days * MS_PER_DAY;
+      }
+      return true;
+    });
+    if (eligible.length === 0) {
+      window.alert(
+        option.kind === "older"
+          ? `No conversations older than ${option.label}.`
+          : "No conversations to delete.",
+      );
+      return;
+    }
+    const prompt =
+      option.kind === "older"
+        ? `Delete ${eligible.length} conversation(s) older than ${option.label}?\n\nPinned and checkpointed chats are kept.`
+        : `Delete ${eligible.length} conversation(s)?\n\nPinned and checkpointed chats are kept.`;
+    if (!window.confirm(prompt)) return;
+    try {
+      const result = await bulkDelete(
+        option.kind === "older"
+          ? { olderThanMs: now - option.days * MS_PER_DAY }
+          : {},
+      );
+      if (result.preservedCount > 0) {
+        // Silent — the "kept" count matches what the confirm dialog already
+        // promised. No toast noise for an expected outcome.
+      }
+    } catch (err) {
+      window.alert(
+        `Failed to delete: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   return (
     <aside
       className="relative flex h-full flex-col border-r border-line-2 bg-bg-1"
@@ -324,6 +407,53 @@ export function ThreadList() {
       {/* Header */}
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
         <span className="label-cap flex-1">Chats</span>
+        <div ref={sweepContainerRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setSweepOpen((v) => !v)}
+            aria-label="Delete conversations"
+            aria-haspopup="menu"
+            aria-expanded={sweepOpen}
+            className={cn(
+              "inline-flex h-6 w-6 items-center justify-center rounded",
+              "text-fg-3 hover:text-danger hover:bg-bg-2 focus-ring",
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          {sweepOpen && (
+            <div
+              role="menu"
+              aria-label="Delete conversations"
+              className={cn(
+                "absolute right-0 top-7 z-20 min-w-[10rem] py-1",
+                "rounded border border-line-2 bg-bg-1 shadow-lg text-[12px]",
+              )}
+            >
+              <div className="px-3 py-1 label-cap text-fg-3">Delete</div>
+              {SWEEP_OPTIONS.map((opt) => {
+                const label =
+                  opt.kind === "all"
+                    ? "All conversations"
+                    : `Older than ${opt.label}`;
+                return (
+                  <button
+                    key={opt.kind === "all" ? "all" : `older-${opt.days}`}
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-1 text-left text-danger hover:bg-bg-2"
+                    onClick={() => handleSweep(opt)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              <div className="px-3 pt-1 pb-0.5 text-[10px] text-fg-3">
+                Pinned &amp; checkpoints kept.
+              </div>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={handleCreate}

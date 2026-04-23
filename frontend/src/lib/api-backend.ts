@@ -47,6 +47,17 @@ export interface ConversationPatchPayload {
   frozen_at?: number | null
 }
 
+export interface BulkDeleteRequest {
+  older_than?: number
+  include_pinned?: boolean
+  include_frozen?: boolean
+}
+
+export interface BulkDeleteResponse {
+  deleted_ids: string[]
+  preserved_count: number
+}
+
 export type ThemePreference = 'light' | 'dark' | 'system'
 
 export interface UserSettings {
@@ -182,6 +193,12 @@ export const backend = {
       ),
     delete: (id: string): Promise<void> =>
       request<void>('DELETE', `/api/conversations/${encodeURIComponent(id)}`),
+    bulkDelete: (payload: BulkDeleteRequest): Promise<BulkDeleteResponse> =>
+      request<BulkDeleteResponse>(
+        'POST',
+        '/api/conversations/bulk-delete',
+        payload,
+      ),
     patch: (id: string, payload: ConversationPatchPayload): Promise<Conversation> =>
       request<Conversation>(
         'PATCH',
