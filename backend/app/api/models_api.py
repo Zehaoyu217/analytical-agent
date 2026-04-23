@@ -72,12 +72,13 @@ class ModelsResponse(BaseModel):
 # Lookup is by full model_id (including the "mlx/" prefix). Any id not in
 # this map falls back to :func:`_humanize_mlx_id`, which strips the prefix
 # and replaces hyphens with spaces.
+# Gemma 4 is natively multimodal. The mlx-community / NexVeridian builds keep
+# the vision tower → "Vision". The jorch "-lm" builds strip it out → "Text".
 _MLX_LABEL_MAP: dict[str, str] = {
-    "mlx/mlx-community/gemma-4-e2b-it-OptiQ-4bit": "Gemma 4 E2B",
-    "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit": "Gemma 4 E4B",
-    "mlx/NexVeridian/gemma-4-26B-A4b-it-4bit": "Gemma 4 26B A4B",
-    "mlx/jorch/gemma-4-e2b-it-lm-4bit": "Gemma 4 E2B LM",
-    "mlx/jorch/gemma-4-e4b-it-lm-4bit": "Gemma 4 E4B LM",
+    "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit": "Gemma 4 E4B Vision",
+    "mlx/NexVeridian/gemma-4-26B-A4b-it-4bit": "Gemma 4 26B A4B Vision",
+    "mlx/jorch/gemma-4-e2b-it-lm-4bit": "Gemma 4 E2B Text",
+    "mlx/jorch/gemma-4-e4b-it-lm-4bit": "Gemma 4 E4B Text",
     "mlx/mlx-community/Qwen3.5-9B-OptiQ-4bit": "Qwen3.5 9B",
 }
 

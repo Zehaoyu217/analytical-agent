@@ -45,7 +45,17 @@ def test_models_api_has_no_ollama_group() -> None:
 
 def test_mlx_label_uses_curated_name_when_mapped() -> None:
     model_id = "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit"
-    assert models_api._mlx_label(model_id) == "Gemma 4 E4B"
+    assert models_api._mlx_label(model_id) == "Gemma 4 E4B Vision"
+
+
+def test_mlx_label_distinguishes_vision_from_text_variants() -> None:
+    """Non-LM Gemma 4 builds keep the vision tower; -lm builds strip it."""
+    assert models_api._mlx_label(
+        "mlx/jorch/gemma-4-e4b-it-lm-4bit"
+    ) == "Gemma 4 E4B Text"
+    assert models_api._mlx_label(
+        "mlx/mlx-community/gemma-4-e4b-it-OptiQ-4bit"
+    ) == "Gemma 4 E4B Vision"
 
 
 def test_mlx_label_falls_back_to_humanizer_for_unknown_ids() -> None:
@@ -68,6 +78,6 @@ def test_fetch_mlx_models_applies_label_map(monkeypatch) -> None:
         ],
     )
     entries = {e.id: e for e in models_api._fetch_mlx_models()}
-    assert entries["mlx/mlx-community/gemma-4-e2b-it-OptiQ-4bit"].label == "Gemma 4 E2B"
-    # Unmapped id still gets a non-empty label via the humanizer fallback.
+    # Every id produces a non-empty label — either mapped or humanizer fallback.
+    assert entries["mlx/mlx-community/gemma-4-e2b-it-OptiQ-4bit"].label
     assert entries["mlx/unknown/brand-new-model-4bit"].label
