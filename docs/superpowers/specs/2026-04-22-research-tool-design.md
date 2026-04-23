@@ -32,26 +32,27 @@ All three share the same execution engine. Switching costs one word in the tool 
 
 ```
 Main agent
-  │  research(query, context, sources)        ← sync
-  │  research_start(query, context, sources)  ← async, returns job_id
-  │  research_get(job_id)                     ← poll / collect
+  │  research(query, context, sources, budget_tokens=150_000)        ← sync
+  │  research_start(query, context, sources, budget_tokens=150_000)  ← async, returns job_id
+  │  research_get(job_id)                                            ← poll / collect
   ▼
-ResearchTool.execute()
-  │  emits StreamEvent("research_start", {query, sources})
+ResearchTool.execute(budget_tokens)
+  │  clamp: if budget_tokens > 1_000_000 → use 1_000_000, set budget_warning flag
+  │  emits StreamEvent("research_start", {query, sources, budget_tokens})
   ▼
 RoutingAgent  [haiku-class LLM, ~500 tokens in/out]
-  │  input:  query + context
-  │  output: {modules_to_run, sub_queries{}, parallel_ok: bool}
+  │  input:  query + context + total_budget + available_sources
+  │  output: {modules_to_run, sub_queries{}, budgets{}, parallel_ok: bool}
   │  emits StreamEvent("research_routing", {plan})
   ▼
 ThreadPoolExecutor  (when parallel_ok)
-  ├── PapersModule(sub_query, budget_tokens=50_000)
+  ├── PapersModule(sub_query, budget_tokens=<from_router>)
   │     emits StreamEvent("research_progress", {module:"papers", step, found_count})
   │     returns PapersResult
-  ├── CodeModule(sub_query, budget_tokens=30_000)
+  ├── CodeModule(sub_query, budget_tokens=<from_router>)
   │     emits StreamEvent("research_progress", {module:"code", step, found_count})
   │     returns CodeResult
-  └── WebModule(sub_query, budget_tokens=20_000)
+  └── WebModule(sub_query, budget_tokens=<from_router>)
         emits StreamEvent("research_progress", {module:"web", step, found_count})
         returns WebResult
   ▼
@@ -60,7 +61,8 @@ SynthesisAgent  [haiku-class LLM, ~2k tokens in/out]
   │  emits StreamEvent("research_done", {modules_ran, total_ms})
   ▼
 ResearchResult
-  {summary, papers[], code_examples[], web_refs[], follow_up_questions[]}
+  {summary, papers[], code_examples[], web_refs[], follow_up_questions[],
+   budget_warning?}   ← set if caller requested > 1M tokens
 ```
 
 **Sync path:** `ResearchTool.execute()` returns `ResearchResult` directly.  
@@ -74,17 +76,28 @@ ResearchResult
 ```json
 {
   "name": "research",
-  "description": "Run a synchronous research query across papers, code, and web. Returns structured findings. Use when the result is needed before the next analysis step. For long queries (>60s), prefer research_start.",
+  "description": "Run a synchronous research query across papers, code, and/or web sources. Returns structured findings including papers, code examples, and a summary. Use when the result is needed before your next step. For queries that will take >60s (deep citation crawls, many sources), prefer research_start so you can do other work in parallel.\n\nbudget_tokens controls total token spend across all modules. Default 150,000 (50k per module). The routing agent allocates the budget across modules based on your query — you can skew allocation by setting a higher total (e.g. 300,000 for a deep paper crawl). Hard cap: 1,000,000 tokens. Requests above the cap run at 1M and return a budget_warning field — contact a developer to raise the cap.",
   "input_schema": {
     "type": "object",
     "properties": {
-      "query": {"type": "string", "description": "What to research. Be specific — include domain, method name, constraints."},
-      "context": {"type": "string", "description": "Optional. Relevant context from prior work that narrows the search (e.g. 'using LightGBM, binary target, imbalanced')."},
+      "query": {
+        "type": "string",
+        "description": "What to research. Be specific — include the domain, method name, metric, dataset, or constraint. Bad: 'calibration'. Good: 'isotonic regression calibration for imbalanced binary classification, LightGBM, post-hoc'."
+      },
+      "context": {
+        "type": "string",
+        "description": "Optional. Relevant context from prior work that narrows the search — e.g. findings from a previous research call, the user's dataset characteristics, or constraints already established."
+      },
       "sources": {
         "type": "array",
         "items": {"type": "string", "enum": ["papers", "code", "web"]},
         "default": ["papers", "code", "web"],
-        "description": "Which source modules to run. Omit to run all three."
+        "description": "Which source modules to run. Omit for all three. Use ['papers'] for literature-only, ['code'] for implementation-only."
+      },
+      "budget_tokens": {
+        "type": "integer",
+        "default": 150000,
+        "description": "Total token budget across all modules. Default 150,000. The routing agent allocates this across the modules you requested. Increase for deeper research (e.g. 300,000 for a full citation graph crawl). Hard cap is 1,000,000 — requests above the cap run at 1M and include a budget_warning in the result."
       }
     },
     "required": ["query"]
@@ -96,13 +109,18 @@ ResearchResult
 ```json
 {
   "name": "research_start",
-  "description": "Start a research query in the background and return a job_id immediately. Use when you have other tool calls or analysis to run in parallel. Retrieve results with research_get.",
+  "description": "Start a research query in the background and return a job_id immediately. Use when you have other analysis, tool calls, or user interaction to do while research runs. Retrieve results with research_get.\n\nSame budget_tokens semantics as research — default 150,000, hard cap 1,000,000.",
   "input_schema": {
     "type": "object",
     "properties": {
-      "query":   {"type": "string"},
-      "context": {"type": "string"},
-      "sources": {"type": "array", "items": {"type": "string", "enum": ["papers","code","web"]}, "default": ["papers","code","web"]}
+      "query":   {"type": "string", "description": "Same as research.query"},
+      "context": {"type": "string", "description": "Same as research.context"},
+      "sources": {
+        "type": "array",
+        "items": {"type": "string", "enum": ["papers","code","web"]},
+        "default": ["papers","code","web"]
+      },
+      "budget_tokens": {"type": "integer", "default": 150000}
     },
     "required": ["query"]
   }
@@ -113,7 +131,7 @@ ResearchResult
 ```json
 {
   "name": "research_get",
-  "description": "Fetch the result of a research_start job. Returns partial results if still running (check status field). Non-blocking.",
+  "description": "Fetch the result of a research_start job. Non-blocking — returns immediately with whatever has completed so far. Check the status field: 'running' means partial results only, 'done' means full result available, 'failed' means retry with research synchronously.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -213,31 +231,85 @@ class WebPage:
 
 ## RoutingAgent
 
-A single LLM call (haiku-class) that decides the execution plan.
+A single LLM call (haiku-class) that decides the execution plan and allocates the budget across modules.
 
-**Input prompt (template):**
+### System prompt
+
+Mirrors ml-intern's `RESEARCH_SYSTEM_PROMPT` style, adapted for data science / quant analytics:
+
+```
+You are the routing agent for a research tool used by data scientists, ML engineers,
+and quantitative analysts. Your job: given a research query, decide which source
+modules to run, craft the best sub-query for each, allocate the token budget, and
+determine if modules can run in parallel.
+
+# Your default approach: start from the literature
+
+Do not default to code or web first. Papers contain results — results tell you what
+actually works. Only skip papers if the query is explicitly about implementation
+details or a specific codebase.
+
+## When to run modules in parallel
+
+Run in parallel when each module can answer its sub-query independently:
+- "best isotonic calibration methods" → papers + code simultaneously (parallel_ok: true)
+- "find the dataset used in the Guo 2017 calibration paper" → papers first, then
+  code/web with the dataset name (parallel_ok: false)
+
+Rule: parallel_ok is false only when one module's output is the *input* to another's query.
+
+## Budget allocation principles
+
+You receive a total budget and must split it across the modules you select.
+Allocation guidance:
+- Papers crawls are expensive (citation graphs, section reads): give papers 50–70% when included
+- Code search is cheap: 20–30% is usually enough
+- Web fetch is cheapest: 10–20%
+- If only one module runs, give it the full budget
+- Never allocate less than 10,000 tokens to any module you include
+
+## Output format
+
+Respond ONLY with valid JSON. No prose before or after.
+
+{
+  "modules": ["papers", "code"],
+  "sub_queries": {
+    "papers": "isotonic regression calibration post-hoc methods imbalanced classification",
+    "code": "isotonic calibration sklearn LightGBM example"
+  },
+  "budgets": {
+    "papers": 90000,
+    "code": 40000,
+    "web": 20000
+  },
+  "parallel_ok": true,
+  "rationale": "one sentence explaining the routing decision"
+}
+```
+
+### User prompt (template)
+
 ```
 Query: {query}
 Context: {context}
 Available sources: {sources}
+Total budget (tokens): {budget_tokens}
 
-Decide:
-1. Which modules to run (can be subset of available sources)
-2. The sub-query for each module (may differ from the main query)
-3. Whether modules can run in parallel (true unless one module's output feeds another's query)
-
-Respond in JSON:
-{
-  "modules": ["papers", "code"],
-  "sub_queries": {"papers": "...", "code": "..."},
-  "parallel_ok": true,
-  "rationale": "one sentence"
-}
+Route this query.
 ```
 
-**Sequential example:** Query = "find code for the calibration method in the Platt 1999 paper" → papers first (get method details), then code with that specific method name. `parallel_ok: false`.
+### Examples
 
-**Parallel example:** Query = "best isotonic calibration approaches" → papers and code simultaneously. `parallel_ok: true`.
+**Parallel:** `"best isotonic calibration approaches for imbalanced LightGBM"` →
+`parallel_ok: true`, papers gets 70% budget (citation graph crawl likely), code gets 30%.
+
+**Sequential:** `"find Python code for the method described in Platt 1999"` →
+papers first (get method name + details), then code with the specific method name,
+`parallel_ok: false`.
+
+**Papers-only:** `"what does the literature say about distribution shift in financial time series?"` →
+`modules: ["papers"]`, full budget to papers, `parallel_ok: true` (one module).
 
 ---
 
@@ -257,6 +329,8 @@ class ResearchResult:
     follow_up_questions: list[str]      # what the agent should ask next if needed
     modules_ran: list[str]
     total_ms: int
+    budget_tokens_used: int             # actual budget passed to modules (post-clamp)
+    budget_warning: str | None          # set if caller requested > 1M tokens
 ```
 
 ---
@@ -342,7 +416,8 @@ backend/app/harness/research/
 - **Module failure:** If one module fails, the others continue. `SynthesisAgent` receives whatever completed. Result includes `"modules_ran": ["papers"]` so the agent knows what was skipped.
 - **RoutingAgent failure:** Fall back to running all requested modules with the original query, `parallel_ok: true`.
 - **Rate limits (S2):** `PapersModule` catches 429s, waits up to 10s, then falls back to ArXiv.
-- **Token budget exceeded:** Each module tracks estimated tokens via char count ÷ 4. When within 10% of budget, the module wraps up and returns what it has.
+- **Budget hardcap (1M tokens):** `ResearchTool.execute()` clamps `budget_tokens` to `min(budget_tokens, 1_000_000)` before passing to the RoutingAgent. If clamped, `ResearchResult.budget_warning` is set to `"Requested budget exceeded 1,000,000 tokens (the hard cap). Research ran at 1,000,000 tokens. To raise the cap, ask a developer."` The agent surfaces this to the user.
+- **Module token budget:** Each module tracks estimated token usage via `len(text) // 4`. When within 10% of its allocated budget, the module wraps up and returns what it has — it never hard-stops mid-result, it just stops fetching new items.
 - **Async job not found:** `research_get` returns `{status: "not_found"}` — agent should retry `research` synchronously.
 
 ---
