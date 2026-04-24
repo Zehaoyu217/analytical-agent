@@ -123,11 +123,22 @@ def _append_applied(path: Path, entry_id: str, action: dict[str, Any]) -> None:
 
 
 def _load_claim(cfg: Config, claim_id: str) -> tuple[Path, dict[str, Any], str]:
-    path = cfg.claims_dir / f"{claim_id}.md"
-    if not path.exists():
-        raise FileNotFoundError(f"claim not found: {claim_id}")
-    fm, body = load_document(path)
-    return path, fm, body
+    """Load a claim file, accepting either the bare slug or the ``clm_`` id.
+
+    Files on disk are stored under ``cfg.claims_dir/{slug}.md`` (no prefix),
+    but callers sometimes pass the full id (``clm_{slug}``). Try both so
+    both conventions work without forcing every handler to strip the prefix
+    manually.
+    """
+    candidates = [claim_id]
+    if claim_id.startswith("clm_"):
+        candidates.append(claim_id[len("clm_"):])
+    for candidate in candidates:
+        path = cfg.claims_dir / f"{candidate}.md"
+        if path.exists():
+            fm, body = load_document(path)
+            return path, fm, body
+    raise FileNotFoundError(f"claim not found: {claim_id}")
 
 
 # ---- handlers -------------------------------------------------------------
@@ -305,12 +316,52 @@ def _handle_promote_claim(cfg: Config, action: dict[str, Any]) -> None:
     dump_document(dst, fm, body)
 
 
+def _handle_supersede_claim(cfg: Config, action: dict[str, Any]) -> None:
+    """Mark ``old_claim_id`` superseded by ``new_claim_id``.
+
+    Soft, reversible: both files stay on disk. Effect on retrieval is
+    driven by the BM25Retriever's default-filter on ``superseded_by``.
+    Fields written:
+      old claim:  status = superseded,  superseded_by = new_id,
+                  resolution = rationale (if provided)
+      new claim:  supersedes += [old_id]  (deduped)
+
+    Malformed inputs (missing ids / unknown claim files) raise so the
+    entry lands in the digest applier's ``failed`` list — surfacing
+    the error to the user rather than silently corrupting the chain.
+    """
+    new_id = str(action.get("new_claim_id") or "").strip()
+    old_id = str(action.get("old_claim_id") or "").strip()
+    rationale = str(action.get("rationale") or "").strip() or None
+    if not new_id or not old_id:
+        raise ValueError("supersede_claim: new_claim_id and old_claim_id are required")
+    if new_id == old_id:
+        raise ValueError("supersede_claim: new and old claim ids must differ")
+
+    old_path, old_fm, old_body = _load_claim(cfg, old_id)
+    new_path, new_fm, new_body = _load_claim(cfg, new_id)
+
+    old_fm["status"] = "superseded"
+    old_fm["superseded_by"] = new_id
+    if rationale:
+        old_fm["resolution"] = rationale
+    dump_document(old_path, old_fm, old_body)
+
+    existing_chain = new_fm.get("supersedes")
+    chain: list[str] = list(existing_chain) if isinstance(existing_chain, list) else []
+    if old_id not in chain:
+        chain.append(old_id)
+    new_fm["supersedes"] = chain
+    dump_document(new_path, new_fm, new_body)
+
+
 _HANDLERS: dict[str, Any] = {
     "upgrade_confidence": _handle_upgrade_confidence,
     "keep": _handle_keep,
     "resolve_contradiction": _handle_resolve_contradiction,
     "promote_wiki_to_claim": _handle_promote_wiki_to_claim,
     "promote_claim": _handle_promote_claim,
+    "supersede_claim": _handle_supersede_claim,
     "backlink_claim_to_wiki": _handle_backlink_claim_to_wiki,
     "add_taxonomy_root": _handle_add_taxonomy_root,
     "re_abstract_batch": _handle_re_abstract_batch,

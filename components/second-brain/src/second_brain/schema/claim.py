@@ -43,6 +43,13 @@ class ClaimFrontmatter(BaseModel):
     status: ClaimStatus = ClaimStatus.ACTIVE
     resolution: str | None = None
     abstract: str = ""
+    # Supersession chain. ``supersedes`` lists older claim ids that this
+    # claim replaces; ``superseded_by`` points at the newer claim that
+    # replaces *this* one. Retrieval default-excludes claims with a
+    # non-null ``superseded_by`` so the agent never quotes a stale
+    # assertion after a paper is revised or a finding is refined.
+    supersedes: list[str] = Field(default_factory=list)
+    superseded_by: str | None = None
 
     @field_validator("id")
     @classmethod

@@ -52,8 +52,9 @@ class VectorRetriever:
         scope: Scope = "both",
         taxonomy: str | None = None,
         with_neighbors: bool = False,
+        include_superseded: bool = False,
     ) -> list[RetrievalHit]:
-        del taxonomy, with_neighbors
+        del taxonomy, with_neighbors, include_superseded
         stripped = query.strip()
         if not stripped:
             return []

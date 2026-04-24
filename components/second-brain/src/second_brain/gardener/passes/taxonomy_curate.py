@@ -28,7 +28,13 @@ from second_brain.gardener.protocol import (
 
 log = logging.getLogger(__name__)
 _WORD_RE = re.compile(r"[a-z][a-z0-9]{3,}")
-_CLUSTER_MIN = 4  # need at least this many claims under "uncategorized"
+_CLUSTER_MIN = 3  # need at least this many claims sharing a token to propose a root
+# Tags we consider "homeless" — worth offering a taxonomy root for. Before
+# this was hardcoded to ``uncategorized`` which none of our producers write;
+# the gardener's promote_claim pass leaves taxonomy empty and sb_stats
+# reports ``unknown`` for any claim without an explicit bucket. Accept all
+# three to match what actually lives on disk.
+_HOMELESS_TAGS = frozenset({"", "unknown", "uncategorized"})
 
 _SYSTEM_PROMPT = """\
 You curate a personal KB taxonomy. Given a list of claim statements that are
@@ -48,30 +54,34 @@ class TaxonomyCuratePass:
         claims_dir: Path = cfg.claims_dir
         if not claims_dir.exists():
             return []
-        uncategorized: list[dict[str, Any]] = []
+        homeless: list[dict[str, Any]] = []
         for p in sorted(claims_dir.glob("*.md")):
             try:
                 fm, _body = load_document(p)
             except (ValueError, OSError):
                 continue
-            taxonomy = str(fm.get("taxonomy") or "uncategorized")
-            prefix = taxonomy.split("/", 1)[0]
-            if prefix != "uncategorized":
+            # Skip superseded claims — their status is already resolved; a
+            # new taxonomy root built from them would mis-represent the KB.
+            if fm.get("superseded_by"):
+                continue
+            taxonomy = str(fm.get("taxonomy") or "").strip().lower()
+            prefix = taxonomy.split("/", 1)[0] if taxonomy else ""
+            if prefix not in _HOMELESS_TAGS:
                 continue
             statement = str(fm.get("statement") or "")
-            uncategorized.append(
+            homeless.append(
                 {
                     "id": str(fm.get("id") or p.stem),
                     "statement": statement,
                     "tokens": set(_WORD_RE.findall(statement.lower())),
                 }
             )
-        if len(uncategorized) < _CLUSTER_MIN:
+        if len(homeless) < _CLUSTER_MIN:
             return []
 
         # Cluster by dominant shared token (simple, greedy).
         token_counts: Counter[str] = Counter()
-        for item in uncategorized:
+        for item in homeless:
             token_counts.update(item["tokens"])
 
         clusters: list[list[dict[str, Any]]] = []
@@ -80,7 +90,7 @@ class TaxonomyCuratePass:
             if count < _CLUSTER_MIN:
                 break
             bucket = [
-                it for it in uncategorized
+                it for it in homeless
                 if token in it["tokens"] and it["id"] not in used
             ]
             if len(bucket) >= _CLUSTER_MIN:

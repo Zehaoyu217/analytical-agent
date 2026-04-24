@@ -75,6 +75,7 @@ class Retriever(Protocol):
         scope: Scope = "both",
         taxonomy: str | None = None,
         with_neighbors: bool = False,
+        include_superseded: bool = False,
     ) -> list[RetrievalHit]: ...
 
 
@@ -89,6 +90,7 @@ class BM25Retriever:
         scope: Scope = "both",
         taxonomy: str | None = None,
         with_neighbors: bool = False,
+        include_superseded: bool = False,
     ) -> list[RetrievalHit]:
         fts_query = _to_fts_query(query)
         if not fts_query:
@@ -145,11 +147,35 @@ class BM25Retriever:
                         supports=self._claim_supports(cid),
                     ))
         hits.sort(key=lambda h: h.score, reverse=True)
+        if not include_superseded:
+            hits = [h for h in hits if not self._is_superseded(h)]
         hits = hits[:k]
         hits = [self._normalized(h, rank=i, total=len(hits)) for i, h in enumerate(hits)]
         if with_neighbors:
             hits = [self._with_neighbors(h) for h in hits]
         return hits
+
+    def _is_superseded(self, hit: RetrievalHit) -> bool:
+        """Return True when *hit* is a claim whose frontmatter has ``superseded_by``.
+
+        Non-claim hits (sources, chunks) always return False — supersession
+        is a claim-level concept. One disk read per hit, bounded by k; the
+        frontmatter is tiny so this is fast enough for every turn.
+        """
+        if hit.kind != "claim":
+            return False
+        slug = hit.id[len("clm_"):] if hit.id.startswith("clm_") else hit.id
+        for candidate in (slug, hit.id):
+            path = self.cfg.claims_dir / f"{candidate}.md"
+            if not path.exists():
+                continue
+            try:
+                from second_brain.frontmatter import load_document  # noqa: PLC0415
+                fm, _ = load_document(path)
+            except Exception:  # noqa: BLE001
+                return False
+            return bool(fm.get("superseded_by"))
+        return False
 
     @staticmethod
     def _normalized(hit: RetrievalHit, *, rank: int, total: int) -> RetrievalHit:
@@ -339,12 +365,14 @@ class HybridRetriever:
         scope: Scope = "both",
         taxonomy: str | None = None,
         with_neighbors: bool = False,
+        include_superseded: bool = False,
     ) -> list[RetrievalHit]:
         from second_brain.index.rrf import rrf_fuse
 
         oversample_k = k * self.OVERSAMPLE
         bm25_hits = self._bm25.search(
             query, k=oversample_k, scope=scope, taxonomy=taxonomy,
+            include_superseded=include_superseded,
         )
         vec_hits = self._vector.search(query, k=oversample_k, scope=scope)
 
