@@ -14,6 +14,7 @@ satisfy ``min_entries_to_emit``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,33 @@ from second_brain.digest.schema import DigestEntry
 
 def _pending_path(cfg) -> Path:
     return cfg.digests_dir / "pending.jsonl"
+
+
+def _extract_line(action: dict[str, Any]) -> str:
+    """Pick the human-readable line from an action's fields.
+
+    Different producers write different action shapes:
+    - Gardener extract: ``action.statement`` holds the claim text
+    - Legacy agent proposer: ``action.rationale`` or ``action.action``
+    - Fallback: action ``type`` so the UI never renders ``- [] ``.
+    """
+    for key in ("statement", "rationale", "action", "title", "summary"):
+        val = action.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return str(action.get("type", "")) or ""
+
+
+def _synth_id(action: dict[str, Any], counter: int) -> str:
+    """Synthesize a stable id for a proposal that didn't ship one.
+
+    The digest applier keys off ``entry.id`` — an empty id means the user
+    can't individually accept/skip the proposal. We derive an id from the
+    action's key fields so the same input produces the same id across runs.
+    """
+    seed = json.dumps(action, sort_keys=True)
+    digest = hashlib.md5(seed.encode("utf-8")).hexdigest()[:8]
+    return f"ex{counter:02d}-{digest}"
 
 
 def read_pending(cfg) -> list[DigestEntry]:
@@ -36,6 +64,7 @@ def read_pending(cfg) -> list[DigestEntry]:
         return []
 
     out: list[DigestEntry] = []
+    counter = 0
     for raw_line in pending.read_text().splitlines():
         line = raw_line.strip()
         if not line:
@@ -47,12 +76,13 @@ def read_pending(cfg) -> list[DigestEntry]:
         action = record.get("action") or {}
         if not isinstance(action, dict):
             action = {}
-        digest_line = action.get("rationale") or action.get("action", "")
+        counter += 1
+        entry_id = str(record.get("id", "")).strip() or _synth_id(action, counter)
         out.append(
             DigestEntry(
-                id=str(record.get("id", "")),
+                id=entry_id,
                 section=str(record.get("section", "")),
-                line=str(digest_line),
+                line=_extract_line(action),
                 action=action,
             )
         )

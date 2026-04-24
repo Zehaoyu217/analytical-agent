@@ -63,14 +63,29 @@ def _applied_ids(cfg: Any, day: date_t) -> set[str]:
     return ids
 
 
+def _entry_line(action: dict[str, Any]) -> str:
+    """Pick a human-readable line from an action's fields.
+
+    Different producers fill different keys — Gardener's promote_claim uses
+    ``statement``, legacy agent proposers used ``rationale`` or ``action``.
+    Fall back to the action type so the UI never renders ``- [] ``.
+    """
+    for key in ("statement", "rationale", "action", "title", "summary"):
+        val = action.get(key) if isinstance(action, dict) else None
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return str(action.get("type", "")) if isinstance(action, dict) else ""
+
+
 def _shape_entries(entries: list[dict[str, Any]], applied: set[str]) -> list[dict[str, Any]]:
     return [
         {
             "id": e.get("id", ""),
             "section": e.get("section", ""),
-            "line": e.get("action", {}).get("rationale")
-            or e.get("action", {}).get("action", ""),
-            "action": e.get("action", {}).get("action", ""),
+            "line": _entry_line(e.get("action", {}) or {}),
+            # Pass the full action dict through so the UI can surface
+            # confidence / kind / evidence / source_id, not just the type.
+            "action": e.get("action", {}) or {},
             "applied": e.get("id") in applied,
         }
         for e in entries

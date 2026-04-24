@@ -1,7 +1,20 @@
+# ruff: noqa: E402
+# Reason: we intentionally run ``load_dotenv`` *before* any ``app.*`` import
+# so os.environ is populated by the time downstream modules (notably
+# ``second_brain`` + the Gardener LLM client) read their provider API keys
+# from the environment. Pydantic-Settings alone reads .env into its own
+# BaseSettings instance but never populates os.environ, so code that calls
+# ``os.environ.get("OPENROUTER_API_KEY")`` directly would otherwise see
+# nothing. This one-liner closes that gap in a single place.
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_REPO_ROOT / ".env", override=False)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

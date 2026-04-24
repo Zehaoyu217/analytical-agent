@@ -183,6 +183,20 @@ def digest_build() -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"digest_build_failed: {exc}") from exc
     entries = list(getattr(result, "entries", []) or [])
     emitted = len(entries) > 0
+    # Persist the builder output. Without these two files the builder effectively
+    # drains pending.jsonl into the void — `sb_digest_today()` reads from
+    # ``{date}.actions.jsonl`` and the UI renders the ``{date}.md``, so
+    # skipping the write means the whole digest flow goes silent.
+    if emitted:
+        today_iso = date_t.today().isoformat()
+        md_text = getattr(result, "markdown", "") or ""
+        actions_text = getattr(result, "actions_jsonl", "") or ""
+        if md_text:
+            (cfg.digests_dir / f"{today_iso}.md").write_text(md_text, encoding="utf-8")
+        if actions_text:
+            (cfg.digests_dir / f"{today_iso}.actions.jsonl").write_text(
+                actions_text, encoding="utf-8",
+            )
     _write_build_meta(
         cfg, started=started, outcome="ok", entries=len(entries), emitted=emitted
     )
