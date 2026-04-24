@@ -116,6 +116,26 @@ def test_delete_dataset_404_when_missing(client: TestClient) -> None:
     assert r.status_code == 404
 
 
+def test_upload_auto_creates_conversation_if_missing(client: TestClient) -> None:
+    """Uploads should succeed for a freshly-created local conversation that
+    has never been persisted to the backend yet."""
+    # NOTE: valid-shape id but nothing backing it on disk — simulates a
+    # frontend-local conversation that hasn't hit any other backend endpoint.
+    orphan_id = "client-side-only-id-1234"
+    r = client.post(
+        f"/api/conversations/{orphan_id}/uploads",
+        files={"file": ("sales.csv", BytesIO(_csv_bytes()), "text/csv")},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["table_name"] == "sales"
+
+    # And the Conversation JSON should now exist so subsequent GETs work.
+    fresh = client.get(f"/api/conversations/{orphan_id}")
+    assert fresh.status_code == 200
+    assert fresh.json()["title"] == "New chat"
+    assert len(fresh.json()["datasets"]) == 1
+
+
 def test_injector_emits_datasets_block_after_upload(
     client: TestClient, tmp_path: Path,
 ) -> None:

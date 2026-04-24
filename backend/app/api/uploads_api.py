@@ -55,6 +55,30 @@ def user_data_db_path(conv_id: str) -> Path:
     return _user_data_root() / f"{conv_id}.duckdb"
 
 
+def _load_or_create(conv_id: str) -> Conversation:
+    """Return the Conversation JSON, creating a fresh one if missing.
+
+    Frontend conversations don't have a backend JSON until ``createConversationRemote``
+    is called — which doesn't happen automatically just from chatting. Auto-creating
+    here lets "pick paperclip → upload" work on a brand-new conversation without
+    requiring the user to send a message first.
+    """
+    _validate_id(conv_id)
+    path = _conv_path(conv_id)
+    if path.exists():
+        return _load_or_404(conv_id)
+    now = time.time()
+    conv = Conversation(
+        id=conv_id,
+        title="New chat",
+        created_at=now,
+        updated_at=now,
+        turns=[],
+    )
+    write_json_atomic(path, conv)
+    return conv
+
+
 def _sanitize_table_name(stem: str) -> str:
     cleaned = _TABLE_NAME_RE.sub("_", stem).strip("_").lower()
     if not cleaned:
@@ -92,7 +116,7 @@ async def upload_dataset(
     file: Annotated[UploadFile, File()],
 ) -> UploadedDataset:
     _validate_id(conv_id)
-    conv: Conversation = _load_or_404(conv_id)
+    conv: Conversation = _load_or_create(conv_id)
 
     filename = file.filename or "dataset"
     suffix = Path(filename).suffix.lower()
