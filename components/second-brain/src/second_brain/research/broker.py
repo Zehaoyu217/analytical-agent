@@ -156,12 +156,31 @@ def render_broker_block(hits: list[BrokerHit], *, max_tokens: int | None = None)
     if not hits:
         return ""
     header = "### Second Brain — research recall"
-    footer = "Use sb_load(<id>, depth=1) to inspect a node or sb_search for more."
+    footer = (
+        "Cite inline with the [clm_…] or [src_…] id. "
+        "Use sb_load(<id>, depth=1) to inspect a node or sb_search for more."
+    )
     rendered: list[str] = [header, ""]
     running = _approx_tokens(header) + _approx_tokens(footer)
     truncated = False
     for idx, hit in enumerate(hits, 1):
-        lines = [f"{idx}. [{hit.id}] {hit.kind}: {hit.title} (score {hit.score:.2f})"]
+        # Surface linked ids inline so the agent can cite supports/sources
+        # without a follow-up tool call. For claims the supports chain is
+        # the source id(s); for sources we show how many claims cite it.
+        links = ""
+        if hit.kind == "claim" and hit.source_ids:
+            shown = ", ".join(hit.source_ids[:3])
+            more = (
+                f" (+{len(hit.source_ids) - 3})"
+                if len(hit.source_ids) > 3
+                else ""
+            )
+            links = f" — supports: {shown}{more}"
+        elif hit.kind == "source" and hit.claim_ids:
+            links = f" — {len(hit.claim_ids)} claim(s)"
+        lines = [
+            f"{idx}. [{hit.id}] {hit.kind}: {hit.title} (score {hit.score:.2f}){links}"
+        ]
         if hit.summary:
             lines.append(f"   {hit.summary.strip()}")
         for evidence in hit.evidence[:2]:

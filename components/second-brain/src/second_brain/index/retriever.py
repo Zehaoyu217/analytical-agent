@@ -58,6 +58,13 @@ class RetrievalHit:
     source_title: str = ""
     page_start: int | None = None
     page_end: int | None = None
+    # Populated for kind="claim": the full falsifiable statement (the
+    # abstract is often just a 1-line summary, but the agent needs the
+    # statement to cite faithfully) plus the `supports:` source ids lifted
+    # from the claim frontmatter so it can reference the origin paper
+    # without a second tool call.
+    statement: str = ""
+    supports: list[str] = field(default_factory=list)
 
 
 class Retriever(Protocol):
@@ -129,10 +136,13 @@ class BM25Retriever:
                     ))
             if scope in ("claims", "both"):
                 for cid, score in store.search_claims(fts_query, k=k):
+                    statement, snippet = self._claim_fields(store, cid)
                     hits.append(RetrievalHit(
                         id=cid, kind="claim", score=score,
                         matched_field=self._guess_matched_field(store, cid, query, kind="claim"),
-                        snippet=self._snippet_for(store, cid, kind="claim"),
+                        snippet=snippet,
+                        statement=statement,
+                        supports=self._claim_supports(cid),
                     ))
         hits.sort(key=lambda h: h.score, reverse=True)
         hits = hits[:k]
@@ -164,6 +174,8 @@ class BM25Retriever:
             source_title=hit.source_title,
             page_start=hit.page_start,
             page_end=hit.page_end,
+            statement=hit.statement,
+            supports=hit.supports,
         )
 
     def _taxonomy_matches(self, store: FtsStore, id: str, prefix: str, *, kind: Kind) -> bool:
@@ -210,6 +222,39 @@ class BM25Retriever:
                 return field_name
         return fields[0]
 
+    def _claim_fields(self, store: FtsStore, cid: str) -> tuple[str, str]:
+        """Return (statement, snippet) for *cid*.
+
+        Used by the injection path so the agent sees the full atomic claim
+        statement AND a short evidence snippet — the abstract alone often
+        reads as a 1-line paraphrase without the precise assertion.
+        """
+        row = store.conn.execute(
+            "SELECT statement, abstract, body FROM claim_fts WHERE claim_id = ?",
+            (cid,),
+        ).fetchone()
+        if not row:
+            return "", ""
+        statement = " ".join((row[0] or "").split()).strip()
+        snippet = _best_snippet(row[1], row[2], fallback=row[0] or "")
+        return statement, snippet
+
+    def _claim_supports(self, cid: str) -> list[str]:
+        """Return the source ids the claim `supports:` — from the property graph.
+
+        The FTS index doesn't carry edge metadata; the property-graph DuckDB
+        does. When the file is absent (fresh install, tests) we return empty.
+        """
+        if not self.cfg.duckdb_path.exists():
+            return []
+        from second_brain.store.duckdb_store import DuckStore  # noqa: PLC0415
+        with DuckStore.open(self.cfg.duckdb_path) as store:
+            rows = store.conn.execute(
+                "SELECT dst_id FROM edges WHERE src_id = ? AND relation = 'supports'",
+                [cid],
+            ).fetchall()
+        return [str(r[0]) for r in rows]
+
     def _snippet_for(self, store: FtsStore, id: str, *, kind: Kind) -> str:
         if kind == "source":
             row = store.conn.execute(
@@ -249,6 +294,8 @@ class BM25Retriever:
             snippet=hit.snippet,
             neighbors=ids,
             source_id=hit.source_id,
+            statement=hit.statement,
+            supports=hit.supports,
             chunk_id=hit.chunk_id,
             section_title=hit.section_title,
             source_title=hit.source_title,

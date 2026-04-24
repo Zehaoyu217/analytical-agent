@@ -21,8 +21,10 @@ Handler coverage (matches the 8 action types emitted by the 5 passes):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, date as date_t
@@ -84,7 +86,10 @@ class DigestApplier:
     # ---- dispatch ---------------------------------------------------------
 
     def _dispatch(self, action: dict[str, Any]) -> None:
-        name = action.get("action")
+        # Two historical field names for the handler key: legacy digest passes
+        # used ``action``, the Gardener uses ``type``. Accept either so both
+        # producers flow through the same acceptance path.
+        name = action.get("type") or action.get("action")
         handler = _HANDLERS.get(name or "")
         if handler is None:
             raise ValueError(f"unknown digest action: {name!r}")
@@ -231,11 +236,81 @@ def _handle_drop_edge(cfg: Config, action: dict[str, Any]) -> None:
     dump_document(path, fm, body)
 
 
+_SLUG_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _slug_from_statement(statement: str, *, max_len: int = 80) -> str:
+    """Return a URL/filename-safe slug derived from the claim statement.
+
+    Stable within the limits: same input → same output. Collisions are
+    resolved by the caller appending a short hash.
+    """
+    words = _SLUG_SPLIT_RE.split(statement.lower())
+    joined = "-".join(w for w in words if w)
+    return joined[:max_len].strip("-") or "claim"
+
+
+def _handle_promote_claim(cfg: Config, action: dict[str, Any]) -> None:
+    """Create a new claim file from a Gardener ``promote_claim`` proposal.
+
+    Gardener's extract pass emits actions with shape::
+
+        {"type": "promote_claim", "source_id": str, "kind": str,
+         "statement": str, "confidence": str, "evidence": str}
+
+    We slugify the statement to build a stable id, write a full
+    ClaimFrontmatter, and leave the body as the evidence quote when
+    present so the source text is recoverable at retrieval time.
+    """
+    statement = str(action.get("statement") or "").strip()
+    if not statement:
+        raise ValueError("promote_claim: empty statement")
+
+    source_id = str(action.get("source_id") or "").strip()
+    kind = str(action.get("kind") or "empirical").strip() or "empirical"
+    confidence = str(action.get("confidence") or "medium").strip() or "medium"
+    evidence = str(action.get("evidence") or "").strip()
+
+    slug = _slug_from_statement(statement)
+    claim_id = f"clm_{slug}"
+    dst = cfg.claims_dir / f"{slug}.md"
+    # Collision-safe: append a short hash if a different claim already holds
+    # this slug. Hash the statement so re-running the same proposal no-ops.
+    if dst.exists():
+        existing_fm, _ = load_document(dst)
+        if existing_fm.get("statement", "").strip() == statement:
+            return  # idempotent — same claim already materialized
+        suffix = hashlib.md5(statement.encode("utf-8")).hexdigest()[:6]
+        slug = f"{slug[:70]}-{suffix}"
+        claim_id = f"clm_{slug}"
+        dst = cfg.claims_dir / f"{slug}.md"
+
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fm: dict[str, Any] = {
+        "id": claim_id,
+        "statement": statement,
+        "kind": kind,
+        "confidence": confidence,
+        "scope": "",
+        "supports": [source_id] if source_id else [],
+        "contradicts": [],
+        "refines": [],
+        "extracted_at": now,
+        "status": "active",
+        "resolution": None,
+        "abstract": statement,
+    }
+    body = evidence or ""
+    cfg.claims_dir.mkdir(parents=True, exist_ok=True)
+    dump_document(dst, fm, body)
+
+
 _HANDLERS: dict[str, Any] = {
     "upgrade_confidence": _handle_upgrade_confidence,
     "keep": _handle_keep,
     "resolve_contradiction": _handle_resolve_contradiction,
     "promote_wiki_to_claim": _handle_promote_wiki_to_claim,
+    "promote_claim": _handle_promote_claim,
     "backlink_claim_to_wiki": _handle_backlink_claim_to_wiki,
     "add_taxonomy_root": _handle_add_taxonomy_root,
     "re_abstract_batch": _handle_re_abstract_batch,
