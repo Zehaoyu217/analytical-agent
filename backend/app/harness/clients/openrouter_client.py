@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -16,6 +17,10 @@ from app.harness.config import ModelProfile
 logger = logging.getLogger(__name__)
 
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+# Transient upstream errors. 502/503/504 = OpenRouter couldn't reach the
+# upstream provider. 520s are Cloudflare-style "upstream handshake" errors.
+_TRANSIENT_STATUSES = frozenset({502, 503, 504, 520, 521, 522, 523, 524})
+_TRANSIENT_RETRY_DELAY_S = 1.5
 
 
 class OpenRouterClient:
@@ -133,6 +138,27 @@ class OpenRouterClient:
                 model=self.profile.model_id,
                 detail=resp.text[:500],
             )
+        # Transient upstream failure: OpenRouter couldn't reach the provider
+        # (e.g. "no healthy upstream" 503). Retry once after a short delay —
+        # these usually recover within a second or two. If the second attempt
+        # also fails, raise RateLimitError so FallbackModelClient falls over
+        # to the next model in the chain (rather than crashing the turn).
+        if resp.status_code in _TRANSIENT_STATUSES:
+            logger.warning(
+                "openrouter %s upstream %s — retrying once after %.1fs",
+                self.profile.model_id, resp.status_code, _TRANSIENT_RETRY_DELAY_S,
+            )
+            time.sleep(_TRANSIENT_RETRY_DELAY_S)
+            resp = self._http.post(url, json=payload, headers=self._headers())
+            if resp.status_code in _TRANSIENT_STATUSES or resp.status_code == 429:
+                raise RateLimitError(
+                    provider="openrouter",
+                    model=self.profile.model_id,
+                    detail=(
+                        f"HTTP {resp.status_code} after retry "
+                        f"(upstream unhealthy): {resp.text[:300]}"
+                    ),
+                )
         if resp.status_code != 200:
             raise RuntimeError(f"openrouter HTTP {resp.status_code}: {resp.text}")
         data = resp.json()
