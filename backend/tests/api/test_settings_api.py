@@ -18,9 +18,11 @@ def test_get_returns_defaults_on_cold_start(client: TestClient) -> None:
     r = client.get("/api/settings")
     assert r.status_code == 200
     body = r.json()
+    # Default model updated after Anthropic removal — OpenRouter GPT-OSS 120B
+    # is now the out-of-the-box route.
     assert body == {
         "theme": "system",
-        "model": "claude-sonnet-4-6",
+        "model": "openai/gpt-oss-120b:free",
         "send_on_enter": True,
     }
 

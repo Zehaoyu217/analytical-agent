@@ -90,6 +90,7 @@ _ENV_KEYS: tuple[str, ...] = (
     "SB_DIGEST_HOOK_ENABLED",
     "CCAGENT_HOME",
     "WIKI_ROOT",
+    "LLM_WIKI_DIR",
     "DATA_DIR",
     "CORS_ORIGINS",
     "CCAGENT_PROMPT_PATH",

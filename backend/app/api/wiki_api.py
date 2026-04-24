@@ -6,10 +6,13 @@ with strict path containment to prevent traversal.
 
 Root resolution (first match wins):
   1. ``$WIKI_ROOT`` env override (explicit)
-  2. ``SECOND_BRAIN_HOME`` when ``SECOND_BRAIN_ENABLED`` — surfaces the
-     user's KB (sources/, claims/, digests/, inbox/, log.md) on the
-     Knowledge page so they can actually see what's ingested
-  3. ``knowledge/wiki/`` repo-internal default (agent scratchpad)
+  2. ``$LLM_WIKI_DIR`` — a user-installed llm_wiki project directory.
+     When set, its Obsidian-style vault becomes the Knowledge page root
+     so the two-stage analyze→generate wiki (entities/, concepts/,
+     sources/ pages with ``[[wikilinks]]``) is what the user browses.
+  3. ``SECOND_BRAIN_HOME`` when ``SECOND_BRAIN_ENABLED`` — legacy SB KB
+     (sources/, claims/, digests/, log.md).
+  4. ``knowledge/wiki/`` repo-internal default (agent scratchpad).
 """
 from __future__ import annotations
 
@@ -24,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Query
 router = APIRouter(prefix="/api/wiki", tags=["wiki"])
 
 _WIKI_ROOT_ENV = "WIKI_ROOT"
+_LLM_WIKI_DIR_ENV = "LLM_WIKI_DIR"
 _DEFAULT_WIKI_ROOT = Path("knowledge/wiki")
 _PINNED = ("index.md", "working.md", "log.md")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]*)?\)")
@@ -34,8 +38,19 @@ def _wiki_root() -> Path:
     if override:
         return Path(override).resolve()
     # Late import — avoids a circular dependency at module load time and
-    # lets the feature flag change at runtime without a reimport.
+    # lets feature flags change at runtime without a reimport.
     from app import config as _app_config  # noqa: PLC0415
+
+    # llm_wiki sidecar wins over SB legacy when both are configured — the
+    # sidecar is the current extraction path; SB is read-mostly legacy.
+    llm_wiki = os.environ.get(_LLM_WIKI_DIR_ENV) or getattr(
+        _app_config.get_config(), "llm_wiki_dir", "",
+    )
+    if llm_wiki:
+        path = Path(llm_wiki).expanduser().resolve()
+        if path.exists():
+            return path
+
     if getattr(_app_config, "SECOND_BRAIN_ENABLED", False):
         return _app_config.SECOND_BRAIN_HOME.resolve()
     return _DEFAULT_WIKI_ROOT.resolve()

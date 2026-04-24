@@ -37,6 +37,14 @@ class AppConfig(BaseSettings):
     default_model: str = "openai/gpt-oss-120b:free"
     openrouter_api_key: str = ""
 
+    # llm_wiki sidecar integration. When the user installs llm_wiki
+    # (https://github.com/nashsu/llm_wiki) and points its project at this
+    # directory, our Knowledge-page file tree and retrieval layer both see
+    # the entities/, concepts/, sources/ markdown it emits. The desktop app
+    # owns the extraction (two-stage analyze→generate prompts); we just
+    # read the vault. Blank = feature disabled.
+    llm_wiki_dir: str = ""
+
     # Sandbox
     sandbox_timeout_seconds: int = 30
     sandbox_max_memory_mb: int = 2048
