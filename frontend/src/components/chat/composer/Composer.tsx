@@ -38,7 +38,7 @@ export function Composer({ conversationId }: ComposerProps) {
     return typeof conv?.frozenAt === 'number' && conv.frozenAt > 0
   })
   const { openHelp } = useCommandRegistry()
-  const { submit, stop, isSending, error } = useComposerSubmit(conversationId)
+  const { submit, stop, isSending } = useComposerSubmit(conversationId)
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -234,11 +234,6 @@ export function Composer({ conversationId }: ComposerProps) {
             </button>
           )}
         </div>
-        {error && (
-          <div className="mt-2 text-[12px]" style={{ color: 'var(--err)' }}>
-            {error}
-          </div>
-        )}
       </div>
     </div>
   )
